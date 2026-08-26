@@ -1,4 +1,5 @@
 import asyncio
+import json
 from pathlib import Path
 from typing import Any
 
@@ -214,6 +215,50 @@ def test_codex_rejects_incomplete_or_invalid_results(result: FakeResult, message
     asyncio.run(scenario())
 
 
+def test_codex_retries_once_with_validation_feedback() -> None:
+    invalid_response = json.dumps(
+        {
+            "current_situation": "the product page needs verification",
+            "hypothesis": "a probe will verify recovery",
+            "remaining_steps": ["probe the product page"],
+            "task_completed": False,
+            "action": {
+                "kind": "probe_page",
+                "page": "product_page",
+                "product_id": None,
+            },
+        }
+    )
+
+    class SequencedCodex(FakeCodex):
+        def __init__(self) -> None:
+            super().__init__(FakeResult(final_response=invalid_response))
+            self.results = [
+                FakeResult(final_response=invalid_response),
+                FakeResult(final_response=_valid_response()),
+            ]
+
+        async def thread_start(self, **kwargs: Any) -> FakeThread:
+            self.thread_start_calls.append(kwargs)
+            thread = FakeThread(self.results[len(self.threads)])
+            self.threads.append(thread)
+            return thread
+
+    async def scenario() -> None:
+        fake = SequencedCodex()
+        model = CodexSGRModel(client=fake)
+
+        decision = await model.decide(_context())
+
+        assert decision.action.kind == "get_overview"
+        assert len(fake.threads) == 2
+        retry_prompt = fake.threads[1].run_calls[0][0]
+        assert "previous response failed application validation" in retry_prompt.lower()
+        assert "product_id is required" in retry_prompt
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize(
     "event_type",
     ["commandExecution", "fileChange", "mcpToolCall", "webSearch", "imageView"],
@@ -238,6 +283,25 @@ def test_codex_request_failure_directs_operator_to_local_login() -> None:
         model = CodexSGRModel(client=UnauthenticatedCodex())
         with pytest.raises(CodexDecisionError, match=r"run `codex login`"):
             await model.decide(_context())
+
+    asyncio.run(scenario())
+
+
+def test_codex_post_auth_failure_does_not_blame_local_login() -> None:
+    class FailingThreadCodex(FakeCodex):
+        async def thread_start(self, **kwargs: Any) -> FakeThread:
+            raise RuntimeError("runtime transport failed")
+
+    async def scenario() -> None:
+        model = CodexSGRModel(
+            client=FailingThreadCodex(FakeResult(final_response=_valid_response()))
+        )
+        with pytest.raises(CodexDecisionError) as captured:
+            await model.decide(_context())
+
+        message = str(captured.value)
+        assert "after ChatGPT subscription authentication" in message
+        assert "codex login" not in message
 
     asyncio.run(scenario())
 

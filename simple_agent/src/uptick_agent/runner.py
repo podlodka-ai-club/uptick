@@ -1,15 +1,23 @@
 from __future__ import annotations
 
+from collections import deque
 from datetime import UTC, datetime
 from time import monotonic
 from uuid import uuid4
 
 from uptick_agent.models import (
+    AgentAction,
     AgentConfig,
+    ApplyFix,
     DecisionContext,
+    GetOperation,
     MemoryEntry,
     MemoryQuery,
+    RecentStep,
     RunResult,
+    RunState,
+    ScaleBackend,
+    StartDeployment,
     StepRecord,
     ToolResult,
 )
@@ -22,6 +30,34 @@ def _memory_text(result: ToolResult, *, limit: int = 6_000) -> str:
     if len(payload) <= limit:
         return payload
     return payload[:limit] + f"\n...[{len(payload) - limit} characters omitted]"
+
+
+def _record_run_state(run_state: RunState, action: AgentAction, result: ToolResult) -> None:
+    if not result.ok:
+        return
+
+    if isinstance(action, ApplyFix) and result.data.get("applied") is True:
+        if action.message not in run_state.applied_fix_messages:
+            run_state.applied_fix_messages.append(action.message)
+        return
+
+    operation_id = result.data.get("operation_id")
+    if isinstance(action, ScaleBackend) and isinstance(operation_id, str):
+        run_state.desired_backend_instances = action.desired_instances
+        run_state.operation_statuses[operation_id] = "accepted"
+        return
+
+    if isinstance(action, StartDeployment) and isinstance(operation_id, str):
+        if action.deployment_id not in run_state.started_deployment_ids:
+            run_state.started_deployment_ids.append(action.deployment_id)
+        run_state.operation_statuses[operation_id] = "accepted"
+        return
+
+    if isinstance(action, GetOperation):
+        status = result.data.get("status")
+        resolved_operation_id = result.data.get("operation_id", action.operation_id)
+        if isinstance(resolved_operation_id, str) and isinstance(status, str):
+            run_state.operation_statuses[resolved_operation_id] = status
 
 
 class AgentRunner:
@@ -53,6 +89,8 @@ class AgentRunner:
 
         stop_reason = "maximum step limit reached"
         completed_steps = 0
+        recent_steps: deque[RecentStep] = deque(maxlen=6)
+        run_state = RunState()
         for iteration in range(1, self.config.max_steps + 1):
             memories = await self.memory.recall(
                 MemoryQuery(
@@ -70,6 +108,8 @@ class AgentRunner:
                 max_steps=self.config.max_steps,
                 latest_result=latest,
                 recalled_memories=memories,
+                recent_steps=list(recent_steps),
+                run_state=run_state.model_copy(deep=True),
             )
             step_started = monotonic()
             decision = await self.model.decide(context)
@@ -92,6 +132,17 @@ class AgentRunner:
                 metadata={"iteration": iteration, "decision": decision.model_dump(mode="json")},
             )
             await self.observer.on_step(record)
+            _record_run_state(run_state, decision.action, result)
+            recent_steps.append(
+                RecentStep(
+                    iteration=iteration,
+                    action=decision.action,
+                    result_action_kind=result.action_kind,
+                    result_ok=result.ok,
+                    result_summary=result.summary[:2_000],
+                    result_terminal=result.terminal,
+                )
+            )
             latest = result
             if result.terminal:
                 stop_reason = result.summary

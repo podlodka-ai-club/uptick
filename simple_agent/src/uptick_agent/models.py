@@ -156,6 +156,22 @@ class MemoryMatch(StrictModel):
     score: float
 
 
+class RecentStep(StrictModel):
+    iteration: int = Field(ge=1)
+    action: AgentAction
+    result_action_kind: str
+    result_ok: bool
+    result_summary: str
+    result_terminal: bool
+
+
+class RunState(StrictModel):
+    applied_fix_messages: list[str] = Field(default_factory=list)
+    started_deployment_ids: list[str] = Field(default_factory=list)
+    operation_statuses: dict[str, str] = Field(default_factory=dict)
+    desired_backend_instances: int | None = Field(default=None, ge=0, le=1000)
+
+
 class DecisionContext(StrictModel):
     objective: str
     run_id: str
@@ -164,6 +180,8 @@ class DecisionContext(StrictModel):
     max_steps: int
     latest_result: ToolResult
     recalled_memories: list[MemoryMatch] = Field(default_factory=list)
+    recent_steps: list[RecentStep] = Field(default_factory=list, max_length=6)
+    run_state: RunState = Field(default_factory=RunState)
 
 
 class StepRecord(StrictModel):

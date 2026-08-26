@@ -60,6 +60,7 @@ _FORBIDDEN_TOOL_EVENT_TYPES = frozenset(
         "subAgentActivity",
     }
 )
+_MAX_DECISION_ATTEMPTS = 2
 
 
 def _normalize_output_schema(value: Any) -> Any:
@@ -150,36 +151,53 @@ class CodexSGRModel:
     async def decide(self, context: DecisionContext) -> NextStep:
         try:
             await self._require_chatgpt_subscription()
-            thread = await self.client.thread_start(**self._thread_start_kwargs())
-            result = await thread.run(
-                self._decision_prompt(context),
-                **self._run_kwargs(),
-            )
         except CodexDecisionError:
             raise
         except Exception as error:
             raise CodexDecisionError(
-                "Codex decision request failed. This provider uses the existing ChatGPT/Codex "
-                "subscription session; run `codex login` on your trusted local machine before "
-                "using --decision-provider codex."
+                "Could not verify the ChatGPT/Codex subscription session; run `codex login` "
+                "on your trusted local machine before using --decision-provider codex."
             ) from error
 
-        self._reject_tool_events(result)
-        status = self._status_value(getattr(result, "status", None))
-        if status != "completed":
-            raise CodexDecisionError(f"Codex turn did not complete (status={status!r}).")
-
-        final_response = getattr(result, "final_response", None)
-        if not isinstance(final_response, str) or not final_response.strip():
-            raise CodexDecisionError("Codex turn completed without a final schema response.")
-
+        validation_feedback: str | None = None
         try:
-            return NextStep.model_validate_json(final_response)
-        except (TypeError, ValueError, ValidationError) as error:
+            for attempt in range(_MAX_DECISION_ATTEMPTS):
+                thread = await self.client.thread_start(**self._thread_start_kwargs())
+                result = await thread.run(
+                    self._decision_prompt(context, validation_feedback=validation_feedback),
+                    **self._run_kwargs(),
+                )
+
+                self._reject_tool_events(result)
+                status = self._status_value(getattr(result, "status", None))
+                if status != "completed":
+                    raise CodexDecisionError(f"Codex turn did not complete (status={status!r}).")
+
+                final_response = getattr(result, "final_response", None)
+                if not isinstance(final_response, str) or not final_response.strip():
+                    raise CodexDecisionError(
+                        "Codex turn completed without a final schema response."
+                    )
+
+                try:
+                    return NextStep.model_validate_json(final_response)
+                except (TypeError, ValueError, ValidationError) as error:
+                    if attempt + 1 < _MAX_DECISION_ATTEMPTS:
+                        validation_feedback = str(error)[:2_000]
+                        continue
+                    raise CodexDecisionError(
+                        "Codex returned an invalid NextStep schema response after one retry; "
+                        "no simulator action was executed."
+                    ) from error
+        except CodexDecisionError:
+            raise
+        except Exception as error:
             raise CodexDecisionError(
-                "Codex returned an invalid NextStep schema response; "
-                "no simulator action was executed."
+                "Codex decision request failed after ChatGPT subscription authentication; "
+                "inspect the chained runtime error."
             ) from error
+
+        raise AssertionError("Codex decision loop exhausted without returning or raising")
 
     async def aclose(self) -> None:
         if self._closed:
@@ -287,8 +305,18 @@ class CodexSGRModel:
         return str(getattr(status, "value", status))
 
     @staticmethod
-    def _decision_prompt(context: DecisionContext) -> str:
-        return (
+    def _decision_prompt(
+        context: DecisionContext,
+        *,
+        validation_feedback: str | None = None,
+    ) -> str:
+        prompt = (
             "Choose the next action from this runtime context. JSON follows:\n"
             + context.model_dump_json()
         )
+        if validation_feedback is not None:
+            prompt += (
+                "\n\nThe previous response failed application validation. Correct the decision "
+                "and return the full JSON object again. Validation error:\n" + validation_feedback
+            )
+        return prompt

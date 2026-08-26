@@ -33,6 +33,11 @@ class InMemoryMemory:
         query_tokens = _tokens(query.text)
         candidates: list[tuple[float, int, MemoryEntry]] = []
         total = max(len(self._entries), 1)
+        completed_run_ids = {
+            entry.run_id
+            for entry in self._entries
+            if entry.kind == "outcome" and entry.run_id is not None
+        }
 
         for index, entry in enumerate(self._entries):
             if query.kinds is not None and entry.kind not in query.kinds:
@@ -41,9 +46,14 @@ class InMemoryMemory:
                 continue
             if not query.include_other_runs and query.run_id != entry.run_id:
                 continue
+            is_other_concrete_run = entry.run_id is not None and entry.run_id != query.run_id
+            if is_other_concrete_run and entry.run_id not in completed_run_ids:
+                continue
 
             entry_tokens = _tokens(entry.content)
             overlap = len(query_tokens & entry_tokens)
+            if overlap == 0:
+                continue
             lexical = overlap / math.sqrt(max(len(query_tokens) * len(entry_tokens), 1))
             recency = (index + 1) / total
             same_run = 1.0 if query.run_id is not None and entry.run_id == query.run_id else 0.0
@@ -51,9 +61,16 @@ class InMemoryMemory:
             candidates.append((score, index, entry))
 
         candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
-        return [
-            MemoryMatch(entry=entry, score=score) for score, _, entry in candidates[: query.limit]
-        ]
+        matches: list[MemoryMatch] = []
+        seen_content: set[str] = set()
+        for score, _, entry in candidates:
+            if entry.content in seen_content:
+                continue
+            seen_content.add(entry.content)
+            matches.append(MemoryMatch(entry=entry, score=score))
+            if len(matches) == query.limit:
+                break
+        return matches
 
     async def clear(self, run_id: str | None = None) -> None:
         if run_id is None:
