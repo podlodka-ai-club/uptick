@@ -1,8 +1,7 @@
-.env
-.venv/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.ruff_cache/
-artifacts/
-memory.jsonl
+# Local development artefacts shared by independently packaged agents.
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+.DS_Store
