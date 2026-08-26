@@ -108,6 +108,33 @@ def _valid_response() -> str:
     ).model_dump_json()
 
 
+def _schema_nodes(value: Any):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _schema_nodes(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _schema_nodes(child)
+
+
+def test_codex_output_schema_uses_the_supported_strict_json_schema_subset() -> None:
+    model = CodexSGRModel(client=FakeCodex(FakeResult(final_response=_valid_response())))
+    schema = model._run_kwargs()["output_schema"]
+
+    for node in _schema_nodes(schema):
+        assert "default" not in node
+        assert "discriminator" not in node
+        assert "oneOf" not in node
+        assert "const" not in node
+        properties = node.get("properties")
+        if isinstance(properties, dict):
+            assert node.get("additionalProperties") is False
+            assert node.get("required") == list(properties)
+
+    assert "anyOf" in schema["properties"]["action"]
+
+
 def test_codex_decide_uses_a_fresh_ephemeral_read_only_thread_and_schema(tmp_path: Path) -> None:
     async def scenario() -> None:
         fake = FakeCodex(FakeResult(final_response=_valid_response()))
@@ -136,7 +163,8 @@ def test_codex_decide_uses_a_fresh_ephemeral_read_only_thread_and_schema(tmp_pat
             assert context.model_dump_json() in prompt
             assert run_kwargs["approval_mode"] is ApprovalMode.deny_all
             assert run_kwargs["sandbox"] is Sandbox.read_only
-            assert run_kwargs["output_schema"] == NextStep.model_json_schema()
+            assert run_kwargs["output_schema"]["title"] == "NextStep"
+            assert "anyOf" in run_kwargs["output_schema"]["properties"]["action"]
             assert run_kwargs["model"] == "test-codex-model"
             assert run_kwargs["cwd"] == str(workspace)
 

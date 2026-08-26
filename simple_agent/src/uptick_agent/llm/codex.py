@@ -62,6 +62,37 @@ _FORBIDDEN_TOOL_EVENT_TYPES = frozenset(
 )
 
 
+def _normalize_output_schema(value: Any) -> Any:
+    """Convert Pydantic JSON Schema to the subset accepted by Structured Outputs."""
+    if isinstance(value, list):
+        return [_normalize_output_schema(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+
+    normalized = {
+        key: _normalize_output_schema(child)
+        for key, child in value.items()
+        if key not in {"default", "discriminator"}
+    }
+    if "const" in normalized:
+        normalized["enum"] = [normalized.pop("const")]
+    if "oneOf" in normalized:
+        normalized["anyOf"] = normalized.pop("oneOf")
+
+    properties = normalized.get("properties")
+    if isinstance(properties, dict):
+        normalized["required"] = list(properties)
+        normalized["additionalProperties"] = False
+    return normalized
+
+
+def _next_step_output_schema() -> dict[str, Any]:
+    schema = _normalize_output_schema(NextStep.model_json_schema())
+    if not isinstance(schema, dict):  # pragma: no cover - Pydantic always returns an object
+        raise TypeError("NextStep JSON Schema must be an object")
+    return schema
+
+
 class CodexDecisionError(RuntimeError):
     """A Codex response was unsafe or could not be turned into a decision."""
 
@@ -205,7 +236,7 @@ class CodexSGRModel:
     def _run_kwargs(self) -> dict[str, Any]:
         kwargs: dict[str, Any] = {
             "approval_mode": ApprovalMode.deny_all,
-            "output_schema": NextStep.model_json_schema(),
+            "output_schema": _next_step_output_schema(),
             "sandbox": Sandbox.read_only,
         }
         if self.model is not None:
