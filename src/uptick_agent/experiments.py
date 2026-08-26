@@ -1,0 +1,46 @@
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable
+from statistics import fmean, median
+
+from uptick_agent.models import ExperimentResult
+from uptick_agent.runner import AgentRunner
+
+
+class ExperimentRunner:
+    """Runs comparable seeds; memory carry-over is always an explicit choice."""
+
+    def __init__(self, runner_factory: Callable[[], AgentRunner]) -> None:
+        self.runner_factory = runner_factory
+
+    async def run(
+        self,
+        *,
+        name: str,
+        seeds: Iterable[int],
+        carry_memory: bool = False,
+    ) -> ExperimentResult:
+        seed_list = list(seeds)
+        if not seed_list:
+            raise ValueError("at least one seed is required")
+        if 0 in seed_list:
+            raise ValueError("simulator seed 0 is invalid")
+
+        shared_runner = self.runner_factory() if carry_memory else None
+        runs = []
+        for seed in seed_list:
+            runner = shared_runner or self.runner_factory()
+            if not carry_memory:
+                await runner.memory.clear()
+            runs.append(await runner.run(seed))
+
+        balances = [run.balance_minor for run in runs]
+        return ExperimentResult(
+            name=name,
+            runs=runs,
+            mean_balance_minor=fmean(balances),
+            median_balance_minor=median(balances),
+            min_balance_minor=min(balances),
+            max_balance_minor=max(balances),
+            completed_runs=sum(run.status == "completed" for run in runs),
+        )
