@@ -77,3 +77,13 @@ def test_cli_validates_config_before_constructing_a_codex_model(monkeypatch) -> 
         asyncio.run(cli._main(args))
 
     assert created == []
+
+
+def test_cli_builds_trace_names_for_run_and_benchmark() -> None:
+    run_args = cli._parser().parse_args(["run", "--seed", "7"])
+    benchmark_args = cli._parser().parse_args(
+        ["benchmark", "--name", "memory-study", "--seeds", "1,2"]
+    )
+
+    assert cli._trace_name(run_args) == "seed-7"
+    assert cli._trace_name(benchmark_args) == "memory-study"

@@ -98,6 +98,12 @@ def _memory_factory(args) -> Callable[[], Memory]:
     return lambda: JsonlMemory(args.memory_file)
 
 
+def _trace_name(args: argparse.Namespace) -> str:
+    if args.command == "benchmark":
+        return args.name
+    return f"seed-{args.seed}"
+
+
 def _decision_model(args: argparse.Namespace) -> CloseableDecisionModel:
     if args.decision_provider == "openai":
         return OpenAISGRModel(
@@ -138,10 +144,9 @@ async def _main(args) -> int:
         memory_factory = _memory_factory(args)
 
         def make_runner() -> AgentRunner:
-            trace_name = getattr(args, "name", f"seed-{args.seed}")
             observer = CompositeObserver(
                 ConsoleObserver(),
-                JsonlObserver(args.artifacts / trace_name / "trace.jsonl"),
+                JsonlObserver(args.artifacts / _trace_name(args) / "trace.jsonl"),
             )
             return AgentRunner(
                 config=config,
