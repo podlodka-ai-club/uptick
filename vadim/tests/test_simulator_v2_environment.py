@@ -247,6 +247,8 @@ def test_logs_keep_pending_cursor_and_deduplicate_on_next_step() -> None:
         assert first.data["total_logs"] == 1
         assert len(first.data["logs"]) == 1
         assert first.data["logs"][0]["source_ip"] == "192.0.2.1"
+        assert "truncated" in first.summary
+        assert "unread logs remain" in first.summary
         assert session.logs_cursor == "cursor-1"
 
         second = await environment.execute(session, GetLogs(status=500))
@@ -256,6 +258,7 @@ def test_logs_keep_pending_cursor_and_deduplicate_on_next_step() -> None:
         for _ in range(4):
             second = await environment.execute(session, GetLogs(status=500))
         assert second.data["truncated"] is False
+        assert "complete page" in second.summary
         assert session.logs_cursor is None
         assert session.logs_from == datetime(2033, 3, 1, 0, 6, tzinfo=UTC)
         assert [kwargs["cursor"] for name, kwargs in client.calls if name == "logs"] == [

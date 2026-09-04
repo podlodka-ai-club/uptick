@@ -261,6 +261,38 @@ def test_tampered_active_lesson_fails_closed_on_retrieval() -> None:
     asyncio.run(scenario())
 
 
+def test_pre_1_1_manifest_fails_closed_until_revalidated() -> None:
+    async def scenario() -> None:
+        store, memory, _source, outcome = await _prepare_one_run()
+        await memory.finalize(outcome, idempotency_key="finalize")
+        record = await store.get(
+            namespace="lessons",
+            record_id="lesson-batch-" + hashlib.sha256(b"run-1").hexdigest(),
+        )
+        assert record is not None
+        payload = record.payload.copy()
+        manifest = payload["lessons"][0]["manifest"].copy()
+        del manifest["authority_service_ref"]
+        payload["lessons"][0] = payload["lessons"][0].copy()
+        payload["lessons"][0]["manifest"] = manifest
+        forged = StoredRecord.from_write(
+            RecordWrite(
+                namespace=record.namespace,
+                record_id=record.record_id,
+                record_type=record.record_type,
+                payload=payload,
+                created_at=record.created_at,
+            )
+        )
+        store._records[(record.namespace, record.record_id)] = forged
+        with pytest.raises(MemoryPermanentError, match="invalid"):
+            await memory.retrieve(
+                MemoryContextRequest(request_id="read", run_id="other", query="summary")
+            )
+
+    asyncio.run(scenario())
+
+
 def test_disabled_lessons_factory_does_not_validate_or_construct_source() -> None:
     class _PoisonStore:
         def __getattr__(self, name):

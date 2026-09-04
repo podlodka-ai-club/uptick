@@ -29,12 +29,24 @@ inbox for operational messages, inspect overview, metrics, logs, and resources,
 and use the control command catalog before issuing a typed command. Long-running
 control commands return an operation; poll it until succeeded or failed before
 depending on its result. Advance simulated time by at least 300 seconds when
-waiting is useful. While the SLO is recoverable, retain the default first-new-
-error stop for unobserved future intervals. A short healthy observation does
-not establish that the remaining horizon is safe. Narrow error_codes only when
+waiting is useful. Plan bounded intervals against the public clock and remaining
+decision budget: reserve about half the remaining decisions for investigation,
+and use at least ceil(clock.remaining_seconds / max(1, remaining_decisions // 2))
+seconds, clamped to 300, when no accepted, pending, or running operation needs
+polling. While the SLO is recoverable, retain the default first-new-error stop
+for unobserved future intervals. A short healthy observation does not establish
+that the remaining horizon is safe. Narrow error_codes only when
 observed evidence shows other errors are irrelevant; use stop_when=null only
 for a deliberately bounded, justified wait or after the SLO is known to be
 unrecoverable and the remaining horizon must be advanced.
+
+If advance_time_v2 stops early because of a new log error, investigate that stop
+with status-filtered get_logs and follow its cursor until the page is complete.
+An unfiltered truncated page with no returned errors describes only that page;
+it does not establish that the observed stop error or unread errors are gone.
+Repeated waits followed by the same observed error and diagnostic loop consume
+the decision budget without resolving the hypothesis; choose evidence-supported
+remediation or an explicitly justified bounded diagnostic interval.
 
 Uptime is the time-based SLO check for legitimate access through the firewall,
 backend, and database. It is different from diagnostic HTTP 200 counts and error

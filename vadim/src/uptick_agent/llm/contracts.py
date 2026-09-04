@@ -8,10 +8,13 @@ serialization, retries, and translating their SDK responses.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
 MessageRole = Literal["system", "user", "assistant"]
+ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+_REASONING_EFFORTS = frozenset({"none", "minimal", "low", "medium", "high", "xhigh"})
 
 
 class LlmError(RuntimeError):
@@ -68,12 +71,80 @@ class GenerationSettings:
 
     temperature: float | None = None
     max_output_tokens: int | None = None
+    reasoning_effort: ReasoningEffort | None = None
 
     def __post_init__(self) -> None:
         if self.temperature is not None and not 0 <= self.temperature <= 2:
             raise ValueError("temperature must be between 0 and 2")
         if self.max_output_tokens is not None and self.max_output_tokens < 1:
             raise ValueError("max_output_tokens must be positive")
+        if self.reasoning_effort is not None and (
+            not isinstance(self.reasoning_effort, str)
+            or self.reasoning_effort not in _REASONING_EFFORTS
+        ):
+            raise ValueError(
+                "reasoning_effort must be one of none, minimal, low, medium, high, xhigh"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class LlmCallTelemetry:
+    """Provider-neutral measurements for one logical generation call.
+
+    ``request_count`` and ``retry_count`` cover calls visible to this adapter.
+    A provider SDK's internal transport retries are not observable here.
+    """
+
+    elapsed_seconds: float
+    request_count: int
+    retry_count: int
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+    cached_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    cost_minor: int | None = None
+    cost_currency: str | None = None
+    usage_reported_requests: int = 0
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.elapsed_seconds) or self.elapsed_seconds < 0:
+            raise ValueError("elapsed_seconds must be finite and non-negative")
+        if (
+            isinstance(self.request_count, bool)
+            or not isinstance(self.request_count, int)
+            or self.request_count < 0
+            or isinstance(self.retry_count, bool)
+            or not isinstance(self.retry_count, int)
+            or self.retry_count < 0
+        ):
+            raise ValueError("request and retry counts must be non-negative")
+        if self.retry_count > self.request_count:
+            raise ValueError("retry_count cannot exceed request_count")
+        if (
+            isinstance(self.usage_reported_requests, bool)
+            or not isinstance(self.usage_reported_requests, int)
+            or self.usage_reported_requests < 0
+            or self.usage_reported_requests > self.request_count
+        ):
+            raise ValueError("usage_reported_requests must be between zero and request_count")
+        for name in (
+            "input_tokens",
+            "output_tokens",
+            "total_tokens",
+            "cached_tokens",
+            "reasoning_tokens",
+            "cost_minor",
+        ):
+            value = getattr(self, name)
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or value < 0
+            ):
+                raise ValueError(f"{name} must be a non-negative integer when reported")
+        if self.cost_currency is not None and self.cost_minor is None:
+            raise ValueError("cost_currency requires a reported cost")
+        if self.cost_minor is not None and self.cost_currency is None:
+            raise ValueError("reported cost requires a currency")
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,13 +184,13 @@ def serialize_structured_generation_request(
     response_model = request.response_model
     payload = {
         "messages": [
-            {"role": message.role, "content": message.content}
-            for message in request.messages
+            {"role": message.role, "content": message.content} for message in request.messages
         ],
         "model": request.model,
         "settings": {
             "temperature": request.settings.temperature,
             "max_output_tokens": request.settings.max_output_tokens,
+            "reasoning_effort": request.settings.reasoning_effort,
         },
         "response_model": {
             "module": response_model.__module__,
@@ -157,6 +228,7 @@ class StructuredGenerationResult[T]:
     value: T
     provider: str
     model: str | None
+    telemetry: LlmCallTelemetry | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +236,7 @@ class TextGenerationResult:
     text: str
     provider: str
     model: str | None
+    telemetry: LlmCallTelemetry | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +250,9 @@ class LlmClient(Protocol):
 
     @property
     def capabilities(self) -> LlmCapabilities: ...
+
+    @property
+    def last_telemetry(self) -> LlmCallTelemetry | None: ...
 
     async def generate_structured[T](
         self, request: StructuredGenerationRequest[T]

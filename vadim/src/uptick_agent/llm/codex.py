@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from time import monotonic
 from typing import Any
 
 from openai_codex import ApprovalMode, AsyncCodex, CodexConfig, Sandbox
@@ -12,6 +13,7 @@ from pydantic import ValidationError
 
 from uptick_agent.llm.contracts import (
     LlmAuthenticationError,
+    LlmCallTelemetry,
     LlmCapabilities,
     LlmConfigurationError,
     LlmMessage,
@@ -80,6 +82,100 @@ _FORBIDDEN_TOOL_EVENT_TYPES = frozenset(
 _MAX_DECISION_ATTEMPTS = 2
 
 
+def _field(value: Any, name: str) -> Any:
+    if isinstance(value, dict):
+        return value.get(name)
+    return getattr(value, name, None)
+
+
+def _reported_int(value: Any) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return None
+    return value
+
+
+def _codex_usage(result: Any) -> dict[str, int | None] | None:
+    usage = _field(result, "usage")
+    if usage is None:
+        return None
+    # Each retry uses a fresh thread. Its cumulative `total` is the correct
+    # per-thread measure; `last` is only a compatibility fallback.
+    breakdown = _field(usage, "total") or _field(usage, "last")
+    if breakdown is None:
+        return None
+    return {
+        "input_tokens": _reported_int(_field(breakdown, "input_tokens")),
+        "output_tokens": _reported_int(_field(breakdown, "output_tokens")),
+        "total_tokens": _reported_int(_field(breakdown, "total_tokens")),
+        "cached_tokens": _reported_int(_field(breakdown, "cached_input_tokens")),
+        "reasoning_tokens": _reported_int(_field(breakdown, "reasoning_output_tokens")),
+        # The Codex usage contract reports tokens, not a billable currency.
+        "cost_minor": None,
+    }
+
+
+class _UsageAccumulator:
+    _fields = (
+        "input_tokens",
+        "output_tokens",
+        "total_tokens",
+        "cached_tokens",
+        "reasoning_tokens",
+        "cost_minor",
+    )
+
+    def __init__(self) -> None:
+        self._values = {field: 0 for field in self._fields}
+        self._known = {field: True for field in self._fields}
+        self._seen = False
+        self._reported_requests = 0
+
+    def add(self, usage: dict[str, int | None] | None) -> None:
+        if usage is None:
+            return
+        self._seen = True
+        self._reported_requests += 1
+        for field in self._fields:
+            value = usage.get(field)
+            if value is None:
+                self._known[field] = False
+            elif self._known[field]:
+                self._values[field] += value
+
+    def values(self) -> dict[str, int | None] | None:
+        if not self._seen:
+            return None
+        return {
+            field: self._values[field] if self._known[field] else None for field in self._fields
+        }
+
+    @property
+    def reported_requests(self) -> int:
+        return self._reported_requests
+
+
+def _telemetry(
+    started: float,
+    *,
+    request_count: int,
+    retry_count: int,
+    usage: _UsageAccumulator,
+) -> LlmCallTelemetry:
+    values = usage.values() or {}
+    return LlmCallTelemetry(
+        elapsed_seconds=max(0.0, monotonic() - started),
+        request_count=request_count,
+        retry_count=retry_count,
+        usage_reported_requests=usage.reported_requests,
+        input_tokens=values.get("input_tokens"),
+        output_tokens=values.get("output_tokens"),
+        total_tokens=values.get("total_tokens"),
+        cached_tokens=values.get("cached_tokens"),
+        reasoning_tokens=values.get("reasoning_tokens"),
+        cost_minor=values.get("cost_minor"),
+    )
+
+
 class CodexDecisionError(LlmStructuredOutputError):
     """A Codex response was unsafe or could not be turned into a decision."""
 
@@ -107,6 +203,7 @@ class CodexLlmClient:
 
         self.model = model
         self.system_prompt = system_prompt
+        self._last_telemetry: LlmCallTelemetry | None = None
         self.developer_instructions = self._developer_instructions(())
         self._owns_client = client is None
         self._owns_workspace = client is None
@@ -142,36 +239,49 @@ class CodexLlmClient:
     def capabilities(self) -> LlmCapabilities:
         return LlmCapabilities(structured_generation=True, text_generation=False)
 
+    @property
+    def last_telemetry(self) -> LlmCallTelemetry | None:
+        return self._last_telemetry
+
     async def generate_structured[T](
         self, request: StructuredGenerationRequest[T]
     ) -> StructuredGenerationResult[T]:
-        if (
-            request.settings.temperature is not None
-            or request.settings.max_output_tokens is not None
-        ):
-            raise LlmUnsupportedCapabilityError(
-                "Codex decision-only provider does not support portable generation settings"
-            )
+        started = monotonic()
+        request_count = 0
+        retry_count = 0
+        usage = _UsageAccumulator()
+        completed = False
+        self._last_telemetry = None
         try:
-            await self._require_chatgpt_subscription()
-        except LlmAuthenticationError:
-            raise
-        except Exception as error:
-            raise LlmTransientError(
-                "Could not verify the ChatGPT/Codex subscription session; retry the request. "
-                "If it persists, run `codex login` on your trusted local machine."
-            ) from error
+            if (
+                request.settings.temperature is not None
+                or request.settings.max_output_tokens is not None
+            ):
+                raise LlmUnsupportedCapabilityError(
+                    "Codex decision-only provider does not support portable generation settings"
+                )
+            try:
+                await self._require_chatgpt_subscription()
+            except LlmAuthenticationError:
+                raise
+            except Exception as error:
+                raise LlmTransientError(
+                    "Could not verify the ChatGPT/Codex subscription session; retry the request. "
+                    "If it persists, run `codex login` on your trusted local machine."
+                ) from error
 
-        validation_feedback: str | None = None
-        try:
+            validation_feedback: str | None = None
             for attempt in range(_MAX_DECISION_ATTEMPTS):
+                retry_count = attempt
                 thread = await self._client.thread_start(**self._thread_start_kwargs(request))
+                request_count += 1
                 result = await thread.run(
                     self._structured_prompt(
                         request.messages, validation_feedback=validation_feedback
                     ),
                     **self._run_kwargs(request),
                 )
+                usage.add(_codex_usage(result))
 
                 self._reject_tool_events(result)
                 status = self._status_value(getattr(result, "status", None))
@@ -186,10 +296,19 @@ class CodexLlmClient:
 
                 try:
                     value = validate_structured_json(request.response_model, final_response)
+                    telemetry = _telemetry(
+                        started,
+                        request_count=request_count,
+                        retry_count=retry_count,
+                        usage=usage,
+                    )
+                    self._last_telemetry = telemetry
+                    completed = True
                     return StructuredGenerationResult(
                         value=value,
                         provider="codex",
                         model=request.model or self.model,
+                        telemetry=telemetry,
                     )
                 except (LlmStructuredOutputError, TypeError, ValueError, ValidationError) as error:
                     if attempt + 1 < _MAX_DECISION_ATTEMPTS:
@@ -199,20 +318,35 @@ class CodexLlmClient:
                         f"Codex returned an invalid {request.response_model.__name__} schema "
                         "response after one retry; no simulator action was executed."
                     ) from error
-        except CodexDecisionError:
-            raise
-        except (LlmAuthenticationError, LlmTransientError):
+            raise AssertionError("Codex decision loop exhausted without returning or raising")
+        except (
+            CodexDecisionError,
+            LlmAuthenticationError,
+            LlmTransientError,
+            LlmUnsupportedCapabilityError,
+        ):
             raise
         except Exception as error:
             raise LlmTransientError(
                 "Codex decision request failed after ChatGPT subscription authentication; "
                 "inspect the chained runtime error."
             ) from error
-
-        raise AssertionError("Codex decision loop exhausted without returning or raising")
+        finally:
+            if not completed:
+                self._last_telemetry = _telemetry(
+                    started,
+                    request_count=request_count,
+                    retry_count=retry_count,
+                    usage=usage,
+                )
 
     async def generate_text(self, request: TextGenerationRequest) -> TextGenerationResult:
         del request
+        self._last_telemetry = LlmCallTelemetry(
+            elapsed_seconds=0.0,
+            request_count=0,
+            retry_count=0,
+        )
         raise LlmUnsupportedCapabilityError(
             "Codex decision-only provider does not support text generation"
         )
@@ -289,6 +423,9 @@ class CodexLlmClient:
         model = request.model if request is not None else self.model
         if model is not None:
             kwargs["model"] = model
+        reasoning_effort = request.settings.reasoning_effort if request is not None else None
+        if reasoning_effort is not None:
+            kwargs["effort"] = reasoning_effort
         if self._workspace_dir is not None:
             kwargs["cwd"] = str(self._workspace_dir)
         return kwargs

@@ -23,6 +23,8 @@ from uptick_agent.memory.contracts import (
 )
 from uptick_agent.memory.lesson_contracts import (
     LESSON_QUERY_CONTRACT,
+    LESSON_RETENTION_POLICY,
+    LESSON_VALIDATION_AUTHORITY,
     LESSON_VALIDATION_POLICY,
     LessonCandidate,
     LessonEvidence,
@@ -98,9 +100,7 @@ def _validate_transition_record(record: StoredRecord) -> ExperienceTransition:
 
     # Stage 6 closes provenance against the assembler's exact inline payloads.
     expected = _expected_leaf_refs(transition)
-    actual = {
-        ref.artefact_id: (ref.content_hash, ref.relation) for ref in transition.provenance
-    }
+    actual = {ref.artefact_id: (ref.content_hash, ref.relation) for ref in transition.provenance}
     if len(actual) != len(transition.provenance) or actual != expected:
         raise _invalid("transition provenance is incomplete or does not close to assembler leaves")
 
@@ -349,9 +349,7 @@ def _transition_matches(
         return None
     if any(key not in transition.observation for key in settings.condition_keys):
         return None
-    observed_conditions = {
-        key: transition.observation[key] for key in settings.condition_keys
-    }
+    observed_conditions = {key: transition.observation[key] for key in settings.condition_keys}
     if canonical_json(observed_conditions) != canonical_json(candidate.conditions):
         return None
     delta = _transition_metric_delta(
@@ -381,9 +379,7 @@ def _supporting(
     )
 
 
-def extract_candidates(
-    evidence: LessonEvidence, settings: LessonSettings
-) -> list[LessonCandidate]:
+def extract_candidates(evidence: LessonEvidence, settings: LessonSettings) -> list[LessonCandidate]:
     """Extract semantic exact-match candidates in deterministic ID order."""
 
     owned_evidence = validate_evidence(evidence)
@@ -462,9 +458,7 @@ def _context_data(
         context_ids,
         tuple(by_context[item_id][0] for item_id in context_ids),
         _unique_sorted(value[1] for value in by_context.values()),
-        _unique_sorted(
-            declaration.scenario_content_hash for declaration in declarations
-        ),
+        _unique_sorted(declaration.scenario_content_hash for declaration in declarations),
     )
 
 
@@ -563,14 +557,31 @@ def validate_candidate(
         or (owned_candidate.polarity == "negative" and signed > 0)
         for _, signed in counter
     )
+    support_passed = len(support_logical_run_ids) >= 2
+    context_diversity_passed = len(set(support_context_hashes)) >= 2
+    grounding_passed = bool(searched)
+    polarity_passed = bool(searched) and any(
+        (signed > 0 if owned_candidate.polarity == "positive" else signed < 0)
+        for _, signed in support
+    )
+    provenance_closed = bool(searched)
+    counter_search_complete = True
+    checks = {
+        "grounding": grounding_passed,
+        "polarity": polarity_passed,
+        "provenance": provenance_closed,
+        "counter_search": counter_search_complete,
+        "no_omitted_counter_evidence": True,
+        "support": support_passed,
+        "context_diversity": context_diversity_passed,
+        "no_unresolved_contradictions": contradiction_count == 0,
+    }
     all_source_refs: dict[str, ProvenanceRef] = {}
     for transition in transitions.values():
         for ref in transition.provenance:
             all_source_refs[ref.artefact_id] = ref
     source_leaf_ids = tuple(sorted(all_source_refs))
-    source_leaf_hashes = tuple(
-        all_source_refs[item_id].content_hash for item_id in source_leaf_ids
-    )
+    source_leaf_hashes = tuple(all_source_refs[item_id].content_hash for item_id in source_leaf_ids)
     lesson_source_refs: dict[str, ProvenanceRef] = {}
     for item_id, _ in searched:
         for ref in transitions[item_id].provenance:
@@ -624,23 +635,30 @@ def validate_candidate(
         support_logical_run_ids=support_logical_run_ids,
         support_context_ids=support_context_ids,
         support_context_hashes=support_context_hashes,
-        grounding_passed=bool(searched),
-        polarity_passed=bool(searched) and any(
-            (signed > 0 if owned_candidate.polarity == "positive" else signed < 0)
-            for _, signed in support
-        ),
-        provenance_closed=bool(searched),
-        counter_search_complete=True,
+        grounding_passed=grounding_passed,
+        polarity_passed=polarity_passed,
+        provenance_closed=provenance_closed,
+        counter_search_complete=counter_search_complete,
+        omitted_counter_evidence_count=0,
+        support_passed=support_passed,
+        context_diversity_passed=context_diversity_passed,
         support_count=len(support_logical_run_ids),
         context_count=len(set(support_context_hashes)),
         counter_count=len(counter_ids),
         unresolved_contradiction_count=contradiction_count,
+        checks=checks,
+        authority_service_ref=LESSON_VALIDATION_AUTHORITY,
+        decision_record_ref=(
+            f"lesson-validation:{owned_candidate.semantic_hash}:"
+            f"{snapshot_input_hash(owned_evidence)}"
+        ),
+        decision_record_timestamp=owned_evidence.snapshot.created_at.astimezone(UTC),
+        retention_policy_ref=LESSON_RETENTION_POLICY,
         disposition=(
             "disputed"
             if contradiction_count
             else "active"
-            if len(support_logical_run_ids) >= 2
-            and len(set(support_context_hashes)) >= 2
+            if len(support_logical_run_ids) >= 2 and len(set(support_context_hashes)) >= 2
             else "candidate"
         ),
     )

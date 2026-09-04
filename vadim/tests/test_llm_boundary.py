@@ -230,7 +230,11 @@ def test_structured_request_serialization_is_json_safe_and_deterministic() -> No
         {"role": "user", "content": "user evidence"},
     ]
     assert first["model"] == "requested-model"
-    assert first["settings"] == {"temperature": 0, "max_output_tokens": 123}
+    assert first["settings"] == {
+        "temperature": 0,
+        "max_output_tokens": 123,
+        "reasoning_effort": None,
+    }
     assert first["response_model"] == {
         "module": NextStep.__module__,
         "qualname": NextStep.__qualname__,

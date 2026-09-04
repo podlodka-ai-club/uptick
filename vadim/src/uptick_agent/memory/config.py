@@ -8,8 +8,12 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from uptick_agent.memory.consolidation import ConsolidationSettings
 from uptick_agent.memory.contracts import ContractModel
 from uptick_agent.memory.lesson_contracts import LessonSettings
+from uptick_agent.memory.patterns import PatternQuerySettings
+from uptick_agent.memory.playbooks import PlaybookQuerySettings
+from uptick_agent.memory.tool_knowledge import ToolKnowledgeQuerySettings
 
 _AUDIT_RETENTION_POLICY_ID = "simulator-audit-retention-v1"
 _AUDIT_RETENTION_POLICY_VERSION = "1.0"
@@ -41,10 +45,31 @@ class ModuleConfig(ContractModel):
         return self
 
 
+class AdvancedRetrievalConfig(ContractModel):
+    """Resolved knobs for the replaceable deterministic retrieval strategy."""
+
+    enabled: bool = False
+    lexical_weight: float = Field(default=1.0, ge=0, allow_inf_nan=False)
+    diversity_path: str | None = "item.hypothesis.action_kind"
+    diversity_penalty: float = Field(default=0.1, ge=0, allow_inf_nan=False)
+    max_per_diversity_key: int | None = Field(default=2, ge=1)
+    deduplicate: bool = True
+    max_items: int | None = Field(default=None, ge=0)
+    max_estimated_tokens: int | None = Field(default=None, ge=0)
+
+
 class RetrievalConfig(ContractModel):
     lexical: bool = True
     structured: bool = False
     semantic: bool = False
+    advanced: AdvancedRetrievalConfig = Field(default_factory=AdvancedRetrievalConfig)
+
+
+class ForgettingSettings(ContractModel):
+    """Operational age-decay declaration; source evidence remains retained."""
+
+    decay_days: float = Field(default=30.0, gt=0, allow_inf_nan=False)
+    apply_decay: bool = False
 
 
 class ContextBudgetConfig(ContractModel):
@@ -73,9 +98,7 @@ class AuditRetentionConfiguration(ContractModel):
     )
     raw_content_and_snapshot_days: int = Field(default=90, ge=90)
     summaries: Literal["project_lifetime"] = "project_lifetime"
-    validation_promotion_approval_rollback_records: Literal["project_lifetime"] = (
-        "project_lifetime"
-    )
+    validation_promotion_approval_rollback_records: Literal["project_lifetime"] = "project_lifetime"
 
     @property
     def reference(self) -> str:
@@ -171,10 +194,15 @@ class MemoryConfiguration(ContractModel):
     lessons: ModuleConfig = Field(default_factory=ModuleConfig)
     lesson_settings: LessonSettings | None = None
     world_model: ModuleConfig = Field(default_factory=ModuleConfig)
+    world_query_settings: PatternQuerySettings | None = None
     playbooks: ModuleConfig = Field(default_factory=ModuleConfig)
+    playbook_query_settings: PlaybookQuerySettings | None = None
     tool_knowledge: ModuleConfig = Field(default_factory=ModuleConfig)
+    tool_knowledge_query_settings: ToolKnowledgeQuerySettings | None = None
     consolidation: ModuleConfig = Field(default_factory=ModuleConfig)
+    consolidation_settings: ConsolidationSettings | None = None
     forgetting: ModuleConfig = Field(default_factory=ModuleConfig)
+    forgetting_settings: ForgettingSettings = Field(default_factory=ForgettingSettings)
     context_budget: ContextBudgetConfig = Field(default_factory=ContextBudgetConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     audit: AuditConfiguration = Field(default_factory=AuditConfiguration)
@@ -223,15 +251,11 @@ class MemoryConfiguration(ContractModel):
         return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
 
     @classmethod
-    def legacy_baseline(
-        cls, *, audit: AuditConfiguration | None = None
-    ) -> MemoryConfiguration:
+    def legacy_baseline(cls, *, audit: AuditConfiguration | None = None) -> MemoryConfiguration:
         return cls(audit=audit or AuditConfiguration())
 
     @classmethod
-    def episodic_only(
-        cls, *, audit: AuditConfiguration | None = None
-    ) -> MemoryConfiguration:
+    def episodic_only(cls, *, audit: AuditConfiguration | None = None) -> MemoryConfiguration:
         """Experimental Stage 4 profile; callers own its store and namespace."""
 
         return cls(

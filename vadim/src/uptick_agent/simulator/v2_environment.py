@@ -614,9 +614,19 @@ class SimulatorV2Environment:
             "logs": collected,
             "truncated": cursor is not None,
         }
+        if cursor is None:
+            summary = (
+                f"Read {len(collected)} new logs from a complete page; "
+                f"errors={error_counts or 'none'}."
+            )
+        else:
+            summary = (
+                f"Read {len(collected)} new logs from the returned page; "
+                f"errors={error_counts or 'none'}; page is truncated and unread logs remain."
+            )
         return ToolResult(
             action_kind=action.kind,
-            summary=f"Read {len(collected)} new logs; errors={error_counts or 'none'}.",
+            summary=summary,
             data=_safe(data),
             terminal=bool(latest_clock and _clock_terminal({"clock": latest_clock})),
         )

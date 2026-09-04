@@ -8,7 +8,9 @@ only configured modules and applies the stable contracts at their edges.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
+from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -42,6 +44,8 @@ from uptick_agent.memory.contracts import (
     RunFinalizer,
     RunOutcome,
 )
+from uptick_agent.memory.retrieval import RetrievalStrategy
+from uptick_agent.memory.stores.contracts import canonical_json
 
 _DEFAULT_ESTIMATOR_ID = "utf8-byte-upper-bound"
 _DEFAULT_ESTIMATOR_VERSION = "1.0"
@@ -57,11 +61,17 @@ def _estimate_utf8_bytes(item: ContextItem) -> int:
 
 @dataclass(frozen=True)
 class MemoryModuleRegistration:
-    """A composition-root registration; factories are never module imports."""
+    """A composition-root registration; factories are never module imports.
+
+    Retrieval is an optional read-side decorator.  Keeping it on the
+    registration preserves the module object's write/finalize capabilities;
+    wrapping a module object would silently drop those lifecycle methods.
+    """
 
     module_id: str
     factory: Callable[[ModuleConfig], object]
     requires: tuple[str, ...] = ()
+    retrieval_strategy: RetrievalStrategy | None = None
 
 
 class MemoryContextDiagnostics(ContractModel):
@@ -279,6 +289,58 @@ class MemoryOrchestrator:
                 continue
             try:
                 contribution = await module.retrieve(request)
+                strategy = self._registrations[module_id].retrieval_strategy
+                if strategy is not None:
+                    # Validate before handing candidates to a strategy.  The
+                    # strategy may rerank or filter admitted items, but it
+                    # must not become a second admission boundary.
+                    self._validate_contribution(module_id, contribution)
+                    contribution = contribution.model_copy(
+                        update={
+                            "items": [
+                                self._with_verified_token_estimate(item)
+                                for item in contribution.items
+                            ]
+                        }
+                    )
+                    original_envelopes = Counter(
+                        self._envelope_key(item) for item in contribution.items
+                    )
+                    ranked = strategy.rank(contribution.items, request)
+                    if inspect.isawaitable(ranked):
+                        ranked = await ranked
+                    if not isinstance(ranked, list) or not all(
+                        isinstance(item, ContextItem) for item in ranked
+                    ):
+                        raise MemoryPermanentError(
+                            f"retrieval strategy {module_id} returned invalid candidates"
+                        )
+                    owned_ranked: list[ContextItem] = []
+                    for item in ranked:
+                        try:
+                            owned_ranked.append(
+                                ContextItem.model_validate(
+                                    item.model_dump(
+                                        mode="python",
+                                        round_trip=True,
+                                        warnings="error",
+                                    )
+                                )
+                            )
+                        except (AttributeError, TypeError, ValueError) as error:
+                            raise MemoryPermanentError(
+                                f"retrieval strategy {module_id} returned an invalid item"
+                            ) from error
+                    ranked = owned_ranked
+                    ranked_envelopes = Counter(self._envelope_key(item) for item in ranked)
+                    if any(
+                        ranked_count > original_envelopes[envelope]
+                        for envelope, ranked_count in ranked_envelopes.items()
+                    ):
+                        raise MemoryPermanentError(
+                            f"retrieval strategy {module_id} changed or invented an envelope"
+                        )
+                    contribution = contribution.model_copy(update={"items": ranked})
                 self._validate_contribution(module_id, contribution)
             except MemoryTransientError as error:
                 warnings.append(f"memory.module_failed.{module_id}.{type(error).__name__}")
@@ -368,6 +430,12 @@ class MemoryOrchestrator:
                 raise MemoryPermanentError(
                     "context item version does not match resolved configuration"
                 )
+
+    @staticmethod
+    def _envelope_key(item: ContextItem) -> str:
+        """Canonical envelope identity used to police read-side strategies."""
+
+        return canonical_json(item.envelope.model_dump(mode="json"))
 
     def _merge_contributions(
         self,
@@ -549,13 +617,10 @@ class MemoryOrchestrator:
                             "module_id": module_id,
                             "module_version": module_config.version,
                             "provenance": [
-                                item.model_dump(mode="json")
-                                for item in owned_receipt.provenance
+                                item.model_dump(mode="json") for item in owned_receipt.provenance
                             ],
                         },
-                        raw_bodies={
-                            "decision_traces": owned_receipt.model_dump(mode="json")
-                        },
+                        raw_bodies={"decision_traces": owned_receipt.model_dump(mode="json")},
                     )
                 )
 
@@ -584,8 +649,7 @@ class MemoryOrchestrator:
                     metadata={
                         "status": outcome.status,
                         "objective_metrics": [
-                            item.model_dump(mode="json")
-                            for item in outcome.objective_metrics
+                            item.model_dump(mode="json") for item in outcome.objective_metrics
                         ],
                         "outcome_semantics": "runner-observed-before-module-finalizers",
                     },

@@ -23,6 +23,8 @@ from uptick_agent.memory.stores.contracts import (
 
 LESSON_VALIDATION_POLICY = "simulator-candidate-validation-v1@1.0"
 LESSON_QUERY_CONTRACT = "exact-observation-action-metric-v1@1.0"
+LESSON_VALIDATION_AUTHORITY = "deterministic-memory-validator@1.0"
+LESSON_RETENTION_POLICY = "simulator-audit-retention-v1@1.0"
 
 
 def context_id(*, environment_id: str, scenario_id: str) -> str:
@@ -31,9 +33,7 @@ def context_id(*, environment_id: str, scenario_id: str) -> str:
     return sha256_json({"environment_id": environment_id, "scenario_id": scenario_id})
 
 
-def context_fingerprint(
-    *, environment_content_hash: str, scenario_content_hash: str
-) -> str:
+def context_fingerprint(*, environment_content_hash: str, scenario_content_hash: str) -> str:
     """Hash immutable context content independently of display names."""
 
     return sha256_json(
@@ -82,9 +82,7 @@ class LessonRunDeclaration(ContractModel):
     phase: Literal["learning", "frozen_evaluation"]
     environment_id: str = Field(min_length=1, max_length=256)
     scenario_id: str = Field(min_length=1, max_length=256)
-    environment_content_hash: str = Field(
-        min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$"
-    )
+    environment_content_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
     scenario_content_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
     eligible: bool = False
 
@@ -189,17 +187,21 @@ class LessonCandidate(ContractModel):
             "polarity": self.polarity,
         }
 
+
 class LessonValidationManifest(ContractModel):
     """Reproducible audit record emitted by the independent validator."""
+
+    # Version 1.1 is a fail-closed boundary: manifests emitted before the
+    # authority/check metadata existed must be explicitly revalidated from
+    # retained raw evidence before they can be read as valid.
+    schema_version: str = Field(default="1.1", pattern=r"^[1-9][0-9]*\.[0-9]+$")
 
     policy_ref: Literal[LESSON_VALIDATION_POLICY]
     query_ref: Literal[LESSON_QUERY_CONTRACT]
     candidate_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
     input_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
     snapshot_id: str = Field(min_length=1, max_length=256)
-    snapshot_content_hash: str = Field(
-        min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$"
-    )
+    snapshot_content_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
 
     record_ids: tuple[str, ...] = Field(default_factory=tuple)
     record_hashes: tuple[str, ...] = Field(default_factory=tuple)
@@ -228,10 +230,18 @@ class LessonValidationManifest(ContractModel):
     polarity_passed: bool
     provenance_closed: bool
     counter_search_complete: bool
+    omitted_counter_evidence_count: int = Field(ge=0)
+    support_passed: bool
+    context_diversity_passed: bool
     support_count: int = Field(ge=0)
     context_count: int = Field(ge=0)
     counter_count: int = Field(ge=0)
     unresolved_contradiction_count: int = Field(ge=0)
+    checks: dict[str, bool] = Field(min_length=1)
+    authority_service_ref: str = Field(min_length=1, max_length=128)
+    decision_record_ref: str = Field(min_length=1, max_length=512)
+    decision_record_timestamp: datetime
+    retention_policy_ref: str = Field(min_length=1, max_length=128)
     disposition: Literal["candidate", "active", "disputed"]
 
     @model_validator(mode="after")
@@ -260,7 +270,41 @@ class LessonValidationManifest(ContractModel):
             raise ValueError("context_count must equal distinct immutable support contexts")
         if self.counter_count != len(self.counter_evidence_ids):
             raise ValueError("counter_count must equal counter evidence IDs")
+        expected_checks = {
+            "grounding": self.grounding_passed,
+            "polarity": self.polarity_passed,
+            "provenance": self.provenance_closed,
+            "counter_search": self.counter_search_complete,
+            "no_omitted_counter_evidence": self.omitted_counter_evidence_count == 0,
+            "support": self.support_passed,
+            "context_diversity": self.context_diversity_passed,
+            "no_unresolved_contradictions": self.unresolved_contradiction_count == 0,
+        }
+        if self.checks != expected_checks:
+            raise ValueError("lesson validation checks do not match manifest fields")
+        if self.authority_service_ref != LESSON_VALIDATION_AUTHORITY:
+            raise ValueError("unsupported lesson validation authority")
+        if self.retention_policy_ref != LESSON_RETENTION_POLICY:
+            raise ValueError("unsupported lesson retention policy")
+        if self.decision_record_timestamp.utcoffset() is None:
+            raise ValueError("lesson decision timestamp must be timezone-aware")
+        if self.support_passed != (self.support_count >= 2):
+            raise ValueError("support_passed does not match support_count")
+        if self.context_diversity_passed != (self.context_count >= 2):
+            raise ValueError("context_diversity_passed does not match context_count")
+        if self.disposition == "active" and not (
+            self.grounding_passed
+            and self.polarity_passed
+            and self.provenance_closed
+            and self.counter_search_complete
+            and self.omitted_counter_evidence_count == 0
+            and self.support_passed
+            and self.context_diversity_passed
+            and self.unresolved_contradiction_count == 0
+        ):
+            raise ValueError("active lesson requires every acceptance check")
         return self
+
 
 class ValidatedLesson(ContractModel):
     """A candidate plus a complete independent validation result."""
@@ -306,6 +350,8 @@ def snapshot_input_hash(evidence: LessonEvidence) -> str:
 
 __all__ = [
     "LESSON_QUERY_CONTRACT",
+    "LESSON_RETENTION_POLICY",
+    "LESSON_VALIDATION_AUTHORITY",
     "LESSON_VALIDATION_POLICY",
     "LessonCandidate",
     "LessonEvidence",

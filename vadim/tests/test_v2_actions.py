@@ -94,6 +94,8 @@ def test_cli_defaults_to_v2_and_structured_model_uses_exact_v2_schema_and_prompt
     assert trace["messages"][0]["content"] == V2_SYSTEM_PROMPT
     assert "does not stop simulator billing" in V2_SYSTEM_PROMPT
     assert "Cover the full simulation horizon" in V2_SYSTEM_PROMPT
+    assert "status-filtered get_logs" in V2_SYSTEM_PROMPT
+    assert "unfiltered truncated page" in V2_SYSTEM_PROMPT
     assert "progress is genuinely impossible" not in V2_SYSTEM_PROMPT
 
 

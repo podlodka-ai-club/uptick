@@ -18,6 +18,8 @@ from uptick_agent.memory.contracts import (
     TransitionAssemblyRequest,
 )
 from uptick_agent.memory.lesson_contracts import (
+    LESSON_RETENTION_POLICY,
+    LESSON_VALIDATION_AUTHORITY,
     LessonEvidence,
     LessonRunDeclaration,
     LessonSettings,
@@ -61,12 +63,8 @@ def _transition(
             observation={"state": condition_value},
             action=action_payload or {"kind": action},
             result={"ok": True},
-            before_objective_metrics=[
-                ObjectiveMetric(name="balance", value=0, unit="minor")
-            ],
-            after_objective_metrics=[
-                ObjectiveMetric(name="balance", value=value, unit="minor")
-            ],
+            before_objective_metrics=[ObjectiveMetric(name="balance", value=0, unit="minor")],
+            after_objective_metrics=[ObjectiveMetric(name="balance", value=value, unit="minor")],
             terminal=True,
         )
     )
@@ -125,12 +123,19 @@ def _evidence(items: list[tuple[object, LessonRunDeclaration]]) -> LessonEvidenc
     records: list[StoredRecord] = []
     declarations: list[LessonRunDeclaration] = []
     for item, declaration in items:
-        records.extend([_record(item), _record(RunOutcome(
-            run_id=declaration.run_id,
-            status="completed",
-            finished_at=_TIME,
-            stop_reason="done",
-        ))])
+        records.extend(
+            [
+                _record(item),
+                _record(
+                    RunOutcome(
+                        run_id=declaration.run_id,
+                        status="completed",
+                        finished_at=_TIME,
+                        stop_reason="done",
+                    )
+                ),
+            ]
+        )
         declarations.append(declaration)
     snapshot = MemorySnapshot.create(
         snapshot_id="snapshot:lessons",
@@ -169,6 +174,32 @@ def test_two_completed_eligible_first_attempts_activate_deterministically() -> N
     assert len(set(first.manifest.scenario_content_hashes)) == 2
     assert first.estimated_utility == 2.5
     assert first.trust_classification == "derived_untrusted"
+
+
+def test_manifest_records_versioned_authority_and_acceptance_checks() -> None:
+    evidence = _evidence(
+        [
+            (_transition("run-a", value=2), _declaration("run-a")),
+            (_transition("run-b", value=3), _declaration("run-b")),
+        ]
+    )
+    result = validate_candidate(_positive_candidate(evidence), evidence, _SETTINGS)
+    manifest = result.manifest
+    assert manifest.schema_version == "1.1"
+    assert manifest.authority_service_ref == LESSON_VALIDATION_AUTHORITY
+    assert manifest.retention_policy_ref == LESSON_RETENTION_POLICY
+    assert manifest.decision_record_ref.startswith("lesson-validation:")
+    assert manifest.decision_record_timestamp.tzinfo is not None
+    assert manifest.checks == {
+        "grounding": True,
+        "polarity": True,
+        "provenance": True,
+        "counter_search": True,
+        "no_omitted_counter_evidence": True,
+        "support": True,
+        "context_diversity": True,
+        "no_unresolved_contradictions": True,
+    }
 
 
 def test_negative_association_is_an_anti_lesson_and_minimize_flips_sign() -> None:
@@ -222,9 +253,7 @@ def test_one_run_retry_and_one_context_do_not_activate() -> None:
     result = validate_candidate(candidate, evidence, _SETTINGS)
     assert result.status == "candidate"
     assert result.manifest.support_count == 1
-    assert result.manifest.support_context_ids == (
-        next(iter(result.manifest.support_context_ids)),
-    )
+    assert result.manifest.support_context_ids == (next(iter(result.manifest.support_context_ids)),)
     assert result.manifest.counter_evidence_ids == ("transition:run-a-retry",)
 
 
@@ -385,12 +414,14 @@ def test_context_count_uses_immutable_content_and_binds_transition_metadata() ->
     ["condition", "action"],
 )
 def test_exact_json_matching_does_not_merge_boolean_and_numeric_values(variation: str) -> None:
-    first_kwargs = {"condition_value": True} if variation == "condition" else {
-        "action_payload": {"kind": True}
-    }
-    second_kwargs = {"condition_value": 1} if variation == "condition" else {
-        "action_payload": {"kind": 1}
-    }
+    first_kwargs = (
+        {"condition_value": True}
+        if variation == "condition"
+        else {"action_payload": {"kind": True}}
+    )
+    second_kwargs = (
+        {"condition_value": 1} if variation == "condition" else {"action_payload": {"kind": 1}}
+    )
     evidence = _evidence(
         [
             (_transition("run-a", value=2, **first_kwargs), _declaration("run-a")),
@@ -400,8 +431,7 @@ def test_exact_json_matching_does_not_merge_boolean_and_numeric_values(variation
     candidates = extract_candidates(evidence, _SETTINGS)
     assert len(candidates) == 2
     assert all(
-        validate_candidate(item, evidence, _SETTINGS).status == "candidate"
-        for item in candidates
+        validate_candidate(item, evidence, _SETTINGS).status == "candidate" for item in candidates
     )
 
 

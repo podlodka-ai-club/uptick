@@ -43,6 +43,8 @@ from uptick_agent.memory.contracts import (
 )
 from uptick_agent.memory.lesson_contracts import (
     LESSON_QUERY_CONTRACT,
+    LESSON_RETENTION_POLICY,
+    LESSON_VALIDATION_AUTHORITY,
     LESSON_VALIDATION_POLICY,
     LessonCandidate,
     LessonEvidence,
@@ -80,6 +82,8 @@ __all__ = [
     "LESSONS_MODULE_ID",
     "LESSONS_MODULE_VERSION",
     "LESSON_QUERY_CONTRACT",
+    "LESSON_RETENTION_POLICY",
+    "LESSON_VALIDATION_AUTHORITY",
     "LESSON_VALIDATION_POLICY",
     "ConsolidationDelta",
     "ConsolidationParticipant",
