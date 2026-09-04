@@ -30,11 +30,12 @@ from uptick_agent.llm.contracts import (
     TextGenerationRequest,
     TextGenerationResult,
     serialize_structured_generation_request,
-    validate_structured_value,
+    validate_structured_json,
 )
 from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT
 from uptick_agent.llm.registry import LlmProviderConfig
-from uptick_agent.models import DecisionContext, NextStep
+from uptick_agent.llm.structured_schema import normalize_output_schema
+from uptick_agent.models import DecisionContext, V1NextStep
 
 
 def _openai_provider_error(operation: str, error: Exception) -> LlmProviderError:
@@ -94,25 +95,56 @@ class OpenAILlmClient:
         kwargs = self._request_kwargs(
             request.messages, request.settings.temperature, request.settings.max_output_tokens
         )
-        kwargs.update({"model": model, "response_format": request.response_model})
+        schema = normalize_output_schema(request.response_model.model_json_schema())
+        if not isinstance(schema, dict):
+            raise LlmStructuredOutputError(
+                "OpenAI response schema must be an object; no value was accepted"
+            )
+        kwargs.update(
+            {
+                "model": model,
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": request.response_model.__name__,
+                        "strict": True,
+                        "schema": schema,
+                    },
+                },
+            }
+        )
         try:
-            completion = await self._client.chat.completions.parse(**kwargs)
+            completion = await self._client.chat.completions.create(**kwargs)
         except Exception as error:
             raise _openai_provider_error("structured generation", error) from error
         try:
             message = completion.choices[0].message
-        except (AttributeError, IndexError, KeyError, TypeError) as error:
+            choice = completion.choices[0]
+        except (AttributeError, IndexError, KeyError, TypeError):
             raise LlmStructuredOutputError(
                 "OpenAI returned a malformed structured response; no value was accepted"
-            ) from error
+            ) from None
 
         refusal = getattr(message, "refusal", None)
         if refusal:
-            raise LlmStructuredOutputError(f"OpenAI refused structured generation: {refusal}")
-        parsed = getattr(message, "parsed", None)
-        if parsed is None:
-            raise LlmStructuredOutputError("OpenAI returned no parsed structured response")
-        value = validate_structured_value(request.response_model, parsed)
+            raise LlmStructuredOutputError("OpenAI refused structured generation")
+        if getattr(message, "tool_calls", None) or getattr(message, "function_call", None):
+            raise LlmStructuredOutputError(
+                "OpenAI returned tool use for a structured request; no value was accepted"
+            )
+        if getattr(choice, "finish_reason", None) != "stop":
+            raise LlmStructuredOutputError(
+                "OpenAI returned an incomplete structured response; no value was accepted"
+            )
+        content = getattr(message, "content", None)
+        if not isinstance(content, str) or not content.strip():
+            raise LlmStructuredOutputError("OpenAI returned no structured response")
+        try:
+            value = validate_structured_json(request.response_model, content)
+        except Exception:
+            raise LlmStructuredOutputError(
+                "OpenAI returned invalid structured JSON; no value was accepted"
+            ) from None
         return StructuredGenerationResult(value=value, provider=self.provider_name, model=model)
 
     async def generate_text(self, request: TextGenerationRequest) -> TextGenerationResult:
@@ -210,7 +242,7 @@ class OpenAISGRModel:
             request_options=self.request_options,
         )
 
-    async def decide(self, context: DecisionContext) -> NextStep:
+    async def decide(self, context: DecisionContext) -> V1NextStep:
         result = await self._llm.generate_structured(self._build_request(context))
         return result.value
 
@@ -218,10 +250,10 @@ class OpenAISGRModel:
         """Serialize the exact neutral request submitted by ``decide``."""
         return serialize_structured_generation_request(self._build_request(context))
 
-    def _build_request(self, context: DecisionContext) -> StructuredGenerationRequest[NextStep]:
+    def _build_request(self, context: DecisionContext) -> StructuredGenerationRequest[V1NextStep]:
         return StructuredGenerationRequest(
             model=self.model,
-            response_model=NextStep,
+            response_model=V1NextStep,
             messages=(
                 LlmMessage(role="system", content=self.system_prompt),
                 LlmMessage(

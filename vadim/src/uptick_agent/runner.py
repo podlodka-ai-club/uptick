@@ -48,6 +48,14 @@ def _memory_text(result: ToolResult, *, limit: int = 6_000) -> str:
 
 
 def _record_run_state(run_state: RunState, action: AgentAction, result: ToolResult) -> None:
+    for link in result.operation_links:
+        if link.relation == "initiated" and result.ok:
+            run_state.operation_statuses[link.operation_id] = "accepted"
+        elif link.relation == "observed":
+            status = result.data.get("status")
+            if isinstance(status, str):
+                run_state.operation_statuses[link.operation_id] = status
+
     if not result.ok:
         return
 
@@ -81,9 +89,7 @@ def _prompt_trace(
 ) -> tuple[str, dict]:
     builder = getattr(model, "prompt_trace", None)
     if not callable(builder):
-        return "decision-context-surrogate", {
-            "decision_context": context.model_dump(mode="json")
-        }
+        return "decision-context-surrogate", {"decision_context": context.model_dump(mode="json")}
     trace = builder(context)
     if not isinstance(trace, dict):
         raise TypeError("decision model prompt_trace must return a JSON object")
@@ -177,9 +183,7 @@ class AgentRunner:
                         metadata={"prompt_kind": prompt_kind},
                         raw_bodies={
                             "prompts": prompt_body,
-                            "observations": {
-                                "latest_result": latest.model_dump(mode="json")
-                            },
+                            "observations": {"latest_result": latest.model_dump(mode="json")},
                         },
                     )
                 )
@@ -207,9 +211,7 @@ class AgentRunner:
                             "action": decision.action.model_dump(mode="json"),
                         },
                         raw_bodies={
-                            "decision_traces": {
-                                "decision": decision.model_dump(mode="json")
-                            }
+                            "decision_traces": {"decision": decision.model_dump(mode="json")}
                         },
                     )
                 )
@@ -267,12 +269,10 @@ class AgentRunner:
                             "ok": result.ok,
                             "terminal": result.terminal,
                             "objective_metrics": [
-                                item.model_dump(mode="json")
-                                for item in result.objective_metrics
+                                item.model_dump(mode="json") for item in result.objective_metrics
                             ],
                             "operation_links": [
-                                item.model_dump(mode="json")
-                                for item in result.operation_links
+                                item.model_dump(mode="json") for item in result.operation_links
                             ],
                         },
                         raw_bodies={
@@ -352,18 +352,28 @@ class AgentRunner:
         outcome_status = (
             final.status
             if final.status in {"completed", "failed", "interrupted", "excluded"}
+            else "interrupted"
+            if final.status == "running"
             else "failed"
         )
+        if final.objective_kind == "uptime_cost":
+            outcome_summary = (
+                f"Run finished with status={final.status}, uptime_ratio={final.uptime_ratio}, "
+                f"slo_passed={final.slo_passed}, total_cost_minor={final.total_cost_minor}, "
+                f"steps={final.steps}."
+            )
+        else:
+            outcome_summary = (
+                f"Run finished with status={final.status}, balance={final.balance_minor}, "
+                f"lost_revenue={final.lost_revenue_minor}, steps={final.steps}."
+            )
         outcome_evidence_error: BaseException | None = None
         try:
             await self._remember(
                 session.run_id,
                 ToolResult(
                     action_kind="run_outcome",
-                    summary=(
-                        f"Run finished with status={final.status}, balance={final.balance_minor}, "
-                        f"lost_revenue={final.lost_revenue_minor}, steps={final.steps}."
-                    ),
+                    summary=outcome_summary,
                     data=final.model_dump(mode="json"),
                     terminal=True,
                 ),
@@ -382,8 +392,7 @@ class AgentRunner:
                 RunOutcome(
                     run_id=session.run_id,
                     status=outcome_status,
-                    stop_reason=final.stop_reason[:2_000]
-                    or "run finished without a stop reason",
+                    stop_reason=final.stop_reason[:2_000] or "run finished without a stop reason",
                     objective_metrics=final.objective_metrics,
                 )
             )

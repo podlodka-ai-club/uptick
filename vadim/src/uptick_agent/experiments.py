@@ -34,10 +34,37 @@ class ExperimentRunner:
                 await runner.memory.clear()
             runs.append(await runner.run(seed))
 
+        objective_kind = runs[0].objective_kind
+        if any(run.objective_kind != objective_kind for run in runs):
+            raise ValueError("all runs in an experiment must use the same objective")
         balances = [run.balance_minor for run in runs]
+        if objective_kind == "uptime_cost":
+            slo_passed_runs = sum(
+                run.status == "completed" and run.slo_passed is True for run in runs
+            )
+            successful_costs = [
+                run.total_cost_minor
+                for run in runs
+                if (
+                    run.status == "completed"
+                    and run.slo_passed is True
+                    and run.total_cost_minor is not None
+                )
+            ]
+            return ExperimentResult(
+                name=name,
+                runs=runs,
+                objective_kind=objective_kind,
+                completed_runs=sum(run.status == "completed" for run in runs),
+                slo_passed_runs=slo_passed_runs,
+                mean_successful_total_cost_minor=(
+                    fmean(successful_costs) if successful_costs else None
+                ),
+            )
         return ExperimentResult(
             name=name,
             runs=runs,
+            objective_kind=objective_kind,
             mean_balance_minor=fmean(balances),
             median_balance_minor=median(balances),
             min_balance_minor=min(balances),

@@ -23,10 +23,17 @@ class ConsoleObserver:
         print(f"step={record.iteration} action={action} result={marker} {record.result.summary}")
 
     async def on_finish(self, result: RunResult) -> None:
-        print(
-            f"run={result.run_id} status={result.status} steps={result.steps} "
-            f"balance_minor={result.balance_minor}"
-        )
+        if result.objective_kind == "uptime_cost":
+            print(
+                f"run={result.run_id} status={result.status} steps={result.steps} "
+                f"uptime_ratio={result.uptime_ratio} slo_passed={result.slo_passed} "
+                f"total_cost_minor={result.total_cost_minor}"
+            )
+        else:
+            print(
+                f"run={result.run_id} status={result.status} steps={result.steps} "
+                f"balance_minor={result.balance_minor}"
+            )
 
 
 class JsonlObserver:

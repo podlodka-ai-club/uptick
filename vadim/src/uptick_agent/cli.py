@@ -18,9 +18,9 @@ from uptick_agent.llm import (
     StructuredGenerationRequest,
     serialize_structured_generation_request,
 )
-from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT
+from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT, V2_OBJECTIVE, V2_SYSTEM_PROMPT
 from uptick_agent.memory import InMemoryMemory, JsonlMemory, legacy_memory_runtime
-from uptick_agent.models import AgentConfig, DecisionContext, NextStep
+from uptick_agent.models import AgentConfig, DecisionContext, NextStep, V1NextStep, V2NextStep
 from uptick_agent.observers import CompositeObserver, ConsoleObserver, JsonlObserver
 from uptick_agent.ports import AgentMemory, DecisionModel, Environment
 from uptick_agent.runner import AgentRunner
@@ -38,9 +38,17 @@ class CodexFactoryConstructor(Protocol):
 class StructuredDecisionModel:
     """Compatibility bridge from the neutral LLM boundary to the current runner."""
 
-    def __init__(self, client: LlmClient) -> None:
+    def __init__(
+        self,
+        client: LlmClient,
+        *,
+        response_model: type[NextStep] = NextStep,
+        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+    ) -> None:
         self._client = client
         self.model = getattr(client, "model", None)
+        self.response_model = response_model
+        self.system_prompt = system_prompt
 
     async def decide(self, context: DecisionContext) -> NextStep:
         result = await self._client.generate_structured(self._build_request(context))
@@ -53,9 +61,9 @@ class StructuredDecisionModel:
     def _build_request(self, context: DecisionContext) -> StructuredGenerationRequest[NextStep]:
         return StructuredGenerationRequest(
             model=self.model,
-            response_model=NextStep,
+            response_model=self.response_model,
             messages=(
-                LlmMessage(role="system", content=DEFAULT_SYSTEM_PROMPT),
+                LlmMessage(role="system", content=self.system_prompt),
                 LlmMessage(
                     role="user",
                     content=(
@@ -95,6 +103,12 @@ def _load_codex_factory() -> CodexFactoryConstructor:
 def _common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--simulator-url", default=os.getenv("SIMULATOR_URL", "http://81.176.229.58:8080")
+    )
+    parser.add_argument(
+        "--simulator-api-version",
+        choices=["v1", "v2"],
+        default="v2",
+        help="Simulator API contract to use (v2 by default; v1 is the legacy adapter).",
     )
     parser.add_argument(
         "--decision-provider",
@@ -177,18 +191,34 @@ def _decision_model(args: argparse.Namespace) -> CloseableDecisionModel:
     else:
         model = args.model or os.getenv("CODEX_MODEL") or None
     client = registry.create(LlmProviderConfig(provider=args.decision_provider, model=model))
-    return StructuredDecisionModel(client)
+    if getattr(args, "simulator_api_version", "v2") == "v1":
+        return StructuredDecisionModel(
+            client,
+            response_model=V1NextStep,
+            system_prompt=DEFAULT_SYSTEM_PROMPT,
+        )
+    return StructuredDecisionModel(
+        client,
+        response_model=V2NextStep,
+        system_prompt=V2_SYSTEM_PROMPT,
+    )
 
 
 async def _main(args) -> int:
     if getattr(args, "seed", 1) == 0:
         raise ValueError("simulator seed 0 is invalid")
 
-    config = AgentConfig(
-        agent_id=args.agent_id,
-        agent_version=args.agent_version,
-        max_steps=args.max_steps,
-    )
+    api_version = getattr(args, "simulator_api_version", "v2")
+    if api_version not in {"v1", "v2"}:
+        raise ValueError(f"Unsupported simulator API version {api_version!r}.")
+    config_values = {
+        "agent_id": args.agent_id,
+        "agent_version": args.agent_version,
+        "max_steps": args.max_steps,
+    }
+    if api_version == "v2":
+        config_values["objective"] = V2_OBJECTIVE
+    config = AgentConfig(**config_values)
     seeds: list[int] | None = None
     if args.command == "benchmark":
         seeds = [int(value.strip()) for value in args.seeds.split(",") if value.strip()]
@@ -197,12 +227,19 @@ async def _main(args) -> int:
         if 0 in seeds:
             raise ValueError("simulator seed 0 is invalid")
     model: CloseableDecisionModel | None = None
-    client: SimulatorClient | None = None
+    client: Any | None = None
     try:
         model = _decision_model(args)
-        client = SimulatorClient(args.simulator_url)
         assert model is not None
-        environment = cast(Environment, SimulatorEnvironment(client))
+        if api_version == "v1":
+            client = SimulatorClient(args.simulator_url)
+            environment = cast(Environment, SimulatorEnvironment(client))
+        else:
+            from uptick_agent.simulator.v2_client import SimulatorV2Client
+            from uptick_agent.simulator.v2_environment import SimulatorV2Environment
+
+            client = SimulatorV2Client(args.simulator_url)
+            environment = cast(Environment, SimulatorV2Environment(client))
         memory_factory = _memory_factory(args)
 
         def make_runner() -> AgentRunner:

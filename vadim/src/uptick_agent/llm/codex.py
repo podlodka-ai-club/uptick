@@ -27,7 +27,8 @@ from uptick_agent.llm.contracts import (
 )
 from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT
 from uptick_agent.llm.registry import LlmProviderConfig
-from uptick_agent.models import DecisionContext, NextStep
+from uptick_agent.llm.structured_schema import normalize_output_schema as _normalize_output_schema
+from uptick_agent.models import DecisionContext, V1NextStep
 
 DECISION_ONLY_INSTRUCTIONS = """
 You are a decision-only provider. Do not run commands, use web access, call MCP tools,
@@ -77,30 +78,6 @@ _FORBIDDEN_TOOL_EVENT_TYPES = frozenset(
     }
 )
 _MAX_DECISION_ATTEMPTS = 2
-
-
-def _normalize_output_schema(value: Any) -> Any:
-    """Convert Pydantic JSON Schema to the subset accepted by Structured Outputs."""
-    if isinstance(value, list):
-        return [_normalize_output_schema(item) for item in value]
-    if not isinstance(value, dict):
-        return value
-
-    normalized = {
-        key: _normalize_output_schema(child)
-        for key, child in value.items()
-        if key not in {"default", "discriminator"}
-    }
-    if "const" in normalized:
-        normalized["enum"] = [normalized.pop("const")]
-    if "oneOf" in normalized:
-        normalized["anyOf"] = normalized.pop("oneOf")
-
-    properties = normalized.get("properties")
-    if isinstance(properties, dict):
-        normalized["required"] = list(properties)
-        normalized["additionalProperties"] = False
-    return normalized
 
 
 class CodexDecisionError(LlmStructuredOutputError):
@@ -305,7 +282,7 @@ class CodexLlmClient:
         kwargs: dict[str, Any] = {
             "approval_mode": ApprovalMode.deny_all,
             "output_schema": self._output_schema(
-                request.response_model if request is not None else NextStep
+                request.response_model if request is not None else V1NextStep
             ),
             "sandbox": Sandbox.read_only,
         }
@@ -410,7 +387,7 @@ class CodexSGRModel(CodexLlmClient):
             workspace_dir=workspace_dir,
         )
 
-    async def decide(self, context: DecisionContext) -> NextStep:
+    async def decide(self, context: DecisionContext) -> V1NextStep:
         result = await self.generate_structured(self._build_request(context))
         return result.value
 
@@ -418,10 +395,10 @@ class CodexSGRModel(CodexLlmClient):
         """Serialize the exact neutral request submitted by ``decide``."""
         return serialize_structured_generation_request(self._build_request(context))
 
-    def _build_request(self, context: DecisionContext) -> StructuredGenerationRequest[NextStep]:
+    def _build_request(self, context: DecisionContext) -> StructuredGenerationRequest[V1NextStep]:
         return StructuredGenerationRequest(
             model=self.model,
-            response_model=NextStep,
+            response_model=V1NextStep,
             messages=(
                 LlmMessage(
                     role="user",

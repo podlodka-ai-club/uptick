@@ -6,6 +6,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from uptick_agent.memory.contracts import DecisionMemoryContext, ObjectiveMetric, OperationLink
+from uptick_agent.v2_actions import ControlCommand, GetControlCommands, GetInbox
 
 
 class StrictModel(BaseModel):
@@ -35,6 +36,13 @@ class GetMetrics(StrictModel):
 
 class GetLogs(StrictModel):
     kind: Literal["get_logs"] = "get_logs"
+    status: Literal[200, 403, 500, 503] | None = Field(
+        default=500,
+        description="Filter by HTTP status. Null returns all supported statuses.",
+    )
+
+
+class V1GetLogs(GetLogs):
     status: Literal[200, 500] | None = Field(
         default=500,
         description="Filter by HTTP status. Null returns both successful and failed requests.",
@@ -87,6 +95,45 @@ class AdvanceTime(StrictModel):
     duration_seconds: int = Field(default=86_400, ge=300)
 
 
+class AdvanceTimeStopCondition(StrictModel):
+    new_log_errors: Literal[1] = 1
+    error_codes: (
+        list[
+            Literal[
+                "SERVER_CAPACITY_EXCEEDED",
+                "DB_CONNECTION_LIMIT_EXCEEDED",
+                "DISK_FULL",
+                "SITE_UNAVAILABLE",
+                "DB_UNAVAILABLE",
+                "FIREWALL_DENIED",
+            ]
+        ]
+        | None
+    ) = Field(default=None, min_length=1, max_length=6)
+
+    @model_validator(mode="after")
+    def unique_error_codes(self) -> AdvanceTimeStopCondition:
+        if self.error_codes is not None and len(set(self.error_codes)) != len(self.error_codes):
+            raise ValueError("error_codes must be unique")
+        return self
+
+
+class V2ProbePage(ProbePage):
+    page: Literal["product_list", "product_page"]
+
+    @model_validator(mode="after")
+    def product_matches_page(self) -> V2ProbePage:
+        if (self.page == "product_page") != (self.product_id is not None):
+            raise ValueError("product_id is required exactly for product_page")
+        return self
+
+
+class V2AdvanceTime(StrictModel):
+    kind: Literal["advance_time_v2"] = "advance_time_v2"
+    duration_seconds: int = Field(default=86_400, ge=300)
+    stop_when: AdvanceTimeStopCondition | None = Field(default_factory=AdvanceTimeStopCondition)
+
+
 class FinishRun(StrictModel):
     kind: Literal["finish"] = "finish"
     reason: str = Field(min_length=1, max_length=1000)
@@ -104,7 +151,11 @@ AgentAction = Annotated[
     | GetOperation
     | ProbePage
     | AdvanceTime
-    | FinishRun,
+    | V2AdvanceTime
+    | FinishRun
+    | GetInbox
+    | GetControlCommands
+    | ControlCommand,
     Field(discriminator="kind"),
 ]
 
@@ -120,9 +171,50 @@ class NextStep(StrictModel):
 
     @model_validator(mode="after")
     def completion_matches_action(self) -> NextStep:
-        if self.task_completed != isinstance(self.action, FinishRun):
+        if self.task_completed != (self.action.kind == "finish"):
             raise ValueError("task_completed must be true exactly when action.kind is finish")
         return self
+
+
+V1AgentAction = Annotated[
+    GetOverview
+    | GetMetrics
+    | V1GetLogs
+    | GetResources
+    | GetDeployments
+    | ScaleBackend
+    | ApplyFix
+    | StartDeployment
+    | GetOperation
+    | ProbePage
+    | AdvanceTime
+    | FinishRun,
+    Field(discriminator="kind"),
+]
+
+
+V2AgentAction = Annotated[
+    GetOverview
+    | GetMetrics
+    | GetLogs
+    | GetResources
+    | GetOperation
+    | V2ProbePage
+    | V2AdvanceTime
+    | FinishRun
+    | GetInbox
+    | GetControlCommands
+    | ControlCommand,
+    Field(discriminator="kind"),
+]
+
+
+class V1NextStep(NextStep):
+    action: V1AgentAction
+
+
+class V2NextStep(NextStep):
+    action: V2AgentAction
 
 
 class ToolResult(StrictModel):
@@ -218,6 +310,10 @@ class RunResult(StrictModel):
     server_cost_minor: int = 0
     deployment_cost_minor: int = 0
     balance_minor: int = 0
+    objective_kind: Literal["balance", "uptime_cost"] = "balance"
+    uptime_ratio: float | None = Field(default=None, ge=0, le=1)
+    slo_passed: bool | None = None
+    total_cost_minor: int | None = Field(default=None, ge=0)
     objective_metrics: list[ObjectiveMetric] = Field(default_factory=list)
     stop_reason: str
 
@@ -225,8 +321,11 @@ class RunResult(StrictModel):
 class ExperimentResult(StrictModel):
     name: str
     runs: list[RunResult]
-    mean_balance_minor: float
-    median_balance_minor: float
-    min_balance_minor: int
-    max_balance_minor: int
-    completed_runs: int
+    objective_kind: Literal["balance", "uptime_cost"] = "balance"
+    mean_balance_minor: float | None = None
+    median_balance_minor: float | None = None
+    min_balance_minor: int | None = None
+    max_balance_minor: int | None = None
+    completed_runs: int = 0
+    slo_passed_runs: int = 0
+    mean_successful_total_cost_minor: float | None = None

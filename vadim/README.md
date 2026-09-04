@@ -59,16 +59,19 @@ export OPENAI_API_KEY=...
 uv run uptick-agent run --seed 1
 ```
 
-Проверка 2026-09-05: развёрнутый симулятор из командного чата перешёл на
-API v2; текущий CLI-адаптер использует v1 и получает HTTP 404 на `/v1/start`.
-Для него пока нужен совместимый сервер v1. Прямой smoke-тест v2 прошёл;
-полноценный LLM-прогон требует обновления адаптера. Подробности находятся в
-[`Stage 6 implementation record`](docs/agent-memory-design/STAGE_6_IMPLEMENTATION.md#live-simulator-compatibility-probe-2026-09-05).
-Пример с локальным совместимым сервером:
+CLI по умолчанию использует API v2 развёрнутого симулятора. Цель v2 — завершить
+симуляцию с uptime не ниже 99%, затем минимизировать стоимость инфраструктуры.
+Модель выбирает одну из 18 типизированных команд; доступы к панели и серверам
+обрабатываются внутри HTTP-клиента и не передаются модели. Подробности границы
+и проверок: [`Simulator v2 adapter`](docs/SIMULATOR_V2_ADAPTER.md).
+
+Старый API сохранён для воспроизведения v1-экспериментов. Для него нужен
+совместимый сервер и явный выбор версии:
 
 ```bash
 uv run uptick-agent run \
   --seed 1 \
+  --simulator-api-version v1 \
   --simulator-url http://127.0.0.1:8080 \
   --model gpt-4.1-mini
 ```
@@ -77,10 +80,10 @@ uv run uptick-agent run \
 
 ### Локальный private-pilot с Codex subscription
 
-`CodexSGRModel` — opt-in адаптер для официального Python SDK `openai-codex` и уже
-выполненного ChatGPT/Codex login. Он не меняет `AgentRunner`, `DecisionModel`, память
-или симулятор: на каждом решении создаётся отдельный ephemeral Codex thread, а ответ
-локально проверяется строгой схемой `NextStep`.
+`--decision-provider codex` выбирает opt-in адаптер официального Python SDK
+`openai-codex` и уже выполненного ChatGPT/Codex login. Он не меняет `AgentRunner`,
+`DecisionModel` или память: на каждом решении создаётся отдельный ephemeral Codex thread, а ответ
+локально проверяется схемой решений выбранной версии симулятора.
 
 Используйте этот путь только как короткий локальный private-pilot на доверенной машине:
 
@@ -100,12 +103,16 @@ uv sync --extra codex
 unset OPENAI_API_KEY CODEX_API_KEY
 
 # Сначала один seed без памяти.
-uv run --extra codex uptick-agent run --seed 1 --memory none --decision-provider codex
+uv run --extra codex uptick-agent run --seed 42 --memory none \
+  --decision-provider codex --simulator-api-version v2 --max-steps 40
 ```
 
 `CODEX_MODEL` необязателен: без него Codex выбирает свой default; `--model` явно
 переопределяет его. `OPENAI_BASE_URL` относится только к OpenAI provider и не передаётся
-Codex. Перед каждым решением provider проверяет, что локальная Codex account session имеет
+Codex. CLI наследует reasoning effort из локальной конфигурации Codex: выбранная
+модель должна его поддерживать. В диагностическом пилоте `gpt-5.4-mini` отклонила
+`max`; отдельный wrapper использовал `low` (см. запись пилота в документации v2).
+Перед каждым решением provider проверяет, что локальная Codex account session имеет
 тип `chatgpt`, и отказывает API-key/пустому account state. Subscription use расходует
 allowance ChatGPT/Codex и не безлимитен. Для shared, CI или high-volume прогонов
 рекомендуется обычный API key provider.
@@ -223,15 +230,17 @@ memory = episodic_memory_runtime(
 
 ```bash
 uv run uptick-agent benchmark \
-  --name baseline-no-memory \
+  --name v2-no-memory-smoke \
+  --simulator-api-version v2 \
   --seeds 1,2,3,4,5 \
   --memory none
 
 uv run uptick-agent benchmark \
-  --name jsonl-memory-v1 \
+  --name v2-jsonl-smoke \
+  --simulator-api-version v2 \
   --seeds 1,2,3,4,5 \
   --memory jsonl \
-  --memory-file artifacts/jsonl-memory-v1/memory.jsonl
+  --memory-file artifacts/v2-jsonl-smoke/memory.jsonl
 ```
 
 По умолчанию память очищается перед каждым seed: иначе порядок миров влияет на результат
@@ -241,14 +250,17 @@ uv run uptick-agent benchmark \
 Артефакты сохраняются в `artifacts/<experiment>/`:
 
 - `trace.jsonl` — решение, действие, результат и длительность каждого шага;
-- `summary.json` — результаты всех seeds и агрегаты по итоговому балансу.
+- `summary.json` — результаты всех seeds; для v2 — число завершённых прогонов,
+  прошедших SLO, и их средняя стоимость, для v1 — агрегаты по итоговому балансу.
 
 `summary.json` пока является удобным smoke-сравнением, а не полным evaluation manifest:
 его нельзя использовать как validation/promotion evidence. Программный аудит Stage 5
 не добавляет отсутствующий evaluation manifest в legacy CLI.
 
-Ключи сравнения уже нормализованы в `RunResult`: баланс, выручка, потерянная выручка,
-стоимость серверов и деплоев, покупки, число шагов и реальная длительность.
+`RunResult.objective_kind` различает v2 `uptime_cost` и v1 `balance`. Для v2
+сравниваются `uptime_ratio`, `slo_passed` и `total_cost_minor`; незавершённый run
+не считается прошедшим SLO. Поля выручки, покупок и баланса сохраняются для v1.
+Число шагов и реальная длительность доступны для обеих версий.
 
 ## Где форкать эксперимент
 
@@ -259,9 +271,9 @@ uv run uptick-agent benchmark \
   `legacy_memory_runtime`;
 - другая симуляция — реализуйте `Environment`;
 - новые метрики/MLflow/Langfuse — реализуйте `RunObserver`;
-- новые действия текущего мира — добавьте Pydantic action в
-  `src/uptick_agent/models.py` и dispatch в
-  `src/uptick_agent/simulator/environment.py`.
+- новые команды v2 — добавьте тип в `src/uptick_agent/v2_actions.py` и dispatch в
+  `src/uptick_agent/simulator/v2_environment.py`; общие действия находятся в
+  `src/uptick_agent/models.py`, а v1 dispatch — в `simulator/environment.py`.
 
 Так различие между ветками остаётся явным, а результаты можно воспроизводить на одном
 наборе seeds.
@@ -269,15 +281,21 @@ uv run uptick-agent benchmark \
 ## Проверки
 
 ```bash
-# Базовый OpenAI path без optional Codex dependency.
-uv run pytest
-
-# Codex adapter tests используют fake SDK и не делают model/simulator calls.
-uv run --extra codex pytest tests/test_codex.py
+# Полный offline-набор, включая fake Codex SDK.
+env -u OPENAI_API_KEY -u CODEX_API_KEY \
+  uv run --extra codex --locked pytest -q -ra
 
 uv run ruff check .
 uv run ruff format --check .
 ```
 
-Тесты не обращаются к LLM и развернутому симулятору: HTTP-контракт проверяется через
+По умолчанию live-тесты пропущены: HTTP-контракт проверяется через
 `httpx.MockTransport`, а цикл агента — через scripted model и fake environment.
+Опциональный v2 live-тест запускается командой ниже. Он создаёт run на указанном
+сервере, но не вызывает LLM. Для отдельного v1 live-теста используется переменная
+`UPTICK_INTEGRATION_SIMULATOR_URL` и совместимый v1 сервер.
+
+```bash
+SIMULATOR_V2_URL=http://81.176.229.58:8080 \
+  uv run --extra codex --locked pytest -q tests/test_integration_simulator_v2.py
+```

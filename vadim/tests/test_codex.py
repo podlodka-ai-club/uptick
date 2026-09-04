@@ -24,7 +24,7 @@ from uptick_agent.llm.contracts import (
     serialize_structured_generation_request,
 )
 from uptick_agent.llm.openai import DEFAULT_SYSTEM_PROMPT
-from uptick_agent.models import DecisionContext, NextStep, ToolResult
+from uptick_agent.models import DecisionContext, NextStep, ToolResult, V1NextStep
 
 
 class FakeEvent:
@@ -108,7 +108,7 @@ def _context() -> DecisionContext:
 
 
 def _valid_response() -> str:
-    return NextStep.model_validate(
+    return V1NextStep.model_validate(
         {
             "current_situation": "the run has started",
             "hypothesis": "an overview will establish the baseline",
@@ -192,7 +192,7 @@ def test_codex_decide_uses_a_fresh_ephemeral_read_only_thread_and_schema(tmp_pat
             assert context.model_dump_json() in prompt
             assert run_kwargs["approval_mode"] is ApprovalMode.deny_all
             assert run_kwargs["sandbox"] is Sandbox.read_only
-            assert run_kwargs["output_schema"]["title"] == "NextStep"
+            assert run_kwargs["output_schema"]["title"] == "V1NextStep"
             assert "anyOf" in run_kwargs["output_schema"]["properties"]["action"]
             assert run_kwargs["model"] == "test-codex-model"
             assert run_kwargs["cwd"] == str(workspace)
@@ -229,7 +229,7 @@ def test_codex_prompt_trace_matches_the_neutral_request_before_provider_conversi
             }
         ]
         assert trace["model"] == "test-codex-model"
-        assert trace["response_schema"] == NextStep.model_json_schema()
+        assert trace["response_schema"] == V1NextStep.model_json_schema()
         assert fake.threads[0].run_calls[0][0] == trace["messages"][0]["content"]
 
     asyncio.run(scenario())
@@ -256,12 +256,12 @@ def test_codex_rejects_non_subscription_auth_before_starting_a_turn(
     [
         (FakeResult(status="failed", final_response=_valid_response()), "did not complete"),
         (FakeResult(final_response=None), "without a final schema response"),
-        (FakeResult(final_response="not json"), "invalid NextStep"),
+        (FakeResult(final_response="not json"), "invalid V1NextStep"),
         (
             FakeResult(
                 final_response='{"current_situation":"missing required fields"}',
             ),
-            "invalid NextStep",
+            "invalid V1NextStep",
         ),
     ],
 )
@@ -366,6 +366,9 @@ def test_codex_post_auth_failure_does_not_blame_local_login() -> None:
 
 
 def test_codex_owned_client_uses_and_cleans_an_isolated_git_workspace(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("CODEX_API_KEY", raising=False)
+
     class FakeOwnedCodex(FakeCodex):
         instance: Any = None
 
@@ -394,6 +397,9 @@ def test_codex_owned_client_uses_and_cleans_an_isolated_git_workspace(monkeypatc
 
 
 def test_codex_cleans_owned_workspace_when_client_construction_fails(monkeypatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("CODEX_API_KEY", raising=False)
+
     captured_workspace: Path | None = None
 
     class FailingCodex:
