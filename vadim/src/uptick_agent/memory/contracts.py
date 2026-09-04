@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 from datetime import UTC, datetime
-from typing import Literal, Protocol
+from typing import Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
 
@@ -162,8 +162,8 @@ class MemoryContextRequest(ContractModel):
     run_id: str = Field(min_length=1, max_length=256)
     query: str = Field(default="", max_length=16_000)
     context: dict[str, JsonValue] = Field(default_factory=dict)
-    max_items: int = Field(default=0, ge=0)
-    max_estimated_tokens: int = Field(default=0, ge=0)
+    max_items: int | None = Field(default=None, ge=0)
+    max_estimated_tokens: int | None = Field(default=None, ge=0)
 
     @field_validator("context", mode="before")
     @classmethod
@@ -233,17 +233,26 @@ class ConsolidationResult(ContractModel):
     deltas: list[ConsolidationDelta] = Field(default_factory=list)
 
 
+@runtime_checkable
 class ExperienceTransitionAssembler(Protocol):
     def assemble(self, request: TransitionAssemblyRequest) -> ExperienceTransition: ...
 
 
+@runtime_checkable
 class ExperienceSink(Protocol):
     async def record(self, transition: ExperienceTransition, *, idempotency_key: str) -> None: ...
 
 
+@runtime_checkable
 class ContextContributor(Protocol):
     async def retrieve(self, request: MemoryContextRequest) -> MemoryContribution: ...
 
 
+@runtime_checkable
 class ConsolidationParticipant(Protocol):
     async def consolidate(self, request: ConsolidationRequest) -> ConsolidationResult: ...
+
+
+@runtime_checkable
+class RunFinalizer(Protocol):
+    async def finalize(self, outcome: RunOutcome, *, idempotency_key: str) -> None: ...

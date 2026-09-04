@@ -399,12 +399,16 @@ audit:
     mandatory_secret_handling: redact_or_reject
 ```
 
-The first implementation defaults to a hard 4,000-token memory-context budget.
-Per-type quotas remain configurable. Token estimation must be deterministic for
-the selected provider/model, and the estimator identity/version is recorded in
-the resolved configuration and decision-memory trace.
+The first implementation defaults to a hard 4,000-unit memory-context budget.
+Per-type quotas remain configurable. Token estimation must be deterministic and
+its identity/version is recorded in the resolved configuration and
+decision-memory trace. Until a verified provider/model tokenizer is composed,
+the compatibility profile uses `utf8-byte-upper-bound@1.0`: every serialized
+UTF-8 byte consumes one budget unit. This is intentionally conservative and
+keeps the limit hard without adding a tokenizer dependency; an unknown
+estimator configuration is rejected before module construction.
 
-The global 4,000-token limit always wins. Per-type quotas are upper caps, not
+The global 4,000-unit limit always wins. Per-type quotas are upper caps, not
 reservations. Omitted quotas add no type-specific cap; unused capacity is not
 reserved. Configured per-type caps may sum above the global limit, but selection
 still stops at the global cap. Effective caps and every overflow/tie-breaking

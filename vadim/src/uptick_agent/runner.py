@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 from collections import deque
 from datetime import UTC, datetime
 from time import monotonic
 from uuid import uuid4
 
+from uptick_agent.memory.contracts import MemoryContextRequest, RunOutcome
 from uptick_agent.models import (
     AgentAction,
     AgentConfig,
@@ -12,7 +15,6 @@ from uptick_agent.models import (
     DecisionContext,
     GetOperation,
     MemoryEntry,
-    MemoryQuery,
     RecentStep,
     RunResult,
     RunState,
@@ -22,7 +24,7 @@ from uptick_agent.models import (
     ToolResult,
 )
 from uptick_agent.observers import NullObserver
-from uptick_agent.ports import DecisionModel, Environment, Memory, RunObserver
+from uptick_agent.ports import AgentMemory, DecisionModel, Environment, RunObserver
 
 
 def _memory_text(result: ToolResult, *, limit: int = 6_000) -> str:
@@ -68,7 +70,7 @@ class AgentRunner:
         *,
         config: AgentConfig,
         model: DecisionModel,
-        memory: Memory,
+        memory: AgentMemory,
         environment: Environment,
         observer: RunObserver | None = None,
     ) -> None:
@@ -85,75 +87,97 @@ class AgentRunner:
             agent_id=self.config.agent_id,
             agent_version=self.config.agent_version,
         )
-        await self._remember(session.run_id, latest, kind="observation", importance=0.7)
+        try:
+            await self._remember(session.run_id, latest, kind="observation", importance=0.7)
 
-        stop_reason = "maximum step limit reached"
-        completed_steps = 0
-        recent_steps: deque[RecentStep] = deque(maxlen=6)
-        run_state = RunState()
-        for iteration in range(1, self.config.max_steps + 1):
-            memories = await self.memory.recall(
-                MemoryQuery(
-                    text=latest.summary + " " + _memory_text(latest, limit=4000),
+            stop_reason = "maximum step limit reached"
+            completed_steps = 0
+            recent_steps: deque[RecentStep] = deque(maxlen=6)
+            run_state = RunState()
+            for iteration in range(1, self.config.max_steps + 1):
+                memory_context = await self.memory.build_context(
+                    MemoryContextRequest(
+                        request_id=hashlib.sha256(
+                            f"{session.run_id}:{iteration}".encode()
+                        ).hexdigest(),
+                        run_id=session.run_id,
+                        query=latest.summary[:11_000] + " " + _memory_text(latest, limit=4_000),
+                        context={
+                            "iteration": iteration,
+                            "latest_result": latest.model_dump(mode="json"),
+                        },
+                        max_items=self.config.memory_recall_limit,
+                    )
+                )
+                context = DecisionContext(
+                    objective=self.config.objective,
                     run_id=session.run_id,
-                    include_other_runs=True,
-                    limit=self.config.memory_recall_limit,
-                )
-            )
-            context = DecisionContext(
-                objective=self.config.objective,
-                run_id=session.run_id,
-                seed=seed,
-                iteration=iteration,
-                max_steps=self.config.max_steps,
-                latest_result=latest,
-                recalled_memories=memories,
-                recent_steps=list(recent_steps),
-                run_state=run_state.model_copy(deep=True),
-            )
-            step_started = monotonic()
-            decision = await self.model.decide(context)
-            result = await self.environment.execute(session, decision.action)
-            duration = monotonic() - step_started
-            completed_steps = iteration
-            record = StepRecord(
-                run_id=session.run_id,
-                iteration=iteration,
-                decision=decision,
-                result=result,
-                started_at=datetime.now(UTC),
-                duration_seconds=duration,
-            )
-            await self._remember(
-                session.run_id,
-                result,
-                kind="experience",
-                importance=0.85 if not result.ok or result.terminal else 0.5,
-                metadata={"iteration": iteration, "decision": decision.model_dump(mode="json")},
-            )
-            await self.observer.on_step(record)
-            _record_run_state(run_state, decision.action, result)
-            recent_steps.append(
-                RecentStep(
+                    seed=seed,
                     iteration=iteration,
-                    action=decision.action,
-                    result_action_kind=result.action_kind,
-                    result_ok=result.ok,
-                    result_summary=result.summary[:2_000],
-                    result_terminal=result.terminal,
+                    max_steps=self.config.max_steps,
+                    latest_result=latest,
+                    memory_context=memory_context,
+                    recent_steps=list(recent_steps),
+                    run_state=run_state.model_copy(deep=True),
                 )
-            )
-            latest = result
-            if result.terminal:
-                stop_reason = result.summary
-                break
+                step_started = monotonic()
+                decision = await self.model.decide(context)
+                result = await self.environment.execute(session, decision.action)
+                duration = monotonic() - step_started
+                completed_steps = iteration
+                record = StepRecord(
+                    run_id=session.run_id,
+                    iteration=iteration,
+                    decision=decision,
+                    result=result,
+                    memory_diagnostics=self.memory.context_diagnostics,
+                    started_at=datetime.now(UTC),
+                    duration_seconds=duration,
+                )
+                await self._remember(
+                    session.run_id,
+                    result,
+                    kind="experience",
+                    importance=0.85 if not result.ok or result.terminal else 0.5,
+                    metadata={
+                        "iteration": iteration,
+                        "decision": decision.model_dump(mode="json"),
+                    },
+                )
+                await self.observer.on_step(record)
+                _record_run_state(run_state, decision.action, result)
+                recent_steps.append(
+                    RecentStep(
+                        iteration=iteration,
+                        action=decision.action,
+                        result_action_kind=result.action_kind,
+                        result_ok=result.ok,
+                        result_summary=result.summary[:2_000],
+                        result_terminal=result.terminal,
+                    )
+                )
+                latest = result
+                if result.terminal:
+                    stop_reason = result.summary
+                    break
 
-        total_duration = monotonic() - run_started
-        final = await self.environment.finish(
-            session,
-            steps=completed_steps,
-            duration_seconds=total_duration,
-            stop_reason=stop_reason,
+            final = await self.environment.finish(
+                session,
+                steps=completed_steps,
+                duration_seconds=monotonic() - run_started,
+                stop_reason=stop_reason,
+            )
+        except asyncio.CancelledError as error:
+            await self._record_failed_outcome(session.run_id, "interrupted", error)
+            raise
+        except Exception as error:
+            await self._record_failed_outcome(session.run_id, "failed", error)
+            raise
+
+        outcome_status = (
+            final.status
+            if final.status in {"completed", "failed", "interrupted", "excluded"}
+            else "failed"
         )
         await self._remember(
             session.run_id,
@@ -170,8 +194,43 @@ class AgentRunner:
             importance=1.0,
             tags={"run-outcome"},
         )
+        await self.memory.finalize_run(
+            RunOutcome(
+                run_id=session.run_id,
+                status=outcome_status,
+                stop_reason=final.stop_reason[:2_000] or "run finished without a stop reason",
+            )
+        )
         await self.observer.on_finish(final)
         return final
+
+    async def _record_failed_outcome(
+        self,
+        run_id: str,
+        status: str,
+        error: BaseException,
+    ) -> None:
+        reason = f"Run {status} by {type(error).__name__}."
+        try:
+            await self._remember(
+                run_id,
+                ToolResult(
+                    action_kind="run_outcome",
+                    summary=reason,
+                    data={"status": status, "error_type": type(error).__name__},
+                    terminal=True,
+                ),
+                kind="outcome",
+                importance=1.0,
+                tags={"run-outcome"},
+            )
+            await self.memory.finalize_run(
+                RunOutcome(run_id=run_id, status=status, stop_reason=reason)
+            )
+        except Exception as finalization_error:
+            error.add_note(
+                f"Memory finalization also failed with {type(finalization_error).__name__}."
+            )
 
     async def _remember(
         self,

@@ -3,11 +3,30 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from collections.abc import Iterable
 from pathlib import Path
 
+from uptick_agent.memory.config import MemoryConfiguration, ModuleConfig
+from uptick_agent.memory.contracts import (
+    ContextItem,
+    DecisionMemoryContext,
+    MemoryContextRequest,
+    MemoryContribution,
+    ProvenanceRef,
+    RunOutcome,
+    UntrustedMemoryEnvelope,
+)
+from uptick_agent.memory.orchestrator import (
+    MemoryContextDiagnostics,
+    MemoryModuleRegistration,
+    MemoryOrchestrator,
+)
 from uptick_agent.models import MemoryEntry, MemoryMatch, MemoryQuery
 from uptick_agent.ports import Memory
+
+_LEGACY_MODULE_ID = "compatibility.legacy"
 
 
 class LegacyMemoryAdapter:
@@ -17,8 +36,9 @@ class LegacyMemoryAdapter:
     use the separate Stage 1 store contract.
     """
 
-    def __init__(self, delegate: Memory) -> None:
+    def __init__(self, delegate: Memory, *, module_version: str = "legacy-1.0") -> None:
         self._delegate = delegate
+        self._module_version = module_version
 
     async def remember(self, entry: MemoryEntry) -> None:
         await self._delegate.remember(entry)
@@ -28,6 +48,53 @@ class LegacyMemoryAdapter:
 
     async def clear(self, run_id: str | None = None) -> None:
         await self._delegate.clear(run_id)
+
+    async def retrieve(self, request: MemoryContextRequest) -> MemoryContribution:
+        limit = 100 if request.max_items is None else min(request.max_items, 100)
+        matches = await self.recall(
+            MemoryQuery(
+                text=request.query,
+                run_id=request.run_id,
+                include_other_runs=True,
+                limit=limit,
+            )
+        )
+        return MemoryContribution(
+            module_id=_LEGACY_MODULE_ID,
+            module_version=self._module_version,
+            items=[self._context_item(match) for match in matches],
+        )
+
+    def _context_item(self, match: MemoryMatch) -> ContextItem:
+        payload = match.entry.model_dump(mode="json")
+        payload["tags"] = sorted(match.entry.tags)
+        canonical = json.dumps(
+            payload,
+            allow_nan=False,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        estimated_tokens = max(1, len(canonical.encode("utf-8")))
+        return ContextItem(
+            envelope=UntrustedMemoryEnvelope(
+                item_id=match.entry.id,
+                artefact_type=match.entry.kind,
+                origin_module=_LEGACY_MODULE_ID,
+                origin_version=self._module_version,
+                trust_classification="external_untrusted",
+                provenance=[
+                    ProvenanceRef(
+                        artefact_id=match.entry.id,
+                        content_hash=hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+                    )
+                ],
+                item=payload,
+            ),
+            score=match.score,
+            selection_reason="legacy lexical recall",
+            estimated_tokens=estimated_tokens,
+        )
 
     async def import_jsonl(self, path: str | Path) -> int:
         entries = await asyncio.to_thread(self.read_jsonl, path)
@@ -59,3 +126,58 @@ class LegacyMemoryAdapter:
         target_path.parent.mkdir(parents=True, exist_ok=True)
         payload = "".join(entry.model_dump_json() + "\n" for entry in entries)
         target_path.write_text(payload, encoding="utf-8")
+
+
+class LegacyMemoryRuntime:
+    """One runner-facing boundary over Stage 3 orchestration and legacy writes."""
+
+    def __init__(
+        self,
+        orchestrator: MemoryOrchestrator,
+        legacy: LegacyMemoryAdapter | None,
+    ) -> None:
+        self._orchestrator = orchestrator
+        self._legacy = legacy
+
+    async def build_context(self, request: MemoryContextRequest) -> DecisionMemoryContext:
+        return await self._orchestrator.build_context(request)
+
+    async def remember(self, entry: MemoryEntry) -> None:
+        if self._legacy is not None:
+            await self._legacy.remember(entry)
+
+    async def clear(self, run_id: str | None = None) -> None:
+        if self._legacy is not None:
+            await self._legacy.clear(run_id)
+
+    async def finalize_run(self, outcome: RunOutcome) -> None:
+        await self._orchestrator.finalize_run(outcome)
+
+    @property
+    def last_context_diagnostics(self) -> MemoryContextDiagnostics:
+        return self._orchestrator.last_context_diagnostics
+
+    @property
+    def context_diagnostics(self) -> dict:
+        return self.last_context_diagnostics.model_dump(mode="json")
+
+
+def legacy_memory_runtime(delegate: Memory | None) -> LegacyMemoryRuntime:
+    """Compose the canonical compatibility profile without constructing disabled memory."""
+
+    if delegate is None:
+        configuration = MemoryConfiguration(
+            compatibility_legacy=ModuleConfig(enabled=False),
+        )
+        return LegacyMemoryRuntime(MemoryOrchestrator(configuration, []), None)
+
+    configuration = MemoryConfiguration.legacy_baseline()
+    legacy = LegacyMemoryAdapter(
+        delegate,
+        module_version=configuration.compatibility_legacy.version,
+    )
+    orchestrator = MemoryOrchestrator(
+        configuration,
+        [MemoryModuleRegistration(_LEGACY_MODULE_ID, lambda _: legacy)],
+    )
+    return LegacyMemoryRuntime(orchestrator, legacy)

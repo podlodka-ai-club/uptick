@@ -13,6 +13,15 @@ from uptick_agent.llm.codex import (
     CodexDecisionError,
     CodexSGRModel,
 )
+from uptick_agent.llm.contracts import (
+    GenerationSettings,
+    LlmAuthenticationError,
+    LlmConfigurationError,
+    LlmMessage,
+    LlmTransientError,
+    LlmUnsupportedCapabilityError,
+    StructuredGenerationRequest,
+)
 from uptick_agent.llm.openai import DEFAULT_SYSTEM_PROMPT
 from uptick_agent.models import DecisionContext, NextStep, ToolResult
 
@@ -136,6 +145,24 @@ def test_codex_output_schema_uses_the_supported_strict_json_schema_subset() -> N
     assert "anyOf" in schema["properties"]["action"]
 
 
+def test_codex_rejects_generation_settings_it_cannot_honor() -> None:
+    async def scenario() -> None:
+        fake = FakeCodex(FakeResult(final_response=_valid_response()))
+        model = CodexSGRModel(client=fake)
+        request = StructuredGenerationRequest(
+            response_model=NextStep,
+            messages=(LlmMessage(role="user", content="choose"),),
+            settings=GenerationSettings(temperature=0),
+        )
+
+        with pytest.raises(LlmUnsupportedCapabilityError, match="generation settings"):
+            await model.generate_structured(request)
+
+        assert fake.account_calls == 0
+
+    asyncio.run(scenario())
+
+
 def test_codex_decide_uses_a_fresh_ephemeral_read_only_thread_and_schema(tmp_path: Path) -> None:
     async def scenario() -> None:
         fake = FakeCodex(FakeResult(final_response=_valid_response()))
@@ -184,7 +211,7 @@ def test_codex_rejects_non_subscription_auth_before_starting_a_turn(
         fake = FakeCodex(FakeResult(final_response=_valid_response()), account_type=account_type)
         model = CodexSGRModel(client=fake)
 
-        with pytest.raises(CodexDecisionError, match=r"requires a ChatGPT/Codex subscription"):
+        with pytest.raises(LlmAuthenticationError, match=r"requires a ChatGPT/Codex subscription"):
             await model.decide(_context())
 
         assert fake.thread_start_calls == []
@@ -281,7 +308,7 @@ def test_codex_request_failure_directs_operator_to_local_login() -> None:
 
     async def scenario() -> None:
         model = CodexSGRModel(client=UnauthenticatedCodex())
-        with pytest.raises(CodexDecisionError, match=r"run `codex login`"):
+        with pytest.raises(LlmTransientError, match=r"run `codex login`"):
             await model.decide(_context())
 
     asyncio.run(scenario())
@@ -296,7 +323,7 @@ def test_codex_post_auth_failure_does_not_blame_local_login() -> None:
         model = CodexSGRModel(
             client=FailingThreadCodex(FakeResult(final_response=_valid_response()))
         )
-        with pytest.raises(CodexDecisionError) as captured:
+        with pytest.raises(LlmTransientError) as captured:
             await model.decide(_context())
 
         message = str(captured.value)
@@ -345,11 +372,18 @@ def test_codex_cleans_owned_workspace_when_client_construction_fails(monkeypatch
 
     monkeypatch.setattr("uptick_agent.llm.codex.AsyncCodex", FailingCodex)
 
-    with pytest.raises(RuntimeError, match="no local Codex runtime"):
+    with pytest.raises(LlmConfigurationError, match="initialize the Codex") as captured:
         CodexSGRModel()
 
+    assert isinstance(captured.value.__cause__, RuntimeError)
+    assert "no local Codex runtime" in str(captured.value.__cause__)
     assert captured_workspace is not None
     assert not captured_workspace.exists()
+
+
+def test_codex_rejects_workspace_without_injected_client(tmp_path) -> None:
+    with pytest.raises(LlmConfigurationError, match="workspace_dir"):
+        CodexSGRModel(workspace_dir=tmp_path)
 
 
 @pytest.mark.parametrize("variable", ["OPENAI_API_KEY", "CODEX_API_KEY"])

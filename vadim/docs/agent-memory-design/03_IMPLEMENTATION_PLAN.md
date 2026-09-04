@@ -155,6 +155,9 @@ semantics does not satisfy this gate.
 
 ## Stage 2 — Stabilize the LLM boundary
 
+Status: **complete**. See
+[`STAGE_2_3_IMPLEMENTATION.md`](STAGE_2_3_IMPLEMENTATION.md).
+
 ### Why
 
 We expect Codex subscription, OpenAI-style endpoints and potentially Claude/other providers. Learning modules must not care.
@@ -179,6 +182,9 @@ complete.
 ---
 
 ## Stage 3 — Memory configuration and MemoryOrchestrator
+
+Status: **complete**. See
+[`STAGE_2_3_IMPLEMENTATION.md`](STAGE_2_3_IMPLEMENTATION.md).
 
 ### Why
 

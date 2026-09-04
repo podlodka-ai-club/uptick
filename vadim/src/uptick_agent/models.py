@@ -5,6 +5,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from uptick_agent.memory.contracts import DecisionMemoryContext
+
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -179,6 +181,8 @@ class DecisionContext(StrictModel):
     iteration: int
     max_steps: int
     latest_result: ToolResult
+    memory_context: DecisionMemoryContext = Field(default_factory=DecisionMemoryContext)
+    # Retained for callers that still construct the pre-Stage-3 context directly.
     recalled_memories: list[MemoryMatch] = Field(default_factory=list)
     recent_steps: list[RecentStep] = Field(default_factory=list, max_length=6)
     run_state: RunState = Field(default_factory=RunState)
@@ -189,6 +193,7 @@ class StepRecord(StrictModel):
     iteration: int
     decision: NextStep
     result: ToolResult
+    memory_diagnostics: dict[str, Any] = Field(default_factory=dict)
     started_at: datetime
     duration_seconds: float = Field(ge=0)
 

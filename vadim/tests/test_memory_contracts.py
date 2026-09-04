@@ -42,6 +42,7 @@ def test_stage_one_contracts_are_available_from_the_public_package_api() -> None
         "ObjectiveMetric",
         "ProvenanceRef",
         "RunOutcome",
+        "RunFinalizer",
         "TransitionAssemblyRequest",
         "UntrustedMemoryEnvelope",
     }
@@ -216,6 +217,9 @@ def test_legacy_baseline_config_is_canonical_and_fingerprint_is_stable() -> None
     second = MemoryConfiguration.legacy_baseline()
 
     assert first.compatibility_legacy.enabled is True
+    assert first.compatibility_legacy.schema_version == "1.1"
+    assert first.context_budget.schema_version == "1.1"
+    assert first.context_budget.estimator_id == "utf8-byte-upper-bound"
     assert first.episodic.enabled is False
     assert first.fingerprint == second.fingerprint
     assert len(first.fingerprint) == 64

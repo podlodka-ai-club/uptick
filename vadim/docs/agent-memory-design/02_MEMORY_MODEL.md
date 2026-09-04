@@ -287,9 +287,11 @@ The configured total limit is a hard bound. Per-type limits may be configurable,
 but selection and overflow behavior must be deterministic. The orchestrator
 must record why each item was selected or dropped.
 
-The initial default is 4,000 estimated tokens for the complete memory context.
-The resolved configuration records the provider/model-specific deterministic
-token estimator and its version.
+The initial default is 4,000 estimated-token budget units for the complete
+memory context. The compatibility profile resolves
+`utf8-byte-upper-bound@1.0`, a conservative deterministic estimator that counts
+each serialized UTF-8 byte as one unit. Its identity and version are recorded;
+unknown configured estimators fail before module construction.
 
 This metadata is essential for later evaluation.
 

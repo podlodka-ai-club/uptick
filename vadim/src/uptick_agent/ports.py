@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Protocol
 
+from uptick_agent.memory.contracts import DecisionMemoryContext, MemoryContextRequest, RunOutcome
 from uptick_agent.models import (
     AgentAction,
     DecisionContext,
@@ -23,6 +24,21 @@ class Memory(Protocol):
     async def recall(self, query: MemoryQuery) -> list[MemoryMatch]: ...
 
     async def clear(self, run_id: str | None = None) -> None: ...
+
+
+class AgentMemory(Protocol):
+    """Single runner-facing memory boundary during legacy migration."""
+
+    async def build_context(self, request: MemoryContextRequest) -> DecisionMemoryContext: ...
+
+    async def remember(self, entry: MemoryEntry) -> None: ...
+
+    async def clear(self, run_id: str | None = None) -> None: ...
+
+    async def finalize_run(self, outcome: RunOutcome) -> None: ...
+
+    @property
+    def context_diagnostics(self) -> dict[str, Any]: ...
 
 
 class DecisionModel(Protocol):

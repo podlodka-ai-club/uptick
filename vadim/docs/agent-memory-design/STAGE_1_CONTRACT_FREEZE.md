@@ -66,6 +66,10 @@ Stage 3 will own configuration loading, approval-record verification, module
 construction, diagnostics and context-budget enforcement. This stage defines
 the values but does not wire them into `AgentRunner` or the CLI.
 
+Subsequent status: Stage 3 now owns those responsibilities and is wired through
+the compatibility runtime; see
+[`STAGE_2_3_IMPLEMENTATION.md`](STAGE_2_3_IMPLEMENTATION.md).
+
 ## Persistence and snapshots
 
 SQLite is the first durable structured system of record. Its schema has a

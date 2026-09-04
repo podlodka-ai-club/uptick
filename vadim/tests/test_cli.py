@@ -9,15 +9,20 @@ from uptick_agent import cli
 def test_cli_uses_codex_model_default_and_cli_override_without_api_keys(monkeypatch) -> None:
     created: list[object] = []
 
-    class FakeCodexModel:
-        def __init__(self, *, model: str | None) -> None:
+    class FakeCodexClient:
+        def __init__(self, model: str | None) -> None:
             self.model = model
-            created.append(self)
+
+    class FakeCodexFactory:
+        def create(self, config):
+            client = FakeCodexClient(config.model)
+            created.append(client)
+            return client
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("CODEX_API_KEY", raising=False)
     monkeypatch.setenv("CODEX_MODEL", "codex-from-env")
-    monkeypatch.setattr(cli, "_load_codex_model", lambda: FakeCodexModel)
+    monkeypatch.setattr(cli, "_load_codex_factory", lambda: FakeCodexFactory)
 
     args = cli._parser().parse_args(["run", "--seed", "1", "--decision-provider", "codex"])
     model = cli._decision_model(args)
@@ -28,6 +33,33 @@ def test_cli_uses_codex_model_default_and_cli_override_without_api_keys(monkeypa
     )
     overridden_model = cli._decision_model(overridden_args)
     assert overridden_model.model == "chosen-codex"
+    assert len(created) == 2
+
+
+def test_cli_selects_openai_through_registry_with_cli_over_environment(monkeypatch) -> None:
+    created = []
+
+    class FakeClient:
+        def __init__(self, model: str | None) -> None:
+            self.model = model
+
+    class FakeFactory:
+        def __init__(self, **kwargs) -> None:
+            self.options = kwargs
+
+        def create(self, config):
+            client = FakeClient(config.model)
+            created.append(client)
+            return client
+
+    monkeypatch.setattr(cli, "OpenAIProviderFactory", FakeFactory)
+    monkeypatch.setenv("OPENAI_MODEL", "openai-from-env")
+
+    args = cli._parser().parse_args(["run", "--seed", "1"])
+    assert cli._decision_model(args).model == "openai-from-env"
+
+    overridden = cli._parser().parse_args(["run", "--seed", "1", "--model", "chosen"])
+    assert cli._decision_model(overridden).model == "chosen"
     assert len(created) == 2
 
 
@@ -62,13 +94,13 @@ def test_cli_rejects_unknown_provider_internally(monkeypatch) -> None:
 def test_cli_validates_config_before_constructing_a_codex_model(monkeypatch) -> None:
     created: list[object] = []
 
-    class FakeCodexModel:
-        def __init__(self, *, model: str | None) -> None:
+    class FakeCodexFactory:
+        def __init__(self) -> None:
             created.append(self)
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("CODEX_API_KEY", raising=False)
-    monkeypatch.setattr(cli, "_load_codex_model", lambda: FakeCodexModel)
+    monkeypatch.setattr(cli, "_load_codex_factory", lambda: FakeCodexFactory)
     args = cli._parser().parse_args(
         ["run", "--seed", "1", "--max-steps", "0", "--decision-provider", "codex"]
     )
@@ -87,3 +119,20 @@ def test_cli_builds_trace_names_for_run_and_benchmark() -> None:
 
     assert cli._trace_name(run_args) == "seed-7"
     assert cli._trace_name(benchmark_args) == "memory-study"
+
+
+def test_cli_rejects_invalid_benchmark_seeds_before_constructing_clients(monkeypatch) -> None:
+    constructed = False
+
+    def decision_model(args):
+        nonlocal constructed
+        constructed = True
+        raise AssertionError("must not construct")
+
+    monkeypatch.setattr(cli, "_decision_model", decision_model)
+    args = cli._parser().parse_args(["benchmark", "--name", "invalid", "--seeds", ","])
+
+    with pytest.raises(ValueError, match="at least one seed"):
+        asyncio.run(cli._main(args))
+
+    assert constructed is False

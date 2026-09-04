@@ -10,7 +10,22 @@ from typing import Any
 from openai_codex import ApprovalMode, AsyncCodex, CodexConfig, Sandbox
 from pydantic import ValidationError
 
-from uptick_agent.llm.openai import DEFAULT_SYSTEM_PROMPT
+from uptick_agent.llm.contracts import (
+    LlmAuthenticationError,
+    LlmCapabilities,
+    LlmConfigurationError,
+    LlmMessage,
+    LlmStructuredOutputError,
+    LlmTransientError,
+    LlmUnsupportedCapabilityError,
+    StructuredGenerationRequest,
+    StructuredGenerationResult,
+    TextGenerationRequest,
+    TextGenerationResult,
+    validate_structured_json,
+)
+from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT
+from uptick_agent.llm.registry import LlmProviderConfig
 from uptick_agent.models import DecisionContext, NextStep
 
 DECISION_ONLY_INSTRUCTIONS = """
@@ -87,39 +102,34 @@ def _normalize_output_schema(value: Any) -> Any:
     return normalized
 
 
-def _next_step_output_schema() -> dict[str, Any]:
-    schema = _normalize_output_schema(NextStep.model_json_schema())
-    if not isinstance(schema, dict):  # pragma: no cover - Pydantic always returns an object
-        raise TypeError("NextStep JSON Schema must be an object")
-    return schema
-
-
-class CodexDecisionError(RuntimeError):
+class CodexDecisionError(LlmStructuredOutputError):
     """A Codex response was unsafe or could not be turned into a decision."""
 
 
-class CodexSGRModel:
-    """Subscription-auth Codex adapter that returns one local-validated SGR decision."""
+class CodexLlmClient:
+    """Subscription-auth provider implementation for safe structured generation."""
 
     def __init__(
         self,
         *,
         model: str | None = None,
-        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+        system_prompt: str = "",
         client: AsyncCodex | None = None,
         workspace_dir: Path | str | None = None,
     ) -> None:
         if client is None and workspace_dir is not None:
-            raise ValueError("workspace_dir is only supported with an injected Codex client")
+            raise LlmConfigurationError(
+                "workspace_dir is only supported with an injected Codex client"
+            )
         if client is None and (os.getenv("OPENAI_API_KEY") or os.getenv("CODEX_API_KEY")):
-            raise ValueError(
+            raise LlmConfigurationError(
                 "Codex subscription provider refuses API-key configuration. "
                 "Unset OPENAI_API_KEY and CODEX_API_KEY to prevent API billing."
             )
 
         self.model = model
         self.system_prompt = system_prompt
-        self.developer_instructions = f"{system_prompt}\n\n{DECISION_ONLY_INSTRUCTIONS}"
+        self.developer_instructions = self._developer_instructions(())
         self._owns_client = client is None
         self._owns_workspace = client is None
         self._closed = False
@@ -136,36 +146,53 @@ class CodexSGRModel:
             if workspace is None:  # pragma: no cover - guarded by _owns_workspace
                 raise AssertionError("owned Codex client requires an isolated workspace")
             try:
-                self.client = AsyncCodex(
+                self._client = AsyncCodex(
                     CodexConfig(
                         cwd=str(workspace),
                         config_overrides=CODEX_CONFIG_OVERRIDES,
                     )
                 )
-            except Exception:
+            except Exception as error:
                 shutil.rmtree(workspace, ignore_errors=True)
-                raise
+                raise LlmConfigurationError(
+                    "Could not initialize the Codex subscription provider"
+                ) from error
         else:
-            self.client = client
+            self._client = client
 
-    async def decide(self, context: DecisionContext) -> NextStep:
+    @property
+    def capabilities(self) -> LlmCapabilities:
+        return LlmCapabilities(structured_generation=True, text_generation=False)
+
+    async def generate_structured[T](
+        self, request: StructuredGenerationRequest[T]
+    ) -> StructuredGenerationResult[T]:
+        if (
+            request.settings.temperature is not None
+            or request.settings.max_output_tokens is not None
+        ):
+            raise LlmUnsupportedCapabilityError(
+                "Codex decision-only provider does not support portable generation settings"
+            )
         try:
             await self._require_chatgpt_subscription()
-        except CodexDecisionError:
+        except LlmAuthenticationError:
             raise
         except Exception as error:
-            raise CodexDecisionError(
-                "Could not verify the ChatGPT/Codex subscription session; run `codex login` "
-                "on your trusted local machine before using --decision-provider codex."
+            raise LlmTransientError(
+                "Could not verify the ChatGPT/Codex subscription session; retry the request. "
+                "If it persists, run `codex login` on your trusted local machine."
             ) from error
 
         validation_feedback: str | None = None
         try:
             for attempt in range(_MAX_DECISION_ATTEMPTS):
-                thread = await self.client.thread_start(**self._thread_start_kwargs())
+                thread = await self._client.thread_start(**self._thread_start_kwargs(request))
                 result = await thread.run(
-                    self._decision_prompt(context, validation_feedback=validation_feedback),
-                    **self._run_kwargs(),
+                    self._structured_prompt(
+                        request.messages, validation_feedback=validation_feedback
+                    ),
+                    **self._run_kwargs(request),
                 )
 
                 self._reject_tool_events(result)
@@ -180,24 +207,37 @@ class CodexSGRModel:
                     )
 
                 try:
-                    return NextStep.model_validate_json(final_response)
-                except (TypeError, ValueError, ValidationError) as error:
+                    value = validate_structured_json(request.response_model, final_response)
+                    return StructuredGenerationResult(
+                        value=value,
+                        provider="codex",
+                        model=request.model or self.model,
+                    )
+                except (LlmStructuredOutputError, TypeError, ValueError, ValidationError) as error:
                     if attempt + 1 < _MAX_DECISION_ATTEMPTS:
                         validation_feedback = str(error)[:2_000]
                         continue
                     raise CodexDecisionError(
-                        "Codex returned an invalid NextStep schema response after one retry; "
-                        "no simulator action was executed."
+                        f"Codex returned an invalid {request.response_model.__name__} schema "
+                        "response after one retry; no simulator action was executed."
                     ) from error
         except CodexDecisionError:
             raise
+        except (LlmAuthenticationError, LlmTransientError):
+            raise
         except Exception as error:
-            raise CodexDecisionError(
+            raise LlmTransientError(
                 "Codex decision request failed after ChatGPT subscription authentication; "
                 "inspect the chained runtime error."
             ) from error
 
         raise AssertionError("Codex decision loop exhausted without returning or raising")
+
+    async def generate_text(self, request: TextGenerationRequest) -> TextGenerationResult:
+        del request
+        raise LlmUnsupportedCapabilityError(
+            "Codex decision-only provider does not support text generation"
+        )
 
     async def aclose(self) -> None:
         if self._closed:
@@ -205,17 +245,20 @@ class CodexSGRModel:
         self._closed = True
         try:
             if self._owns_client:
-                await self.client.close()
+                try:
+                    await self._client.close()
+                except Exception as error:
+                    raise LlmTransientError("Codex client close failed") from error
         finally:
             if self._owns_workspace and self._workspace_dir is not None:
                 shutil.rmtree(self._workspace_dir, ignore_errors=True)
 
     async def _require_chatgpt_subscription(self) -> None:
-        account_response = await self.client.account()
+        account_response = await self._client.account()
         account = getattr(account_response, "account", None)
         account_type = self._account_type(account)
         if account_type != "chatgpt":
-            raise CodexDecisionError(
+            raise LlmAuthenticationError(
                 "Codex subscription provider requires a ChatGPT/Codex subscription session, "
                 "not persisted API-key authentication. Run `codex login` on your trusted local "
                 "machine with ChatGPT/Codex sign-in, then retry."
@@ -238,27 +281,36 @@ class CodexSGRModel:
             return None
         return str(getattr(account_type, "value", account_type))
 
-    def _thread_start_kwargs(self) -> dict[str, Any]:
+    def _thread_start_kwargs(
+        self, request: StructuredGenerationRequest[Any] | None = None
+    ) -> dict[str, Any]:
+        messages = request.messages if request is not None else ()
         kwargs: dict[str, Any] = {
             "approval_mode": ApprovalMode.deny_all,
-            "developer_instructions": self.developer_instructions,
+            "developer_instructions": self._developer_instructions(messages),
             "ephemeral": True,
             "sandbox": Sandbox.read_only,
         }
-        if self.model is not None:
-            kwargs["model"] = self.model
+        model = request.model if request is not None else self.model
+        if model is not None:
+            kwargs["model"] = model
         if self._workspace_dir is not None:
             kwargs["cwd"] = str(self._workspace_dir)
         return kwargs
 
-    def _run_kwargs(self) -> dict[str, Any]:
+    def _run_kwargs(
+        self, request: StructuredGenerationRequest[Any] | None = None
+    ) -> dict[str, Any]:
         kwargs: dict[str, Any] = {
             "approval_mode": ApprovalMode.deny_all,
-            "output_schema": _next_step_output_schema(),
+            "output_schema": self._output_schema(
+                request.response_model if request is not None else NextStep
+            ),
             "sandbox": Sandbox.read_only,
         }
-        if self.model is not None:
-            kwargs["model"] = self.model
+        model = request.model if request is not None else self.model
+        if model is not None:
+            kwargs["model"] = model
         if self._workspace_dir is not None:
             kwargs["cwd"] = str(self._workspace_dir)
         return kwargs
@@ -275,7 +327,7 @@ class CodexSGRModel:
             )
         except (OSError, subprocess.CalledProcessError) as error:
             shutil.rmtree(workspace, ignore_errors=True)
-            raise RuntimeError("could not create the isolated Codex workspace") from error
+            raise LlmConfigurationError("Could not create the isolated Codex workspace") from error
         return workspace
 
     @staticmethod
@@ -305,18 +357,72 @@ class CodexSGRModel:
         return str(getattr(status, "value", status))
 
     @staticmethod
-    def _decision_prompt(
-        context: DecisionContext,
-        *,
-        validation_feedback: str | None = None,
+    def _output_schema(response_model: type[Any]) -> dict[str, Any]:
+        schema = _normalize_output_schema(response_model.model_json_schema())
+        if not isinstance(schema, dict):
+            raise TypeError("structured response JSON Schema must be an object")
+        return schema
+
+    def _developer_instructions(self, messages: tuple[LlmMessage, ...]) -> str:
+        system_messages = [self.system_prompt] if self.system_prompt.strip() else []
+        system_messages.extend(message.content for message in messages if message.role == "system")
+        return "\n\n".join([*system_messages, DECISION_ONLY_INSTRUCTIONS])
+
+    @staticmethod
+    def _structured_prompt(
+        messages: tuple[LlmMessage, ...], *, validation_feedback: str | None = None
     ) -> str:
-        prompt = (
-            "Choose the next action from this runtime context. JSON follows:\n"
-            + context.model_dump_json()
-        )
+        content = [message.content for message in messages if message.role != "system"]
+        if not content:
+            raise CodexDecisionError("structured generation requires a non-system message")
+        prompt = "\n\n".join(content)
         if validation_feedback is not None:
             prompt += (
                 "\n\nThe previous response failed application validation. Correct the decision "
                 "and return the full JSON object again. Validation error:\n" + validation_feedback
             )
         return prompt
+
+
+class CodexProviderFactory:
+    """Factory for the subscription-auth Codex provider."""
+
+    def create(self, config: LlmProviderConfig) -> CodexLlmClient:
+        return CodexLlmClient(model=config.model)
+
+
+class CodexSGRModel(CodexLlmClient):
+    """Compatibility facade retaining the existing ``DecisionModel`` behavior."""
+
+    def __init__(
+        self,
+        *,
+        model: str | None = None,
+        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+        client: AsyncCodex | None = None,
+        workspace_dir: Path | str | None = None,
+    ) -> None:
+        super().__init__(
+            model=model,
+            system_prompt=system_prompt,
+            client=client,
+            workspace_dir=workspace_dir,
+        )
+
+    async def decide(self, context: DecisionContext) -> NextStep:
+        result = await self.generate_structured(
+            StructuredGenerationRequest(
+                model=self.model,
+                response_model=NextStep,
+                messages=(
+                    LlmMessage(
+                        role="user",
+                        content=(
+                            "Choose the next action from this runtime context. JSON follows:\n"
+                            + context.model_dump_json()
+                        ),
+                    ),
+                ),
+            )
+        )
+        return result.value

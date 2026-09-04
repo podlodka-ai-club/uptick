@@ -4,8 +4,10 @@ This directory is the entry point for implementing a **general-purpose
 self-improving agent memory system** on top of the isolated baseline under
 `vadim/src/uptick_agent`.
 
-Stage 1 contract freeze is **complete**; its accepted contract and review record
-is [`STAGE_1_CONTRACT_FREEZE.md`](STAGE_1_CONTRACT_FREEZE.md). Stage 0 currently
+Stages 1–3 are **complete**. The accepted Stage 1 freeze is recorded in
+[`STAGE_1_CONTRACT_FREEZE.md`](STAGE_1_CONTRACT_FREEZE.md); the Stage 2/3 runtime
+integration and its deliberate deferrals are recorded in
+[`STAGE_2_3_IMPLEMENTATION.md`](STAGE_2_3_IMPLEMENTATION.md). Stage 0 currently
 provides an offline preregistration/reporting scaffold, not collected live
 baseline evidence. Each later stage retains its own implementation and evidence
 gate; examples marked conceptual are not substitutes for those gates.
@@ -58,17 +60,21 @@ For an implementation agent, read these documents in order:
 5. [`04_EVALUATION_AND_ABLATIONS.md`](04_EVALUATION_AND_ABLATIONS.md) — how to prove which mechanisms actually help.
 6. [`05_ARCHITECTURE_TESTS.md`](05_ARCHITECTURE_TESTS.md) — fitness functions that prevent abstraction leakage and architectural decay.
 
-## Current baseline
+## Current implementation
 
 The current local baseline already has several useful seams:
 
 - `AgentRunner` owns the runtime loop.
-- `DecisionModel` is already a port.
+- `DecisionModel` remains the runner port while a small compatibility bridge
+  drives it through the provider-neutral `LlmClient` registry.
 - `Environment` is already a port.
-- `Memory` is already a port with `remember/recall/clear`.
+- `AgentRunner` consumes one `AgentMemory` boundary and receives a normalized
+  `DecisionMemoryContext`; legacy `remember/recall/clear` behavior is contained
+  inside the compatibility runtime.
 - `InMemoryMemory` is deliberately simple and `NullMemory` already provides a no-memory control group.
 - simulator-specific code is under `src/uptick_agent/simulator`.
-- LLM implementations are already separated under `src/uptick_agent/llm`.
+- OpenAI and Codex implementations are separated under `src/uptick_agent/llm`
+  and provider SDK objects stay inside their adapters.
 
 The proposed architecture should **evolve these seams rather than rewrite the whole agent at once**.
 

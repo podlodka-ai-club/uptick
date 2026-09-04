@@ -1,3 +1,48 @@
-from uptick_agent.llm.openai import OpenAISGRModel
+"""Provider-neutral LLM contracts and the default OpenAI compatibility facade."""
 
-__all__ = ["OpenAISGRModel"]
+from uptick_agent.llm.contracts import (
+    GenerationSettings,
+    LlmAuthenticationError,
+    LlmCapabilities,
+    LlmClient,
+    LlmConfigurationError,
+    LlmError,
+    LlmMessage,
+    LlmPermanentProviderError,
+    LlmProviderError,
+    LlmRateLimitError,
+    LlmStructuredOutputError,
+    LlmTransientError,
+    LlmUnsupportedCapabilityError,
+    StructuredGenerationRequest,
+    StructuredGenerationResult,
+    TextGenerationRequest,
+    TextGenerationResult,
+)
+from uptick_agent.llm.openai import OpenAIProviderFactory, OpenAISGRModel
+from uptick_agent.llm.registry import LlmProviderConfig, LlmProviderFactory, LlmProviderRegistry
+
+__all__ = [
+    "GenerationSettings",
+    "LlmCapabilities",
+    "LlmClient",
+    "LlmConfigurationError",
+    "LlmError",
+    "LlmAuthenticationError",
+    "LlmMessage",
+    "LlmProviderConfig",
+    "LlmProviderError",
+    "LlmPermanentProviderError",
+    "LlmRateLimitError",
+    "LlmProviderFactory",
+    "LlmProviderRegistry",
+    "LlmStructuredOutputError",
+    "LlmUnsupportedCapabilityError",
+    "LlmTransientError",
+    "OpenAIProviderFactory",
+    "OpenAISGRModel",
+    "StructuredGenerationRequest",
+    "StructuredGenerationResult",
+    "TextGenerationRequest",
+    "TextGenerationResult",
+]

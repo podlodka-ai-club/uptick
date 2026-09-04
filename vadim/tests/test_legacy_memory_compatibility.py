@@ -1,6 +1,7 @@
 import asyncio
 
-from uptick_agent.memory import InMemoryMemory, LegacyMemoryAdapter
+from uptick_agent.memory import InMemoryMemory, LegacyMemoryAdapter, legacy_memory_runtime
+from uptick_agent.memory.contracts import MemoryContextRequest
 from uptick_agent.models import MemoryEntry, MemoryQuery
 
 
@@ -35,5 +36,30 @@ def test_jsonl_is_explicit_legacy_import_export_only(tmp_path) -> None:
         assert (await adapter.recall(MemoryQuery(text="exported fix", run_id="run-1")))[
             0
         ].entry == entries[0]
+
+    asyncio.run(scenario())
+
+
+def test_legacy_runtime_projects_recall_into_the_normalized_untrusted_context() -> None:
+    async def scenario() -> None:
+        store = InMemoryMemory()
+        runtime = legacy_memory_runtime(store)
+        await runtime.remember(_entry("entry", "exact legacy fix"))
+
+        context = await runtime.build_context(
+            MemoryContextRequest(
+                request_id="request",
+                run_id="run-1",
+                query="legacy fix",
+                max_items=1,
+            )
+        )
+
+        assert [item.envelope.item_id for item in context.items] == ["entry"]
+        envelope = context.items[0].envelope
+        assert envelope.origin_module == "compatibility.legacy"
+        assert envelope.trust_classification == "external_untrusted"
+        assert envelope.item["content"] == "exact legacy fix"
+        assert runtime.context_diagnostics["configuration_fingerprint"]
 
     asyncio.run(scenario())
