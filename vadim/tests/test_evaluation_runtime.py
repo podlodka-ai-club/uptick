@@ -722,6 +722,13 @@ def test_default_memory_factory_reads_frozen_training_and_excludes_eval_writes()
     assert evaluation_contexts
     assert all(count > 0 for count in evaluation_contexts)
     assert len(set(evaluation_contexts)) == 1
+    evaluation_attempts = [item for item in report.retained_attempts if item.phase == "evaluation"]
+    assert evaluation_attempts
+    assert all(
+        item.memory_telemetry.snapshot_members is not None
+        and item.memory_telemetry.snapshot_members > 0
+        for item in evaluation_attempts
+    )
 
 
 def test_default_memory_factory_freezes_nonempty_lessons_for_evaluation() -> None:

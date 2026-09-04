@@ -473,6 +473,11 @@ class _MemoryAdapter:
             "context_tokens": self._context_tokens_total,
         }
 
+    @property
+    def frozen_snapshot_members(self) -> int | None:
+        value = getattr(self._memory, "frozen_snapshot_members", None)
+        return value if isinstance(value, int) and value >= 0 else None
+
 
 class _TelemetryModelAdapter:
     """Collect one neutral telemetry sample after every model decision."""
