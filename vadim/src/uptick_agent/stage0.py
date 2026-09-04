@@ -20,6 +20,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from uptick_agent.redaction import is_secret_key, redact_text
+
 SCHEMA_VERSION = "1.0"
 SUPPORTED_SCHEMA_MAJOR = 1
 CONDITIONS = ("B0", "B1")
@@ -97,7 +99,7 @@ def _sanitize_value(value: Any, *, key: str | None = None) -> Any:
         return {
             str(item_key): (
                 "<redacted>"
-                if _secret_key(str(item_key))
+                if is_secret_key(str(item_key))
                 else _sanitize_value(item_value, key=str(item_key))
             )
             for item_key, item_value in value.items()
@@ -109,15 +111,6 @@ def _sanitize_value(value: Any, *, key: str | None = None) -> Any:
     if isinstance(value, str):
         return redact_text(value)
     return value
-
-
-def _secret_key(key: str) -> bool:
-    return bool(
-        re.search(
-            r"(?i)^(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|token|authorization)$",
-            key,
-        )
-    )
 
 
 def canonical_json(value: object) -> str:
@@ -185,34 +178,6 @@ def _secret_path(relative: Path) -> bool:
         or name.startswith(".env.")
         or name.endswith((".pem", ".key", ".p12", ".pfx"))
     )
-
-
-_SECRET_PATTERNS = (
-    re.compile(r"(?i)authorization\s*[:=]\s*(?:basic|bearer|token)\s+[^\s,;]+"),
-    re.compile(
-        r"(?i)(api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|token)"
-        r"\s*[:=]\s*(?:bearer|token)\s+[^\s,;]+"
-    ),
-    re.compile(
-        r"(?i)(api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|token)"
-        r"\s*[:=]\s*[^\s,;]+"
-    ),
-    re.compile(
-        r"(?i)authorization\s*(?:(?:[:=]\s*)?(?:bearer|token)\s+|[:=]\s*)"
-        r"[^\s,;]+"
-    ),
-    re.compile(r"(?i)\b(?:bearer|token)\s+[a-z0-9._~+/=-]+"),
-    re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b"),
-)
-
-
-def redact_text(value: str) -> str:
-    """Remove common credential-shaped values before they can be persisted."""
-
-    result = value
-    for pattern in _SECRET_PATTERNS:
-        result = pattern.sub("<redacted>", result)
-    return result
 
 
 class EnvironmentProfile(Stage0Model):

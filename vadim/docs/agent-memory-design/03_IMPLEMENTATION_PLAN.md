@@ -234,6 +234,9 @@ In addition:
 
 ## Stage 4 — First-class episodic memory
 
+Status: **complete**. The implementation and verification boundary are recorded
+in [`STAGE_4_IMPLEMENTATION.md`](STAGE_4_IMPLEMENTATION.md).
+
 ### Why
 
 All higher learning depends on reliable evidence.

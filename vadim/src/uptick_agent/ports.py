@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from uptick_agent.memory.contracts import DecisionMemoryContext, MemoryContextRequest, RunOutcome
+from uptick_agent.memory.contracts import (
+    DecisionMemoryContext,
+    ExperienceTransition,
+    MemoryContextRequest,
+    RunOutcome,
+)
 from uptick_agent.models import (
     AgentAction,
     DecisionContext,
@@ -32,6 +37,8 @@ class AgentMemory(Protocol):
     async def build_context(self, request: MemoryContextRequest) -> DecisionMemoryContext: ...
 
     async def remember(self, entry: MemoryEntry) -> None: ...
+
+    async def record_transition(self, transition: ExperienceTransition) -> None: ...
 
     async def clear(self, run_id: str | None = None) -> None: ...
 

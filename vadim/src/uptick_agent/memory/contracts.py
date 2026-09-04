@@ -75,7 +75,13 @@ class ContractModel(BaseModel):
         major_text, minor_text = version.split(".", maxsplit=1)
         if not (major_text.isdigit() and minor_text.isdigit()):
             return value
-        current_major, current_minor = (int(part) for part in SCHEMA_VERSION.split("."))
+        schema_field = cls.model_fields.get("schema_version")
+        current_version = (
+            schema_field.default
+            if schema_field is not None and isinstance(schema_field.default, str)
+            else SCHEMA_VERSION
+        )
+        current_major, current_minor = (int(part) for part in current_version.split("."))
         if int(major_text) == current_major and int(minor_text) > current_minor:
             return {key: item for key, item in value.items() if key in cls.model_fields}
         return value
@@ -115,9 +121,41 @@ class UntrustedMemoryEnvelope(ContractModel):
 
 
 class ObjectiveMetric(ContractModel):
+    """One absolute objective-metric observation at a point in time."""
+
     name: str = Field(min_length=1, max_length=128)
     value: float = Field(allow_inf_nan=False)
     unit: str = Field(min_length=1, max_length=64)
+
+
+class ObjectiveMetricDelta(ContractModel):
+    """A transparent delta between two observations of the same metric."""
+
+    schema_version: str = Field(default="1.1", pattern=r"^[1-9][0-9]*\.[0-9]+$")
+    name: str = Field(min_length=1, max_length=128)
+    unit: str = Field(min_length=1, max_length=64)
+    before: float = Field(allow_inf_nan=False)
+    after: float = Field(allow_inf_nan=False)
+    delta: float = Field(allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def _delta_matches_observations(self) -> ObjectiveMetricDelta:
+        if not math.isclose(
+            self.delta,
+            self.after - self.before,
+            rel_tol=1e-12,
+            abs_tol=1e-12,
+        ):
+            raise ValueError("objective metric delta must equal after minus before")
+        return self
+
+
+class OperationLink(ContractModel):
+    """An opaque environment operation referenced by an episode."""
+
+    schema_version: str = Field(default="1.1", pattern=r"^[1-9][0-9]*\.[0-9]+$")
+    operation_id: str = Field(min_length=1, max_length=256)
+    relation: Literal["initiated", "observed"]
 
 
 class ExperienceTransition(ContractModel):
@@ -127,6 +165,7 @@ class ExperienceTransition(ContractModel):
     Stage 1 only freezes its shape.
     """
 
+    schema_version: str = Field(default="1.1", pattern=r"^[1-9][0-9]*\.[0-9]+$")
     transition_id: str = Field(min_length=1, max_length=256)
     run_id: str = Field(min_length=1, max_length=256)
     iteration: int = Field(ge=1)
@@ -139,6 +178,8 @@ class ExperienceTransition(ContractModel):
     action: dict[str, JsonValue] = Field(default_factory=dict)
     result: dict[str, JsonValue] = Field(default_factory=dict)
     objective_metrics: list[ObjectiveMetric] = Field(default_factory=list)
+    objective_deltas: list[ObjectiveMetricDelta] = Field(default_factory=list)
+    operation_links: list[OperationLink] = Field(default_factory=list, max_length=64)
     provenance: list[ProvenanceRef] = Field(min_length=1)
     terminal: bool
 
@@ -193,19 +234,44 @@ class MemoryContribution(ContractModel):
 
 
 class TransitionAssemblyRequest(ContractModel):
+    schema_version: str = Field(default="1.1", pattern=r"^[1-9][0-9]*\.[0-9]+$")
     transition_id: str = Field(min_length=1, max_length=256)
     run_id: str = Field(min_length=1, max_length=256)
     iteration: int = Field(ge=1)
+    occurred_at: datetime | None = None
+    environment_id: str | None = Field(default=None, max_length=256)
+    scenario_id: str | None = Field(default=None, max_length=256)
+    trust_classification: (
+        Literal["external_untrusted", "derived_untrusted", "human_attested"] | None
+    ) = None
     pre_state: dict[str, JsonValue] = Field(default_factory=dict)
     observation: dict[str, JsonValue] = Field(default_factory=dict)
     action: dict[str, JsonValue] = Field(default_factory=dict)
     result: dict[str, JsonValue] = Field(default_factory=dict)
+    before_objective_metrics: list[ObjectiveMetric] = Field(default_factory=list)
+    after_objective_metrics: list[ObjectiveMetric] = Field(default_factory=list)
+    operation_links: list[OperationLink] = Field(default_factory=list, max_length=64)
     terminal: bool
 
     @field_validator("pre_state", "observation", "action", "result", mode="before")
     @classmethod
     def _require_finite_assembly_json(cls, value: object) -> object:
         return require_finite_json(value)
+
+    @model_validator(mode="after")
+    def _require_current_assembly_facts(self) -> TransitionAssemblyRequest:
+        if self.schema_version != "1.0":
+            if self.occurred_at is None:
+                raise ValueError("transition assembly schema newer than 1.0 requires occurred_at")
+            if self.trust_classification is None:
+                raise ValueError(
+                    "transition assembly schema newer than 1.0 requires trust_classification"
+                )
+        if self.schema_version != "1.0" and self.occurred_at is not None:
+            if self.occurred_at.utcoffset() is None:
+                raise ValueError("occurred_at must include a timezone")
+            self.occurred_at = self.occurred_at.astimezone(UTC)
+        return self
 
 
 class ConsolidationRequest(ContractModel):

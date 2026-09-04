@@ -18,6 +18,8 @@ from uptick_agent.memory.contracts import (
     MemoryTransientError,
     MemoryValidationError,
     ObjectiveMetric,
+    ObjectiveMetricDelta,
+    OperationLink,
     ProvenanceRef,
     RunFinalizer,
     RunOutcome,
@@ -41,6 +43,10 @@ __all__ = [
     "ExperienceSink",
     "ExperienceTransition",
     "ExperienceTransitionAssembler",
+    "EpisodicMemory",
+    "EPISODIC_MODULE_ID",
+    "EPISODIC_MODULE_VERSION",
+    "episodic_memory_runtime",
     "InMemoryMemory",
     "JsonlMemory",
     "LegacyMemoryAdapter",
@@ -59,6 +65,8 @@ __all__ = [
     "MemoryValidationError",
     "NullMemory",
     "ObjectiveMetric",
+    "ObjectiveMetricDelta",
+    "OperationLink",
     "ProvenanceRef",
     "RunOutcome",
     "RunFinalizer",
@@ -82,4 +90,12 @@ def __getattr__(name: str):
         from uptick_agent.memory.compatibility import legacy
 
         return getattr(legacy, name)
+    if name in {"EpisodicMemory", "EPISODIC_MODULE_ID", "EPISODIC_MODULE_VERSION"}:
+        from uptick_agent.memory import episodic
+
+        return getattr(episodic, name)
+    if name == "episodic_memory_runtime":
+        from uptick_agent.memory.compatibility.legacy import episodic_memory_runtime
+
+        return episodic_memory_runtime
     raise AttributeError(name)

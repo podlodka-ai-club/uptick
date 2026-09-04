@@ -28,6 +28,10 @@ All public payloads and persisted records carry `schema_version` in
 `major.minor` form. Version 1 readers reject an unknown major. Current 1.0
 authoring/input remains strict about unknown fields; a supported newer 1.x
 payload may carry additive unknown fields, which a 1.0 reader ignores.
+Stage 4 subsequently authored the additive transition shape at `1.1`.
+Strictness is evaluated against each model's authored minor version: a current
+1.1 writer rejects unknown 1.1 fields while accepting additive fields from a
+future supported 1.x payload.
 
 State-changing store operations receive `(namespace, operation,
 idempotency_key)`. A retry with the same canonical input returns its original
@@ -69,6 +73,9 @@ the values but does not wire them into `AgentRunner` or the CLI.
 Subsequent status: Stage 3 now owns those responsibilities and is wired through
 the compatibility runtime; see
 [`STAGE_2_3_IMPLEMENTATION.md`](STAGE_2_3_IMPLEMENTATION.md).
+Stage 4 now redirects structured transition and outcome capabilities for the
+explicit episodic-only profile; see
+[`STAGE_4_IMPLEMENTATION.md`](STAGE_4_IMPLEMENTATION.md).
 
 ## Persistence and snapshots
 

@@ -35,6 +35,37 @@ def _write_in_namespace(namespace: str, record_id: str, *, seconds: int = 0) -> 
     return _write(record_id, seconds=seconds).model_copy(update={"namespace": namespace})
 
 
+def test_structured_record_redacts_credentials_at_the_shared_persistence_boundary() -> None:
+    async def scenario() -> None:
+        store = InMemoryStructuredStore()
+        receipt = await store.append(
+            RecordWrite(
+                namespace="experiment",
+                record_id="safe",
+                record_type="evidence",
+                payload={
+                    "token": "topsecret",
+                    "summary": "Authorization: Bearer second remains useful",
+                },
+            ),
+            operation="record",
+            idempotency_key="safe",
+        )
+
+        assert receipt.record.payload == {
+            "token": "<redacted>",
+            "summary": "<redacted> remains useful",
+        }
+        with pytest.raises(MemoryValidationError, match="credential-shaped"):
+            await store.append(
+                _write("sk-abcdefghijk"),
+                operation="record",
+                idempotency_key="unsafe",
+            )
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize("backend", ["in-memory", "sqlite"])
 @pytest.mark.parametrize(
     ("method", "argument", "value"),

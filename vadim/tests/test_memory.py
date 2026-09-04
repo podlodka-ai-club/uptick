@@ -55,6 +55,24 @@ def test_jsonl_memory_survives_recreation(tmp_path) -> None:
     asyncio.run(scenario())
 
 
+def test_jsonl_memory_never_writes_credential_shaped_content(tmp_path) -> None:
+    async def scenario() -> None:
+        path = tmp_path / "memory.jsonl"
+        memory = JsonlMemory(path)
+        volatile = InMemoryMemory()
+        unsafe = entry("token=topsecret exact fix is FIX-123", run_id="run-1")
+
+        await memory.remember(unsafe)
+        await volatile.remember(unsafe)
+
+        persisted = path.read_text()
+        assert "topsecret" not in persisted
+        assert "<redacted> exact fix is FIX-123" in persisted
+        assert "topsecret" not in volatile.entries[0].content
+
+    asyncio.run(scenario())
+
+
 def test_recall_excludes_incomplete_cross_run_entries_and_irrelevant_matches() -> None:
     async def scenario() -> None:
         memory = InMemoryMemory()

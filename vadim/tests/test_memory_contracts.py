@@ -1,4 +1,5 @@
 import math
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -11,6 +12,8 @@ from uptick_agent.memory.contracts import (
     ExperienceTransition,
     MemoryContextRequest,
     ObjectiveMetric,
+    ObjectiveMetricDelta,
+    OperationLink,
     ProvenanceRef,
     RunOutcome,
     TransitionAssemblyRequest,
@@ -32,6 +35,8 @@ def test_stage_one_contracts_are_available_from_the_public_package_api() -> None
         "ExperienceSink",
         "ExperienceTransition",
         "ExperienceTransitionAssembler",
+        "EpisodicMemory",
+        "episodic_memory_runtime",
         "MemoryConflictError",
         "MemoryContractError",
         "MemoryContextRequest",
@@ -40,6 +45,8 @@ def test_stage_one_contracts_are_available_from_the_public_package_api() -> None
         "MemoryTransientError",
         "MemoryValidationError",
         "ObjectiveMetric",
+        "ObjectiveMetricDelta",
+        "OperationLink",
         "ProvenanceRef",
         "RunOutcome",
         "RunFinalizer",
@@ -126,6 +133,88 @@ def test_transition_is_generic_and_requires_no_simulator_models() -> None:
     )
 
     assert transition.action == {"kind": "inspect"}
+
+
+def test_transition_1_1_additions_are_strict_and_1_0_records_remain_readable() -> None:
+    delta = ObjectiveMetricDelta(
+        name="balance",
+        unit="minor",
+        before=10,
+        after=13,
+        delta=3,
+    )
+    link = OperationLink(operation_id="operation-1", relation="observed")
+    transition = ExperienceTransition(
+        **_transition_fields(),
+        objective_deltas=[delta],
+        operation_links=[link],
+    )
+
+    assert transition.schema_version == "1.1"
+    assert delta.schema_version == "1.1"
+    assert link.schema_version == "1.1"
+    with pytest.raises(ValidationError, match="after minus before"):
+        ObjectiveMetricDelta(
+            name="balance",
+            unit="minor",
+            before=10,
+            after=13,
+            delta=2,
+        )
+    with pytest.raises(ValidationError):
+        OperationLink(operation_id="", relation="observed")
+    with pytest.raises(ValidationError):
+        OperationLink(operation_id="operation-1", relation="caused")
+
+    legacy = ExperienceTransition.model_validate(
+        {
+            **_transition_fields(),
+            "schema_version": "1.0",
+        }
+    )
+    assert legacy.schema_version == "1.0"
+    assert legacy.objective_deltas == []
+    assert legacy.operation_links == []
+
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        ExperienceTransition.model_validate(
+            {
+                **_transition_fields(),
+                "schema_version": "1.1",
+                "unknown_current_field": True,
+            }
+        )
+
+    forward = ExperienceTransition.model_validate(
+        {
+            **_transition_fields(),
+            "schema_version": "1.2",
+            "future_additive_field": True,
+        }
+    )
+    assert forward.schema_version == "1.2"
+
+
+def test_current_transition_assembly_contract_requires_aware_time_and_trust() -> None:
+    common = {
+        "transition_id": "transition-1",
+        "run_id": "run-1",
+        "iteration": 1,
+        "terminal": False,
+    }
+    with pytest.raises(ValidationError, match="requires occurred_at"):
+        TransitionAssemblyRequest(**common, trust_classification="external_untrusted")
+    with pytest.raises(ValidationError, match="requires trust_classification"):
+        TransitionAssemblyRequest(
+            **common,
+            occurred_at=datetime(2026, 9, 4, tzinfo=UTC),
+        )
+    with pytest.raises(ValidationError, match="timezone"):
+        TransitionAssemblyRequest(
+            **common,
+            occurred_at=datetime(2026, 9, 4),
+            trust_classification="external_untrusted",
+        )
 
 
 def test_prompt_and_transition_lifecycle_facts_are_required_and_closed() -> None:
@@ -223,6 +312,20 @@ def test_legacy_baseline_config_is_canonical_and_fingerprint_is_stable() -> None
     assert first.episodic.enabled is False
     assert first.fingerprint == second.fingerprint
     assert len(first.fingerprint) == 64
+
+
+def test_episodic_only_profile_enables_only_the_stage_four_module() -> None:
+    configuration = MemoryConfiguration.episodic_only()
+
+    assert configuration.profile_id == "episodic-only"
+    assert configuration.profile_kind == "experiment"
+    assert configuration.compatibility_legacy.enabled is False
+    assert configuration.episodic.enabled is True
+    assert configuration.episodic.version == "1.0"
+    assert {module_id for module_id, module in configuration.modules.items() if module.enabled} == {
+        "episodic"
+    }
+    assert configuration.fingerprint == MemoryConfiguration.episodic_only().fingerprint
 
 
 def test_config_rejects_invalid_dependencies_and_unapproved_defaults() -> None:

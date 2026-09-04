@@ -5,6 +5,7 @@ from pathlib import Path
 
 from uptick_agent.memory.in_memory import InMemoryMemory
 from uptick_agent.models import MemoryEntry, MemoryMatch, MemoryQuery
+from uptick_agent.redaction import sanitize_json
 
 
 class JsonlMemory:
@@ -34,7 +35,10 @@ class JsonlMemory:
             for line_number, line in enumerate(source, start=1):
                 if line.strip():
                     try:
-                        entries.append(MemoryEntry.model_validate_json(line))
+                        entry = MemoryEntry.model_validate_json(line)
+                        entries.append(
+                            MemoryEntry.model_validate(sanitize_json(entry.model_dump(mode="json")))
+                        )
                     except ValueError as error:
                         raise ValueError(
                             f"invalid memory entry at {self.path}:{line_number}"
@@ -44,8 +48,9 @@ class JsonlMemory:
     async def remember(self, entry: MemoryEntry) -> None:
         await self._ensure_loaded()
         async with self._lock:
-            await self._memory.remember(entry)
-            payload = entry.model_dump_json() + "\n"
+            safe_entry = MemoryEntry.model_validate(sanitize_json(entry.model_dump(mode="json")))
+            await self._memory.remember(safe_entry)
+            payload = safe_entry.model_dump_json() + "\n"
             await asyncio.to_thread(self._append, payload)
 
     def _append(self, payload: str) -> None:

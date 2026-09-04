@@ -12,8 +12,10 @@ from uptick_agent.memory.config import MemoryConfiguration, ModuleConfig
 from uptick_agent.memory.contracts import (
     ContextItem,
     DecisionMemoryContext,
+    ExperienceTransition,
     MemoryContextRequest,
     MemoryContribution,
+    MemoryPermanentError,
     ProvenanceRef,
     RunOutcome,
     UntrustedMemoryEnvelope,
@@ -23,8 +25,10 @@ from uptick_agent.memory.orchestrator import (
     MemoryModuleRegistration,
     MemoryOrchestrator,
 )
+from uptick_agent.memory.stores.contracts import StructuredMemoryStore
 from uptick_agent.models import MemoryEntry, MemoryMatch, MemoryQuery
 from uptick_agent.ports import Memory
+from uptick_agent.redaction import sanitize_json
 
 _LEGACY_MODULE_ID = "compatibility.legacy"
 
@@ -41,7 +45,8 @@ class LegacyMemoryAdapter:
         self._module_version = module_version
 
     async def remember(self, entry: MemoryEntry) -> None:
-        await self._delegate.remember(entry)
+        safe_entry = MemoryEntry.model_validate(sanitize_json(entry.model_dump(mode="json")))
+        await self._delegate.remember(safe_entry)
 
     async def recall(self, query: MemoryQuery) -> list[MemoryMatch]:
         return await self._delegate.recall(query)
@@ -113,7 +118,10 @@ class LegacyMemoryAdapter:
                 if not line.strip():
                     continue
                 try:
-                    entries.append(MemoryEntry.model_validate_json(line))
+                    entry = MemoryEntry.model_validate_json(line)
+                    entries.append(
+                        MemoryEntry.model_validate(sanitize_json(entry.model_dump(mode="json")))
+                    )
                 except ValueError as error:
                     raise ValueError(
                         f"invalid legacy memory entry at {source_path}:{line_number}"
@@ -124,7 +132,13 @@ class LegacyMemoryAdapter:
     def write_jsonl(path: str | Path, entries: Iterable[MemoryEntry]) -> None:
         target_path = Path(path)
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = "".join(entry.model_dump_json() + "\n" for entry in entries)
+        payload = "".join(
+            MemoryEntry.model_validate(
+                sanitize_json(entry.model_dump(mode="json"))
+            ).model_dump_json()
+            + "\n"
+            for entry in entries
+        )
         target_path.write_text(payload, encoding="utf-8")
 
 
@@ -146,6 +160,9 @@ class LegacyMemoryRuntime:
         if self._legacy is not None:
             await self._legacy.remember(entry)
 
+    async def record_transition(self, transition: ExperienceTransition) -> None:
+        await self._orchestrator.record_transition(transition)
+
     async def clear(self, run_id: str | None = None) -> None:
         if self._legacy is not None:
             await self._legacy.clear(run_id)
@@ -160,6 +177,13 @@ class LegacyMemoryRuntime:
     @property
     def context_diagnostics(self) -> dict:
         return self.last_context_diagnostics.model_dump(mode="json")
+
+
+class _EpisodicMemoryRuntime(LegacyMemoryRuntime):
+    async def clear(self, run_id: str | None = None) -> None:
+        raise MemoryPermanentError(
+            "episodic memory cannot be cleared safely; compose a fresh namespace"
+        )
 
 
 def legacy_memory_runtime(delegate: Memory | None) -> LegacyMemoryRuntime:
@@ -181,3 +205,25 @@ def legacy_memory_runtime(delegate: Memory | None) -> LegacyMemoryRuntime:
         [MemoryModuleRegistration(_LEGACY_MODULE_ID, lambda _: legacy)],
     )
     return LegacyMemoryRuntime(orchestrator, legacy)
+
+
+def episodic_memory_runtime(
+    store: StructuredMemoryStore,
+    *,
+    namespace: str,
+) -> LegacyMemoryRuntime:
+    """Compose the experimental episodic-only runner boundary programmatically."""
+
+    from uptick_agent.memory.episodic import EPISODIC_MODULE_ID, EpisodicMemory
+
+    configuration = MemoryConfiguration.episodic_only()
+    module = EpisodicMemory(
+        store,
+        namespace=namespace,
+        module_version=configuration.episodic.version,
+    )
+    orchestrator = MemoryOrchestrator(
+        configuration,
+        [MemoryModuleRegistration(EPISODIC_MODULE_ID, lambda _: module)],
+    )
+    return _EpisodicMemoryRuntime(orchestrator, None)

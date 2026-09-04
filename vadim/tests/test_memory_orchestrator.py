@@ -16,6 +16,7 @@ from uptick_agent.memory.contracts import (
     ConsolidationResult,
     ContextItem,
     ExperienceTransition,
+    MemoryConflictError,
     MemoryContextRequest,
     MemoryContribution,
     MemoryPermanentError,
@@ -123,6 +124,24 @@ class _Finalizer:
 
     async def finalize(self, outcome: RunOutcome, *, idempotency_key: str) -> None:
         self.keys.append(idempotency_key)
+
+
+@dataclass
+class _ScriptedLifecycle:
+    record_failures: list[Exception] = field(default_factory=list)
+    finalize_failures: list[Exception] = field(default_factory=list)
+    record_keys: list[str] = field(default_factory=list)
+    finalize_keys: list[str] = field(default_factory=list)
+
+    async def record(self, transition: ExperienceTransition, *, idempotency_key: str) -> None:
+        self.record_keys.append(idempotency_key)
+        if self.record_failures:
+            raise self.record_failures.pop(0)
+
+    async def finalize(self, outcome: RunOutcome, *, idempotency_key: str) -> None:
+        self.finalize_keys.append(idempotency_key)
+        if self.finalize_failures:
+            raise self.finalize_failures.pop(0)
 
 
 class _Consolidator:
@@ -396,6 +415,107 @@ async def test_record_dispatches_only_the_experience_sink_contract() -> None:
 
     assert len(sink.writes) == 1
     assert sink.writes[0].startswith("record:episodic:")
+
+
+@_async_test
+async def test_transient_lifecycle_writes_retry_once_with_the_same_key() -> None:
+    module = _ScriptedLifecycle(
+        record_failures=[MemoryTransientError("retry record")],
+        finalize_failures=[MemoryTransientError("retry finalize")],
+    )
+    orchestrator = MemoryOrchestrator(
+        _config(episodic=ModuleConfig(enabled=True)),
+        [MemoryModuleRegistration("episodic", lambda _: module)],
+    )
+    transition = ExperienceTransition(
+        transition_id="transition",
+        run_id="run",
+        iteration=1,
+        trust_classification="external_untrusted",
+        provenance=[ProvenanceRef(artefact_id="source", content_hash=_HASH)],
+        terminal=False,
+    )
+    outcome = RunOutcome(run_id="run", status="completed", stop_reason="done")
+
+    await orchestrator.record_transition(transition)
+    await orchestrator.finalize_run(outcome)
+
+    assert len(module.record_keys) == 2
+    assert module.record_keys[0] == module.record_keys[1]
+    assert len(module.finalize_keys) == 2
+    assert module.finalize_keys[0] == module.finalize_keys[1]
+
+
+@_async_test
+async def test_second_transient_lifecycle_failure_is_not_retried_again() -> None:
+    module = _ScriptedLifecycle(
+        record_failures=[
+            MemoryTransientError("first"),
+            MemoryTransientError("second"),
+        ],
+        finalize_failures=[
+            MemoryTransientError("first"),
+            MemoryTransientError("second"),
+        ],
+    )
+    orchestrator = MemoryOrchestrator(
+        _config(episodic=ModuleConfig(enabled=True)),
+        [MemoryModuleRegistration("episodic", lambda _: module)],
+    )
+    transition = ExperienceTransition(
+        transition_id="transition",
+        run_id="run",
+        iteration=1,
+        trust_classification="external_untrusted",
+        provenance=[ProvenanceRef(artefact_id="source", content_hash=_HASH)],
+        terminal=False,
+    )
+
+    with pytest.raises(MemoryTransientError, match="second"):
+        await orchestrator.record_transition(transition)
+    with pytest.raises(MemoryTransientError, match="second"):
+        await orchestrator.finalize_run(
+            RunOutcome(run_id="run", status="completed", stop_reason="done")
+        )
+
+    assert len(module.record_keys) == 2
+    assert len(module.finalize_keys) == 2
+
+
+@pytest.mark.parametrize(
+    "error_type",
+    [MemoryValidationError, MemoryConflictError, MemoryPermanentError],
+)
+def test_non_transient_lifecycle_failures_are_not_retried(error_type: type[Exception]) -> None:
+    async def scenario() -> None:
+        module = _ScriptedLifecycle(
+            record_failures=[error_type("record")],
+            finalize_failures=[error_type("finalize")],
+        )
+        orchestrator = MemoryOrchestrator(
+            _config(episodic=ModuleConfig(enabled=True)),
+            [MemoryModuleRegistration("episodic", lambda _: module)],
+        )
+        transition = ExperienceTransition(
+            transition_id="transition",
+            run_id="run",
+            iteration=1,
+            trust_classification="external_untrusted",
+            provenance=[ProvenanceRef(artefact_id="source", content_hash=_HASH)],
+            terminal=False,
+        )
+
+        with pytest.raises(error_type, match="record"):
+            await orchestrator.record_transition(transition)
+        with pytest.raises(error_type, match="finalize"):
+            await orchestrator.finalize_run(
+                RunOutcome(run_id="run", status="completed", stop_reason="done")
+            )
+
+        assert len(module.record_keys) == 1
+        assert len(module.finalize_keys) == 1
+
+    asyncio.run(scenario())
 
 
 @_async_test

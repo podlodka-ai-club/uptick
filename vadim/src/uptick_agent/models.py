@@ -5,7 +5,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from uptick_agent.memory.contracts import DecisionMemoryContext
+from uptick_agent.memory.contracts import DecisionMemoryContext, ObjectiveMetric, OperationLink
 
 
 class StrictModel(BaseModel):
@@ -130,6 +130,8 @@ class ToolResult(StrictModel):
     ok: bool = True
     summary: str
     data: dict[str, Any] = Field(default_factory=dict)
+    objective_metrics: list[ObjectiveMetric] = Field(default_factory=list)
+    operation_links: list[OperationLink] = Field(default_factory=list)
     terminal: bool = False
 
 
@@ -213,6 +215,7 @@ class RunResult(StrictModel):
     server_cost_minor: int = 0
     deployment_cost_minor: int = 0
     balance_minor: int = 0
+    objective_metrics: list[ObjectiveMetric] = Field(default_factory=list)
     stop_reason: str
 
 

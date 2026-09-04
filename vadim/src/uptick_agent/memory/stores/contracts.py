@@ -15,6 +15,7 @@ from uptick_agent.memory.contracts import (
     MemoryValidationError,
     require_finite_json,
 )
+from uptick_agent.redaction import redact_text, sanitize_json
 
 _NAMESPACE_MAX_LENGTH = 256
 _RECORD_ID_MAX_LENGTH = 256
@@ -126,6 +127,8 @@ def validate_identifier(value: object, *, name: str, max_length: int) -> str:
         raise MemoryValidationError(f"{name} must not be empty")
     if len(value) > max_length:
         raise MemoryValidationError(f"{name} must be at most {max_length} characters")
+    if redact_text(value) != value:
+        raise MemoryValidationError(f"{name} must not contain credential-shaped content")
     return value
 
 
@@ -136,7 +139,16 @@ def validate_record_write(value: object) -> RecordWrite:
         raise MemoryValidationError("write must be a RecordWrite")
     try:
         serialized = value.model_dump(mode="python", round_trip=True, warnings="error")
-        return RecordWrite.model_validate(serialized)
+        serialized["payload"] = sanitize_json(serialized["payload"])
+        owned = RecordWrite.model_validate(serialized)
+        validate_identifier(owned.namespace, name="namespace", max_length=_NAMESPACE_MAX_LENGTH)
+        validate_identifier(owned.record_id, name="record_id", max_length=_RECORD_ID_MAX_LENGTH)
+        validate_identifier(
+            owned.record_type,
+            name="record_type",
+            max_length=_RECORD_TYPE_MAX_LENGTH,
+        )
+        return owned
     except (PydanticSerializationError, TypeError, ValueError, ValidationError) as error:
         raise MemoryValidationError("write contains invalid data") from error
 

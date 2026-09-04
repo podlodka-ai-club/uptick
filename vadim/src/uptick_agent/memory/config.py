@@ -127,3 +127,19 @@ class MemoryConfiguration(ContractModel):
     @classmethod
     def legacy_baseline(cls) -> MemoryConfiguration:
         return cls()
+
+    @classmethod
+    def episodic_only(cls) -> MemoryConfiguration:
+        """Experimental Stage 4 profile; callers own its store and namespace."""
+
+        return cls(
+            profile_id="episodic-only",
+            profile_kind="experiment",
+            compatibility_legacy=ModuleConfig(enabled=False),
+            episodic=ModuleConfig(
+                enabled=True,
+                version="1.0",
+                max_context_items=32,
+                max_context_tokens=4_000,
+            ),
+        )

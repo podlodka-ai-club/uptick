@@ -35,7 +35,9 @@ shapes author schema `1.1`; the frozen generic payload contracts remain `1.0`.
 ## Deliberately deferred
 
 Stage 3 does not fabricate `ExperienceTransition` values from legacy writes.
-Transition assembly and the first structured episodic module belong to Stage 4.
+Stage 4 subsequently added runner-owned transition assembly and a separate
+episodic-only profile; the unchanged legacy profile still creates no episodic
+module and performs no structured episodic writes.
 There is no consolidation scheduler, semantic retrieval, provider-specific
 tokenizer dependency, promotion workflow or future module scaffold.
 

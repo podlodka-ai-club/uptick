@@ -421,23 +421,31 @@ class MemoryOrchestrator:
         for module_id, module in self._modules.items():
             if not isinstance(module, ExperienceSink):
                 continue
-            await module.record(
-                transition,
-                idempotency_key=self._operation_key(
-                    "record", module_id, transition.model_dump(mode="json")
-                ),
+            idempotency_key = self._operation_key(
+                "record", module_id, transition.model_dump(mode="json")
             )
+            for attempt in range(2):
+                try:
+                    await module.record(transition, idempotency_key=idempotency_key)
+                    break
+                except MemoryTransientError:
+                    if attempt == 1:
+                        raise
 
     async def finalize_run(self, outcome: RunOutcome) -> None:
         for module_id, module in self._modules.items():
             if not isinstance(module, RunFinalizer):
                 continue
-            await module.finalize(
-                outcome,
-                idempotency_key=self._operation_key(
-                    "finalize", module_id, outcome.model_dump(mode="json")
-                ),
+            idempotency_key = self._operation_key(
+                "finalize", module_id, outcome.model_dump(mode="json")
             )
+            for attempt in range(2):
+                try:
+                    await module.finalize(outcome, idempotency_key=idempotency_key)
+                    break
+                except MemoryTransientError:
+                    if attempt == 1:
+                        raise
 
     async def consolidate(self, request: ConsolidationRequest) -> ConsolidationResult:
         """Run no automatic consolidation; explicit requests use only its capability."""

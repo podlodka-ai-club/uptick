@@ -21,7 +21,7 @@ schema-guided decision loop — и отделена от памяти, моде�
 
 ```text
                    ┌──────────────┐
-                   │ AgentMemory  │  legacy / null / ваша
+                   │ AgentMemory  │  legacy / episodic / null / ваша
                    └──────▲───────┘
                           │ context + writes
 ┌─────────────┐    ┌──────┴───────┐    ┌───────────────────┐
@@ -37,7 +37,8 @@ schema-guided decision loop — и отделена от памяти, моде�
 
 Стабильные порты находятся в `src/uptick_agent/ports.py`:
 
-- `AgentMemory` — runner-facing граница памяти: контекст, запись, очистка и финализация;
+- `AgentMemory` — runner-facing граница памяти: контекст, legacy-запись,
+  структурированный transition, очистка (если поддерживается) и финализация;
 - `Memory` — legacy storage port, подключаемый через `legacy_memory_runtime`;
 - `DecisionModel` — получение одного `NextStep` из контекста;
 - `Environment` — запуск мира и выполнение типизированных действий;
@@ -116,7 +117,7 @@ allowance ChatGPT/Codex и не безлимитен. Для shared, CI или h
 
 ## Память
 
-Доступны три реализации:
+Доступны три CLI-профиля legacy-памяти:
 
 ```bash
 # Контрольная группа: нет долговременной памяти
@@ -153,6 +154,28 @@ class MyMemory:
 Пример обёртки, фильтрующей слабые воспоминания, находится в
 `examples/importance_memory.py`. Через этот же контракт можно подключить embeddings,
 XMemory, TencentDB Agent Memory или собственную консолидацию lessons.
+
+Stage 4 также добавляет первый структурированный episodic-профиль. Он хранит
+полные `ExperienceTransition` и `RunOutcome` в generic store, а в prompt отдаёт
+ограниченное untrusted-представление. Credential-shaped значения удаляются до
+вычисления provenance hash и записи; остальное raw-содержимое сохраняется.
+Пока профиль подключается только программно:
+
+```python
+from uptick_agent.memory import episodic_memory_runtime
+from uptick_agent.memory.stores import SqliteStructuredStore
+
+memory = episodic_memory_runtime(
+    SqliteStructuredStore("artifacts/pilot/episodes.sqlite"),
+    namespace="pilot-2026-09-04",
+)
+```
+
+Для каждого независимого эксперимента нужен новый namespace. У structured store
+пока нет безопасного delete/reset API, поэтому `memory.clear()` явно завершится
+ошибкой, а CLI/benchmark режим для persistent episodic memory намеренно не
+предлагается. Это не ограничивает обычный запуск `AgentRunner` с созданным выше
+runtime.
 
 ## A/B-прогоны
 

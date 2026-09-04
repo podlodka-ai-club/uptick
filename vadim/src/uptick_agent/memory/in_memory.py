@@ -5,6 +5,7 @@ import re
 from collections.abc import Iterable
 
 from uptick_agent.models import MemoryEntry, MemoryMatch, MemoryQuery
+from uptick_agent.redaction import sanitize_json
 
 _WORD = re.compile(r"[\w-]+", re.UNICODE)
 
@@ -17,14 +18,18 @@ class InMemoryMemory:
     """Transparent lexical memory, intentionally simple enough to be a baseline."""
 
     def __init__(self, entries: Iterable[MemoryEntry] = ()) -> None:
-        self._entries = list(entries)
+        self._entries = [self._safe_entry(entry) for entry in entries]
+
+    @staticmethod
+    def _safe_entry(entry: MemoryEntry) -> MemoryEntry:
+        return MemoryEntry.model_validate(sanitize_json(entry.model_dump(mode="json")))
 
     @property
     def entries(self) -> tuple[MemoryEntry, ...]:
         return tuple(self._entries)
 
     async def remember(self, entry: MemoryEntry) -> None:
-        self._entries.append(entry)
+        self._entries.append(self._safe_entry(entry))
 
     async def recall(self, query: MemoryQuery) -> list[MemoryMatch]:
         if query.limit == 0:

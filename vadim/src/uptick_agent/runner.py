@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 from collections import deque
 from datetime import UTC, datetime
 from time import monotonic
 from uuid import uuid4
 
-from uptick_agent.memory.contracts import MemoryContextRequest, RunOutcome
+from uptick_agent.memory.contracts import (
+    ExperienceTransitionAssembler,
+    MemoryContextRequest,
+    RunOutcome,
+    TransitionAssemblyRequest,
+)
 from uptick_agent.models import (
     AgentAction,
     AgentConfig,
@@ -25,10 +31,16 @@ from uptick_agent.models import (
 )
 from uptick_agent.observers import NullObserver
 from uptick_agent.ports import AgentMemory, DecisionModel, Environment, RunObserver
+from uptick_agent.redaction import sanitize_json
+from uptick_agent.transition_assembly import DefaultExperienceTransitionAssembler
 
 
 def _memory_text(result: ToolResult, *, limit: int = 6_000) -> str:
-    payload = result.model_dump_json()
+    payload = json.dumps(
+        sanitize_json(result.model_dump(mode="json")),
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
     if len(payload) <= limit:
         return payload
     return payload[:limit] + f"\n...[{len(payload) - limit} characters omitted]"
@@ -63,7 +75,7 @@ def _record_run_state(run_state: RunState, action: AgentAction, result: ToolResu
 
 
 class AgentRunner:
-    """Small orchestration core: recall -> SGR decision -> one action -> remember."""
+    """Small orchestration core: context -> decision -> action -> transition."""
 
     def __init__(
         self,
@@ -73,12 +85,14 @@ class AgentRunner:
         memory: AgentMemory,
         environment: Environment,
         observer: RunObserver | None = None,
+        transition_assembler: ExperienceTransitionAssembler | None = None,
     ) -> None:
         self.config = config
         self.model = model
         self.memory = memory
         self.environment = environment
         self.observer = observer or NullObserver()
+        self.transition_assembler = transition_assembler or DefaultExperienceTransitionAssembler()
 
     async def run(self, seed: int) -> RunResult:
         run_started = monotonic()
@@ -125,6 +139,28 @@ class AgentRunner:
                 result = await self.environment.execute(session, decision.action)
                 duration = monotonic() - step_started
                 completed_steps = iteration
+                transition = self.transition_assembler.assemble(
+                    TransitionAssemblyRequest(
+                        transition_id=hashlib.sha256(
+                            f"experience-transition:{session.run_id}:{iteration}".encode()
+                        ).hexdigest(),
+                        run_id=session.run_id,
+                        iteration=iteration,
+                        occurred_at=datetime.now(UTC),
+                        environment_id=getattr(session, "environment_id", None),
+                        scenario_id=getattr(session, "scenario_id", None),
+                        trust_classification="external_untrusted",
+                        pre_state=run_state.model_dump(mode="json"),
+                        observation=latest.model_dump(mode="json"),
+                        action=decision.action.model_dump(mode="json"),
+                        result=result.model_dump(mode="json"),
+                        before_objective_metrics=latest.objective_metrics,
+                        after_objective_metrics=result.objective_metrics,
+                        operation_links=result.operation_links,
+                        terminal=result.terminal,
+                    )
+                )
+                await self.memory.record_transition(transition)
                 record = StepRecord(
                     run_id=session.run_id,
                     iteration=iteration,
@@ -199,6 +235,7 @@ class AgentRunner:
                 run_id=session.run_id,
                 status=outcome_status,
                 stop_reason=final.stop_reason[:2_000] or "run finished without a stop reason",
+                objective_metrics=final.objective_metrics,
             )
         )
         await self.observer.on_finish(final)

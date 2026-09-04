@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from uptick_agent.models import RunResult, StepRecord
+from uptick_agent.redaction import sanitize_json
 
 
 class NullObserver:
@@ -42,7 +43,14 @@ class JsonlObserver:
         await self._write({"event": "run_finished", "data": result.model_dump(mode="json")})
 
     async def _write(self, payload: dict) -> None:
-        line = json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n"
+        line = (
+            json.dumps(
+                sanitize_json(payload),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            + "\n"
+        )
         async with self._lock:
             await asyncio.to_thread(self._append, line)
 

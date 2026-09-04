@@ -4,10 +4,12 @@ This directory is the entry point for implementing a **general-purpose
 self-improving agent memory system** on top of the isolated baseline under
 `vadim/src/uptick_agent`.
 
-Stages 1–3 are **complete**. The accepted Stage 1 freeze is recorded in
+Stages 1–4 are **complete**. The accepted Stage 1 freeze is recorded in
 [`STAGE_1_CONTRACT_FREEZE.md`](STAGE_1_CONTRACT_FREEZE.md); the Stage 2/3 runtime
 integration and its deliberate deferrals are recorded in
-[`STAGE_2_3_IMPLEMENTATION.md`](STAGE_2_3_IMPLEMENTATION.md). Stage 0 currently
+[`STAGE_2_3_IMPLEMENTATION.md`](STAGE_2_3_IMPLEMENTATION.md); the first-class
+episodic implementation is recorded in
+[`STAGE_4_IMPLEMENTATION.md`](STAGE_4_IMPLEMENTATION.md). Stage 0 currently
 provides an offline preregistration/reporting scaffold, not collected live
 baseline evidence. Each later stage retains its own implementation and evidence
 gate; examples marked conceptual are not substitutes for those gates.
@@ -71,6 +73,12 @@ The current local baseline already has several useful seams:
 - `AgentRunner` consumes one `AgentMemory` boundary and receives a normalized
   `DecisionMemoryContext`; legacy `remember/recall/clear` behavior is contained
   inside the compatibility runtime.
+- `AgentRunner` assembles one generic structured transition after each executed
+  action and records the terminal transition before final run evidence.
+- The experimental episodic-only profile persists full transitions and typed
+  outcomes through either structured store and retrieves bounded untrusted
+  episode views. It is programmatic only until safe namespace/reset lifecycle
+  exists.
 - `InMemoryMemory` is deliberately simple and `NullMemory` already provides a no-memory control group.
 - simulator-specific code is under `src/uptick_agent/simulator`.
 - OpenAI and Codex implementations are separated under `src/uptick_agent/llm`

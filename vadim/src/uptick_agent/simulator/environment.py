@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import uuid4
 
+from uptick_agent.memory.contracts import ObjectiveMetric, OperationLink
 from uptick_agent.models import (
     AdvanceTime,
     AgentAction,
@@ -22,7 +23,14 @@ from uptick_agent.models import (
     ToolResult,
 )
 from uptick_agent.simulator.client import SimulatorApiError, SimulatorClient
-from uptick_agent.simulator.models import EconomyResponse
+from uptick_agent.simulator.models import (
+    DeploymentsResponse,
+    EconomyResponse,
+    MetricsResponse,
+    OperationAcceptedResponse,
+    OperationResponse,
+    OverviewResponse,
+)
 
 
 @dataclass(slots=True)
@@ -45,11 +53,52 @@ class SimulatorSession:
         return f"uptick-{self.request_prefix}-{kind}-{self.request_number:05d}"
 
 
+def _objective_metrics(value) -> list[ObjectiveMetric]:
+    if isinstance(value, OverviewResponse):
+        snapshot = value
+        fields = (
+            ("successful_purchases", "count"),
+            ("revenue_minor", "minor"),
+            ("server_cost_minor", "minor"),
+            ("balance_minor", "minor"),
+        )
+    elif isinstance(value, MetricsResponse):
+        snapshot = value.current
+        fields = (
+            ("successful_purchases", "count"),
+            ("revenue_minor", "minor"),
+            ("lost_revenue_minor", "minor"),
+            ("server_cost_minor", "minor"),
+        )
+    else:
+        return []
+    return [
+        ObjectiveMetric(name=name, value=getattr(snapshot, name), unit=unit)
+        for name, unit in fields
+    ]
+
+
+def _operation_links(value) -> list[OperationLink]:
+    if isinstance(value, OperationAcceptedResponse):
+        return [OperationLink(operation_id=value.operation_id, relation="initiated")]
+    if isinstance(value, OperationResponse):
+        return [OperationLink(operation_id=value.operation_id, relation="observed")]
+    if isinstance(value, DeploymentsResponse):
+        return [
+            OperationLink(operation_id=item.operation_id, relation="observed")
+            for item in value.deployments
+            if item.operation_id is not None
+        ]
+    return []
+
+
 def _result(action_kind: str, value, summary: str, *, terminal: bool = False) -> ToolResult:
     return ToolResult(
         action_kind=action_kind,
         summary=summary,
         data=value.model_dump(mode="json") if value is not None else {},
+        objective_metrics=_objective_metrics(value),
+        operation_links=_operation_links(value),
         terminal=terminal,
     )
 
@@ -334,5 +383,24 @@ class SimulatorEnvironment:
             server_cost_minor=economy.server_cost_minor,
             deployment_cost_minor=economy.deployment_cost_minor,
             balance_minor=economy.balance_minor,
+            objective_metrics=[
+                ObjectiveMetric(
+                    name="successful_purchases", value=economy.successful_purchases, unit="count"
+                ),
+                ObjectiveMetric(name="lost_purchases", value=economy.lost_purchases, unit="count"),
+                ObjectiveMetric(name="revenue_minor", value=economy.revenue_minor, unit="minor"),
+                ObjectiveMetric(
+                    name="lost_revenue_minor", value=economy.lost_revenue_minor, unit="minor"
+                ),
+                ObjectiveMetric(
+                    name="server_cost_minor", value=economy.server_cost_minor, unit="minor"
+                ),
+                ObjectiveMetric(
+                    name="deployment_cost_minor",
+                    value=economy.deployment_cost_minor,
+                    unit="minor",
+                ),
+                ObjectiveMetric(name="balance_minor", value=economy.balance_minor, unit="minor"),
+            ],
             stop_reason=stop_reason,
         )

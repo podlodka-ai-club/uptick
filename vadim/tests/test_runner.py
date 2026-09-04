@@ -1,10 +1,17 @@
 import asyncio
+import hashlib
 from dataclasses import dataclass
 
 import pytest
 
 from uptick_agent.memory import InMemoryMemory, legacy_memory_runtime
-from uptick_agent.memory.contracts import RunOutcome
+from uptick_agent.memory.contracts import (
+    ExperienceTransition,
+    MemoryPermanentError,
+    ObjectiveMetric,
+    OperationLink,
+    RunOutcome,
+)
 from uptick_agent.models import (
     AgentConfig,
     ApplyFix,
@@ -50,12 +57,27 @@ class FakeSession:
 
 class FakeEnvironment:
     async def start(self, *, seed, agent_id, agent_version):
-        return FakeSession(seed=seed), ToolResult(action_kind="start", summary="started")
+        return FakeSession(seed=seed), ToolResult(
+            action_kind="start",
+            summary="started",
+            objective_metrics=[ObjectiveMetric(name="balance", value=4, unit="minor")],
+        )
 
     async def execute(self, session, action):
         if isinstance(action, GetOverview):
-            return ToolResult(action_kind=action.kind, summary="site healthy", data={"balance": 10})
-        return ToolResult(action_kind=action.kind, summary=action.reason, terminal=True)
+            return ToolResult(
+                action_kind=action.kind,
+                summary="site healthy",
+                data={"balance": 10},
+                objective_metrics=[ObjectiveMetric(name="balance", value=10, unit="minor")],
+                operation_links=[OperationLink(operation_id="operation-1", relation="observed")],
+            )
+        return ToolResult(
+            action_kind=action.kind,
+            summary=action.reason,
+            objective_metrics=[ObjectiveMetric(name="balance", value=12, unit="minor")],
+            terminal=True,
+        )
 
     async def finish(self, session, *, steps, duration_seconds, stop_reason):
         return RunResult(
@@ -67,18 +89,24 @@ class FakeEnvironment:
             steps=steps,
             duration_seconds=duration_seconds,
             balance_minor=10,
+            objective_metrics=[ObjectiveMetric(name="balance", value=12, unit="minor")],
             stop_reason=stop_reason,
         )
 
 
 class RecordingObserver:
-    def __init__(self) -> None:
+    def __init__(self, events: list[str] | None = None) -> None:
         self.steps = []
+        self.events = events
 
     async def on_step(self, record) -> None:
         self.steps.append(record)
+        if self.events is not None:
+            self.events.append("observer")
 
     async def on_finish(self, result) -> None:
+        if self.events is not None:
+            self.events.append("finish")
         return None
 
 
@@ -87,6 +115,7 @@ class TrackingMemory:
         self._runtime = legacy_memory_runtime(store)
         self.events = []
         self.outcomes: list[RunOutcome] = []
+        self.transitions: list[ExperienceTransition] = []
 
     async def build_context(self, request):
         return await self._runtime.build_context(request)
@@ -95,9 +124,16 @@ class TrackingMemory:
         await self._runtime.remember(entry)
         if entry.kind == "outcome":
             self.events.append("terminal-evidence")
+        elif entry.kind == "experience":
+            self.events.append("experience")
 
     async def clear(self, run_id=None) -> None:
         await self._runtime.clear(run_id)
+
+    async def record_transition(self, transition: ExperienceTransition) -> None:
+        self.events.append("transition")
+        self.transitions.append(transition)
+        await self._runtime.record_transition(transition)
 
     async def finalize_run(self, outcome: RunOutcome) -> None:
         self.events.append("finalize")
@@ -113,7 +149,7 @@ def test_runner_uses_memory_as_the_context_boundary() -> None:
         memory = InMemoryMemory()
         memory_runtime = TrackingMemory(memory)
         model = ScriptedModel()
-        observer = RecordingObserver()
+        observer = RecordingObserver(memory_runtime.events)
         runner = AgentRunner(
             config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=3),
             model=model,
@@ -139,8 +175,34 @@ def test_runner_uses_memory_as_the_context_boundary() -> None:
         )
         assert observer.steps[0].memory_diagnostics["configuration_fingerprint"]
         assert len(observer.steps[0].memory_diagnostics["request_id"]) == 64
-        assert memory_runtime.events == ["terminal-evidence", "finalize"]
+        assert memory_runtime.events == [
+            "transition",
+            "experience",
+            "observer",
+            "transition",
+            "experience",
+            "observer",
+            "terminal-evidence",
+            "finalize",
+            "finish",
+        ]
+        assert len(memory_runtime.transitions) == 2
+        first, terminal = memory_runtime.transitions
+        assert first.transition_id == hashlib.sha256(b"experience-transition:run-123:1").hexdigest()
+        assert first.action["kind"] == "get_overview"
+        assert first.pre_state["operation_statuses"] == {}
+        assert first.objective_deltas[0].before == 4
+        assert first.objective_deltas[0].after == 10
+        assert first.objective_deltas[0].delta == 6
+        assert first.operation_links == [
+            OperationLink(operation_id="operation-1", relation="observed")
+        ]
+        assert terminal.terminal is True
+        assert terminal.objective_deltas[0].delta == 2
         assert memory_runtime.outcomes[0].status == "completed"
+        assert memory_runtime.outcomes[0].objective_metrics == [
+            ObjectiveMetric(name="balance", value=12, unit="minor")
+        ]
 
     asyncio.run(scenario())
 
@@ -171,8 +233,65 @@ def test_runner_records_and_finalizes_an_aborted_run_without_masking_the_error(
 
         assert [entry.kind for entry in store.entries] == ["observation", "outcome"]
         assert memory.events == ["terminal-evidence", "finalize"]
+        assert memory.transitions == []
         assert memory.outcomes[0].status == status
         assert type(error).__name__ in memory.outcomes[0].stop_reason
+
+    asyncio.run(scenario())
+
+
+def test_transition_persistence_failure_aborts_before_legacy_experience_and_observer() -> None:
+    class FailingTransitionMemory(TrackingMemory):
+        async def record_transition(self, transition: ExperienceTransition) -> None:
+            self.events.append("transition")
+            raise MemoryPermanentError("episodic write failed")
+
+    async def scenario() -> None:
+        store = InMemoryMemory()
+        memory = FailingTransitionMemory(store)
+        observer = RecordingObserver(memory.events)
+        runner = AgentRunner(
+            config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=1),
+            model=ScriptedModel(),
+            memory=memory,
+            environment=FakeEnvironment(),
+            observer=observer,
+        )
+
+        with pytest.raises(MemoryPermanentError, match="episodic write failed"):
+            await runner.run(7)
+
+        assert [entry.kind for entry in store.entries] == ["observation", "outcome"]
+        assert observer.steps == []
+        assert memory.events == ["transition", "terminal-evidence", "finalize"]
+        assert memory.outcomes[0].status == "failed"
+
+    asyncio.run(scenario())
+
+
+def test_completed_world_run_is_not_rewritten_when_final_memory_write_fails() -> None:
+    class FailingFinalizerMemory(TrackingMemory):
+        async def finalize_run(self, outcome: RunOutcome) -> None:
+            self.events.append("finalize")
+            self.outcomes.append(outcome)
+            raise MemoryPermanentError("outcome write failed")
+
+    async def scenario() -> None:
+        store = InMemoryMemory()
+        memory = FailingFinalizerMemory(store)
+        runner = AgentRunner(
+            config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=3),
+            model=ScriptedModel(),
+            memory=memory,
+            environment=FakeEnvironment(),
+        )
+
+        with pytest.raises(MemoryPermanentError, match="outcome write failed"):
+            await runner.run(7)
+
+        assert [outcome.status for outcome in memory.outcomes] == ["completed"]
+        assert memory.events[-2:] == ["terminal-evidence", "finalize"]
+        assert [entry.kind for entry in store.entries][-1] == "outcome"
 
     asyncio.run(scenario())
 
