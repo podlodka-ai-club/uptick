@@ -78,15 +78,19 @@ class InMemoryStructuredStore:
         namespace, record_id = validate_record_lookup(namespace=namespace, record_id=record_id)
         async with self._lock:
             record = self._records.get((namespace, record_id))
-            return _copy_contract(record) if record is not None else None
+            if record is None:
+                return None
+            return _copy_contract(StoredRecord.validate_integrity(record))
 
     async def list(self, *, namespace: str) -> list[StoredRecord]:
         namespace = validate_namespace(namespace)
         async with self._lock:
-            records = sorted(
-                (record for record in self._records.values() if record.namespace == namespace),
-                key=lambda record: (record.created_at, record.record_id),
-            )
+            records = [
+                StoredRecord.validate_integrity(record)
+                for record in self._records.values()
+                if record.namespace == namespace
+            ]
+            records.sort(key=lambda record: (record.created_at, record.record_id))
             return [_copy_contract(record) for record in records]
 
     async def create_snapshot(
@@ -141,4 +145,6 @@ class InMemoryStructuredStore:
         snapshot_id = validate_snapshot_lookup(snapshot_id)
         async with self._lock:
             snapshot = self._snapshots.get(snapshot_id)
-            return _copy_contract(snapshot) if snapshot is not None else None
+            if snapshot is None:
+                return None
+            return _copy_contract(MemorySnapshot.validate_integrity(snapshot))

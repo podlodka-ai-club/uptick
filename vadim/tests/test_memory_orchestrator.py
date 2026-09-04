@@ -9,12 +9,19 @@ from pathlib import Path
 
 import pytest
 
-from uptick_agent.memory.config import ContextBudgetConfig, MemoryConfiguration, ModuleConfig
+from uptick_agent.memory.audit import AuditTraceWrite, audit_event_id
+from uptick_agent.memory.config import (
+    AuditConfiguration,
+    ContextBudgetConfig,
+    MemoryConfiguration,
+    ModuleConfig,
+)
 from uptick_agent.memory.contracts import (
     ConsolidationDelta,
     ConsolidationRequest,
     ConsolidationResult,
     ContextItem,
+    CreatedMemoryItem,
     ExperienceTransition,
     MemoryConflictError,
     MemoryContextRequest,
@@ -109,8 +116,39 @@ class _Contributor:
 class _Sink:
     writes: list[str] = field(default_factory=list)
 
-    async def record(self, transition: ExperienceTransition, *, idempotency_key: str) -> None:
+    async def record(
+        self, transition: ExperienceTransition, *, idempotency_key: str
+    ) -> list[CreatedMemoryItem] | None:
         self.writes.append(idempotency_key)
+        return None
+
+
+@dataclass
+class _ReceiptLifecycle:
+    receipts: list[CreatedMemoryItem] | None
+    events: list[str]
+
+    async def record(
+        self, transition: ExperienceTransition, *, idempotency_key: str
+    ) -> list[CreatedMemoryItem] | None:
+        self.events.append("module:record")
+        return self.receipts
+
+    async def finalize(self, outcome: RunOutcome, *, idempotency_key: str) -> None:
+        self.events.append("module:finalize")
+
+
+class _AuditSink:
+    def __init__(self, configuration: MemoryConfiguration, events: list[str] | None = None):
+        self.runtime_configuration_fingerprint = configuration.fingerprint
+        self.audit_configuration_fingerprint = configuration.audit.fingerprint
+        self.writes: list[AuditTraceWrite] = []
+        self.events = events if events is not None else []
+
+    async def record(self, write: AuditTraceWrite):
+        self.events.append(f"audit:{write.event_type}")
+        self.writes.append(write)
+        return None
 
 
 class _BrokenContributor:
@@ -415,6 +453,131 @@ async def test_record_dispatches_only_the_experience_sink_contract() -> None:
 
     assert len(sink.writes) == 1
     assert sink.writes[0].startswith("record:episodic:")
+
+
+@_async_test
+async def test_item_audit_uses_actual_receipts_and_outcome_precedes_finalizer() -> None:
+    configuration = _config(
+        episodic=ModuleConfig(enabled=True),
+    ).model_copy(update={"audit": AuditConfiguration.simulator_default()})
+    lifecycle_events: list[str] = []
+    module = _ReceiptLifecycle(
+        receipts=[
+            CreatedMemoryItem(
+                item_id="episode-1",
+                artefact_type="episode",
+                provenance=[ProvenanceRef(artefact_id="source-1", content_hash=_HASH)],
+            ),
+            CreatedMemoryItem(
+                item_id="lesson-1",
+                artefact_type="lesson",
+                provenance=[ProvenanceRef(artefact_id="source-2", content_hash=_HASH)],
+            ),
+        ],
+        events=lifecycle_events,
+    )
+    audit = _AuditSink(configuration, lifecycle_events)
+    orchestrator = MemoryOrchestrator(
+        configuration,
+        [MemoryModuleRegistration("episodic", lambda _: module)],
+        audit_sink=audit,
+    )
+    transition = ExperienceTransition(
+        transition_id="transition",
+        run_id="run",
+        iteration=1,
+        trust_classification="external_untrusted",
+        provenance=[ProvenanceRef(artefact_id="source", content_hash=_HASH)],
+        terminal=False,
+    )
+
+    await orchestrator.record_transition(transition)
+    await orchestrator.finalize_run(
+        RunOutcome(run_id="run", status="completed", stop_reason="done")
+    )
+
+    assert lifecycle_events == [
+        "module:record",
+        "audit:memory.item_created",
+        "audit:memory.item_created",
+        "audit:run.outcome",
+        "module:finalize",
+    ]
+    assert [write.metadata["item_id"] for write in audit.writes[:2]] == [
+        "episode-1",
+        "lesson-1",
+    ]
+    assert audit.writes[0].metadata["provenance"] == [
+        ProvenanceRef(artefact_id="source-1", content_hash=_HASH).model_dump(mode="json")
+    ]
+    assert [write.event_id for write in audit.writes[:2]] == [
+        audit_event_id(
+            "memory.item_created",
+            configuration.fingerprint,
+            "episodic",
+            "transition",
+            "episode-1",
+        ),
+        audit_event_id(
+            "memory.item_created",
+            configuration.fingerprint,
+            "episodic",
+            "transition",
+            "lesson-1",
+        ),
+    ]
+    assert audit.writes[-1].outcome_correlation_id == audit_event_id(
+        "run.outcome", "run"
+    )
+    assert audit.writes[-1].metadata["outcome_semantics"] == (
+        "runner-observed-before-module-finalizers"
+    )
+
+
+@_async_test
+async def test_generic_sink_without_receipts_emits_no_item_created_event() -> None:
+    configuration = _config(
+        episodic=ModuleConfig(enabled=True),
+    ).model_copy(update={"audit": AuditConfiguration.simulator_default()})
+    audit = _AuditSink(configuration)
+    orchestrator = MemoryOrchestrator(
+        configuration,
+        [MemoryModuleRegistration("episodic", lambda _: _Sink())],
+        audit_sink=audit,
+    )
+    transition = ExperienceTransition(
+        transition_id="transition",
+        run_id="run",
+        iteration=1,
+        trust_classification="external_untrusted",
+        provenance=[ProvenanceRef(artefact_id="source", content_hash=_HASH)],
+        terminal=False,
+    )
+
+    await orchestrator.record_transition(transition)
+
+    assert audit.writes == []
+
+
+@_async_test
+async def test_orchestrator_owns_configuration_snapshot_after_caller_mutation() -> None:
+    configuration = _config().model_copy(
+        update={"audit": AuditConfiguration.simulator_default()}
+    )
+    audit = _AuditSink(configuration)
+    orchestrator = MemoryOrchestrator(configuration, [], audit_sink=audit)
+    owned_fingerprint = orchestrator.configuration_fingerprint
+
+    configuration.context_budget.total_items = 0
+    configuration.audit.raw_content.prompts = False
+
+    await orchestrator.build_context(MemoryContextRequest(request_id="request", run_id="run"))
+
+    assert orchestrator.configuration_fingerprint == owned_fingerprint
+    assert orchestrator.last_context_diagnostics.effective_item_limit == 2
+    assert audit.writes[0].event_id == audit_event_id(
+        "memory.context_selected", owned_fingerprint, "run", "request"
+    )
 
 
 @_async_test

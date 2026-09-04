@@ -18,6 +18,7 @@ from uptick_agent.llm import (
     LlmTransientError,
     StructuredGenerationRequest,
     TextGenerationRequest,
+    serialize_structured_generation_request,
 )
 from uptick_agent.llm.openai import OpenAILlmClient, OpenAISGRModel
 from uptick_agent.models import DecisionContext, NextStep, ToolResult
@@ -99,6 +100,64 @@ def test_openai_decision_facade_preserves_decision_model_behavior() -> None:
         )
 
         assert await model.decide(context) == _decision()
+
+    asyncio.run(scenario())
+
+
+def test_structured_request_serialization_is_json_safe_and_deterministic() -> None:
+    request = StructuredGenerationRequest(
+        model="requested-model",
+        response_model=NextStep,
+        settings=GenerationSettings(temperature=0, max_output_tokens=123),
+        messages=(
+            LlmMessage(role="system", content="system instructions"),
+            LlmMessage(role="user", content="user evidence"),
+        ),
+    )
+
+    first = serialize_structured_generation_request(request)
+    second = serialize_structured_generation_request(request)
+
+    assert first == second
+    assert first["messages"] == [
+        {"role": "system", "content": "system instructions"},
+        {"role": "user", "content": "user evidence"},
+    ]
+    assert first["model"] == "requested-model"
+    assert first["settings"] == {"temperature": 0, "max_output_tokens": 123}
+    assert first["response_model"] == {
+        "module": NextStep.__module__,
+        "qualname": NextStep.__qualname__,
+    }
+    assert first["response_schema"] == NextStep.model_json_schema()
+
+
+def test_openai_decision_prompt_trace_matches_the_neutral_request_sent_to_client() -> None:
+    async def scenario() -> None:
+        fake = FakeOpenAI(SimpleNamespace(parsed=_decision(), refusal=None))
+        model = OpenAISGRModel(model="test", client=fake)
+        context = DecisionContext(
+            objective="keep healthy",
+            run_id="run-1",
+            seed=1,
+            iteration=1,
+            max_steps=2,
+            latest_result=ToolResult(action_kind="start", summary="started"),
+        )
+        captured: list[StructuredGenerationRequest[Any]] = []
+        original = model._llm.generate_structured
+
+        async def capture(request: StructuredGenerationRequest[Any]):
+            captured.append(request)
+            return await original(request)
+
+        model._llm.generate_structured = capture
+        trace = model.prompt_trace(context)
+        await model.decide(context)
+
+        assert captured
+        assert trace == serialize_structured_generation_request(captured[0])
+        assert trace["messages"][1]["content"].endswith(context.model_dump_json(indent=2))
 
     asyncio.run(scenario())
 

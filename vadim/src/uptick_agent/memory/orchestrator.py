@@ -15,6 +15,12 @@ from typing import Any
 
 from pydantic import Field, JsonValue
 
+from uptick_agent.memory.audit import (
+    AuditTraceEvent,
+    AuditTraceSink,
+    AuditTraceWrite,
+    audit_event_id,
+)
 from uptick_agent.memory.config import MemoryConfiguration, ModuleConfig
 from uptick_agent.memory.contracts import (
     ConsolidationParticipant,
@@ -23,6 +29,7 @@ from uptick_agent.memory.contracts import (
     ContextContributor,
     ContextItem,
     ContractModel,
+    CreatedMemoryItem,
     DecisionMemoryContext,
     ExperienceSink,
     ExperienceTransition,
@@ -103,9 +110,13 @@ class MemoryOrchestrator:
         registrations: Iterable[MemoryModuleRegistration],
         *,
         approval_verifier: Callable[[str, ModuleConfig, str], bool] | None = None,
+        audit_sink: AuditTraceSink | None = None,
     ) -> None:
-        self._configuration = configuration
-        budget = configuration.context_budget
+        # Keep the composition root on the same snapshot used to validate
+        # modules and correlate audit events.  A caller may otherwise mutate
+        # the configuration after construction and desynchronise the sink.
+        self._configuration = configuration.model_copy(deep=True)
+        budget = self._configuration.context_budget
         if (
             budget.estimator_id != _DEFAULT_ESTIMATOR_ID
             or budget.estimator_version != _DEFAULT_ESTIMATOR_VERSION
@@ -116,13 +127,29 @@ class MemoryOrchestrator:
         self._registrations = self._registration_map(registrations)
         self._validate_registration_dependencies()
         self._validate_approvals(approval_verifier)
+        self._audit_sink = self._validate_audit_sink(audit_sink)
         self._modules = self._construct_enabled_modules()
         self._last_context_diagnostics = MemoryContextDiagnostics(
-            configuration_fingerprint=configuration.fingerprint,
-            resolved_configuration=configuration.model_dump(mode="json"),
+            configuration_fingerprint=self._configuration.fingerprint,
+            resolved_configuration=self._configuration.model_dump(mode="json"),
             estimator_id=budget.estimator_id,
             estimator_version=budget.estimator_version,
         )
+
+    def _validate_audit_sink(self, audit_sink: AuditTraceSink | None) -> AuditTraceSink | None:
+        if not self._configuration.audit.enabled:
+            if audit_sink is not None:
+                raise MemoryValidationError(
+                    "audit sink cannot be supplied while runtime audit is disabled"
+                )
+            return None
+        if audit_sink is None:
+            raise MemoryValidationError("enabled runtime audit requires an audit sink")
+        if audit_sink.runtime_configuration_fingerprint != self.configuration_fingerprint:
+            raise MemoryValidationError("audit sink uses another runtime configuration")
+        if audit_sink.audit_configuration_fingerprint != self._configuration.audit.fingerprint:
+            raise MemoryValidationError("audit sink uses another audit configuration")
+        return audit_sink
 
     @property
     def configuration_fingerprint(self) -> str:
@@ -131,6 +158,10 @@ class MemoryOrchestrator:
     @property
     def enabled_module_ids(self) -> tuple[str, ...]:
         return tuple(self._modules)
+
+    @property
+    def audit_sink(self) -> AuditTraceSink | None:
+        return self._audit_sink
 
     @property
     def last_context_diagnostics(self) -> MemoryContextDiagnostics:
@@ -238,6 +269,7 @@ class MemoryOrchestrator:
                 estimator_version=self._configuration.context_budget.estimator_version,
                 warnings=["memory.context_budget_exhausted"],
             )
+            await self._record_context_trace(request, self._last_context_diagnostics)
             return DecisionMemoryContext(warnings=["memory.context_budget_exhausted"])
 
         contributions: list[MemoryContribution] = []
@@ -268,7 +300,50 @@ class MemoryOrchestrator:
             warnings=warnings,
         )
         self._last_context_diagnostics = diagnostics
+        await self._record_context_trace(request, diagnostics)
         return context
+
+    async def _record_context_trace(
+        self,
+        request: MemoryContextRequest,
+        diagnostics: MemoryContextDiagnostics,
+    ) -> None:
+        if self._audit_sink is None:
+            return
+        iteration_value = request.context.get("iteration")
+        iteration = (
+            iteration_value
+            if isinstance(iteration_value, int)
+            and not isinstance(iteration_value, bool)
+            and iteration_value >= 1
+            else None
+        )
+        await self._audit_sink.record(
+            AuditTraceWrite(
+                event_id=audit_event_id(
+                    "memory.context_selected",
+                    self.configuration_fingerprint,
+                    request.run_id,
+                    request.request_id,
+                ),
+                event_type="memory.context_selected",
+                run_id=request.run_id,
+                sequence=(iteration - 1) * 100 + 10 if iteration is not None else 10,
+                iteration=iteration,
+                request_id=request.request_id,
+                producer_id="memory-orchestrator",
+                producer_version="1.0",
+                metadata=diagnostics.model_dump(
+                    mode="json",
+                    exclude={
+                        "configuration_fingerprint",
+                        "request_id",
+                        "resolved_configuration",
+                    },
+                ),
+                raw_bodies={"decision_traces": diagnostics.model_dump(mode="json")},
+            )
+        )
 
     @staticmethod
     def _effective_limit(configured: int, requested: int | None) -> int:
@@ -418,7 +493,7 @@ class MemoryOrchestrator:
         }
 
     async def record_transition(self, transition: ExperienceTransition) -> None:
-        for module_id, module in self._modules.items():
+        for module_index, (module_id, module) in enumerate(self._modules.items()):
             if not isinstance(module, ExperienceSink):
                 continue
             idempotency_key = self._operation_key(
@@ -426,13 +501,97 @@ class MemoryOrchestrator:
             )
             for attempt in range(2):
                 try:
-                    await module.record(transition, idempotency_key=idempotency_key)
+                    receipts = await module.record(transition, idempotency_key=idempotency_key)
                     break
                 except MemoryTransientError:
                     if attempt == 1:
                         raise
+            if receipts is None:
+                continue
+            if not isinstance(receipts, list):
+                raise MemoryPermanentError(
+                    f"experience sink {module_id} returned invalid created-item receipts"
+                )
+            module_config = self._configuration.modules[module_id]
+            owned_receipts: list[CreatedMemoryItem] = []
+            for receipt in receipts:
+                try:
+                    owned_receipt = CreatedMemoryItem.model_validate(
+                        receipt.model_dump(mode="python", round_trip=True, warnings="error")
+                    )
+                except (AttributeError, TypeError, ValueError) as error:
+                    raise MemoryPermanentError(
+                        f"experience sink {module_id} returned an invalid created-item receipt"
+                    ) from error
+                owned_receipts.append(owned_receipt)
+            if self._audit_sink is None:
+                continue
+            for owned_receipt in owned_receipts:
+                await self._audit_sink.record(
+                    AuditTraceWrite(
+                        event_id=audit_event_id(
+                            "memory.item_created",
+                            self.configuration_fingerprint,
+                            module_id,
+                            transition.transition_id,
+                            owned_receipt.item_id,
+                        ),
+                        event_type="memory.item_created",
+                        run_id=transition.run_id,
+                        sequence=(transition.iteration - 1) * 100 + 40 + module_index,
+                        iteration=transition.iteration,
+                        transition_id=transition.transition_id,
+                        producer_id=module_id,
+                        producer_version=module_config.version,
+                        metadata={
+                            "artefact_type": owned_receipt.artefact_type,
+                            "item_id": owned_receipt.item_id,
+                            "module_id": module_id,
+                            "module_version": module_config.version,
+                            "provenance": [
+                                item.model_dump(mode="json")
+                                for item in owned_receipt.provenance
+                            ],
+                        },
+                        raw_bodies={
+                            "decision_traces": owned_receipt.model_dump(mode="json")
+                        },
+                    )
+                )
 
     async def finalize_run(self, outcome: RunOutcome) -> None:
+        """Record the runner-observed outcome before module finalizers.
+
+        The audit event describes what the runner observed. It does not make
+        module finalization across independent stores an atomic operation.
+        """
+
+        if self._audit_sink is not None:
+            outcome_correlation_id = audit_event_id("run.outcome", outcome.run_id)
+            await self._audit_sink.record(
+                AuditTraceWrite(
+                    event_id=audit_event_id(
+                        "run.outcome",
+                        self.configuration_fingerprint,
+                        outcome_correlation_id,
+                    ),
+                    event_type="run.outcome",
+                    run_id=outcome.run_id,
+                    sequence=2_000_000_000,
+                    outcome_correlation_id=outcome_correlation_id,
+                    producer_id="memory-orchestrator",
+                    producer_version="1.0",
+                    metadata={
+                        "status": outcome.status,
+                        "objective_metrics": [
+                            item.model_dump(mode="json")
+                            for item in outcome.objective_metrics
+                        ],
+                        "outcome_semantics": "runner-observed-before-module-finalizers",
+                    },
+                    raw_bodies={"decision_traces": outcome.model_dump(mode="json")},
+                )
+            )
         for module_id, module in self._modules.items():
             if not isinstance(module, RunFinalizer):
                 continue
@@ -446,6 +605,11 @@ class MemoryOrchestrator:
                 except MemoryTransientError:
                     if attempt == 1:
                         raise
+
+    async def record_trace(self, write: AuditTraceWrite) -> AuditTraceEvent | None:
+        if self._audit_sink is None:
+            return None
+        return await self._audit_sink.record(write)
 
     async def consolidate(self, request: ConsolidationRequest) -> ConsolidationResult:
         """Run no automatic consolidation; explicit requests use only its capability."""

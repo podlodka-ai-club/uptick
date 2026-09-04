@@ -12,6 +12,7 @@ from pydantic_core import PydanticSerializationError
 
 from uptick_agent.memory.contracts import (
     ContractModel,
+    MemoryPermanentError,
     MemoryValidationError,
     require_finite_json,
 )
@@ -62,6 +63,34 @@ class StoredRecord(RecordWrite):
         body = write.model_dump(mode="json")
         return cls(**write.model_dump(), content_hash=sha256_json(body))
 
+    @classmethod
+    def validate_integrity(cls, value: object) -> StoredRecord:
+        """Validate a stored record and recompute its content hash."""
+
+        try:
+            if not isinstance(value, cls):
+                raise TypeError("stored record must be a StoredRecord")
+            serialized = value.model_dump(mode="python", round_trip=True, warnings="error")
+            record = cls.model_validate(serialized)
+            write = RecordWrite.model_validate(
+                {
+                    field_name: serialized[field_name]
+                    for field_name in RecordWrite.model_fields
+                }
+            )
+            expected = cls.from_write(write)
+        except (
+            KeyError,
+            PydanticSerializationError,
+            TypeError,
+            ValueError,
+            ValidationError,
+        ) as error:
+            raise MemoryPermanentError("stored record is invalid") from error
+        if record.content_hash != expected.content_hash:
+            raise MemoryPermanentError("stored record content hash mismatch")
+        return record
+
 
 class WriteReceipt(ContractModel):
     operation: str = Field(min_length=1, max_length=_OPERATION_MAX_LENGTH)
@@ -93,6 +122,31 @@ class MemorySnapshot(ContractModel):
             members=members,
             content_hash=sha256_json(body),
         )
+
+    @classmethod
+    def validate_integrity(cls, value: object) -> MemorySnapshot:
+        """Validate a stored snapshot and recompute its content hash."""
+
+        try:
+            if not isinstance(value, cls):
+                raise TypeError("stored snapshot must be a MemorySnapshot")
+            serialized = value.model_dump(mode="python", round_trip=True, warnings="error")
+            snapshot = cls.model_validate(serialized)
+            expected = cls.create(
+                snapshot_id=snapshot.snapshot_id,
+                namespace=snapshot.namespace,
+                members=snapshot.members,
+            )
+        except (
+            PydanticSerializationError,
+            TypeError,
+            ValueError,
+            ValidationError,
+        ) as error:
+            raise MemoryPermanentError("stored snapshot is invalid") from error
+        if snapshot.content_hash != expected.content_hash:
+            raise MemoryPermanentError("stored snapshot content hash mismatch")
+        return snapshot
 
 
 class SnapshotReceipt(ContractModel):

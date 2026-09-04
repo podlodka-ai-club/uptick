@@ -5,7 +5,7 @@ import asyncio
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 from uptick_agent.experiments import ExperimentRunner
 from uptick_agent.llm import (
@@ -16,6 +16,7 @@ from uptick_agent.llm import (
     LlmProviderRegistry,
     OpenAIProviderFactory,
     StructuredGenerationRequest,
+    serialize_structured_generation_request,
 )
 from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT
 from uptick_agent.memory import InMemoryMemory, JsonlMemory, legacy_memory_runtime
@@ -42,22 +43,28 @@ class StructuredDecisionModel:
         self.model = getattr(client, "model", None)
 
     async def decide(self, context: DecisionContext) -> NextStep:
-        result = await self._client.generate_structured(
-            StructuredGenerationRequest(
-                response_model=NextStep,
-                messages=(
-                    LlmMessage(role="system", content=DEFAULT_SYSTEM_PROMPT),
-                    LlmMessage(
-                        role="user",
-                        content=(
-                            "Choose the next action from this runtime context. JSON follows:\n"
-                            + context.model_dump_json(indent=2)
-                        ),
+        result = await self._client.generate_structured(self._build_request(context))
+        return result.value
+
+    def prompt_trace(self, context: DecisionContext) -> dict[str, Any]:
+        """Serialize the exact neutral request submitted by ``decide``."""
+        return serialize_structured_generation_request(self._build_request(context))
+
+    def _build_request(self, context: DecisionContext) -> StructuredGenerationRequest[NextStep]:
+        return StructuredGenerationRequest(
+            model=self.model,
+            response_model=NextStep,
+            messages=(
+                LlmMessage(role="system", content=DEFAULT_SYSTEM_PROMPT),
+                LlmMessage(
+                    role="user",
+                    content=(
+                        "Choose the next action from this runtime context. JSON follows:\n"
+                        + context.model_dump_json(indent=2)
                     ),
                 ),
-            )
+            ),
         )
-        return result.value
 
     async def aclose(self) -> None:
         await self._client.aclose()

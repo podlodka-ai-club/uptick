@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from time import monotonic
 from uuid import uuid4
 
+from uptick_agent.memory.audit import AuditTraceWrite, audit_event_id
 from uptick_agent.memory.contracts import (
     ExperienceTransitionAssembler,
     MemoryContextRequest,
@@ -74,6 +75,21 @@ def _record_run_state(run_state: RunState, action: AgentAction, result: ToolResu
             run_state.operation_statuses[resolved_operation_id] = status
 
 
+def _prompt_trace(
+    model: DecisionModel,
+    context: DecisionContext,
+) -> tuple[str, dict]:
+    builder = getattr(model, "prompt_trace", None)
+    if not callable(builder):
+        return "decision-context-surrogate", {
+            "decision_context": context.model_dump(mode="json")
+        }
+    trace = builder(context)
+    if not isinstance(trace, dict):
+        raise TypeError("decision model prompt_trace must return a JSON object")
+    return "provider-neutral-structured-generation-request", trace
+
+
 class AgentRunner:
     """Small orchestration core: context -> decision -> action -> transition."""
 
@@ -109,11 +125,16 @@ class AgentRunner:
             recent_steps: deque[RecentStep] = deque(maxlen=6)
             run_state = RunState()
             for iteration in range(1, self.config.max_steps + 1):
+                request_id = hashlib.sha256(
+                    f"memory-context:{session.run_id}:{iteration}".encode()
+                ).hexdigest()
+                decision_id = hashlib.sha256(
+                    f"decision:{session.run_id}:{iteration}".encode()
+                ).hexdigest()
+                outcome_correlation_id = audit_event_id("run.outcome", session.run_id)
                 memory_context = await self.memory.build_context(
                     MemoryContextRequest(
-                        request_id=hashlib.sha256(
-                            f"{session.run_id}:{iteration}".encode()
-                        ).hexdigest(),
+                        request_id=request_id,
                         run_id=session.run_id,
                         query=latest.summary[:11_000] + " " + _memory_text(latest, limit=4_000),
                         context={
@@ -126,6 +147,7 @@ class AgentRunner:
                 context = DecisionContext(
                     objective=self.config.objective,
                     run_id=session.run_id,
+                    decision_id=decision_id,
                     seed=seed,
                     iteration=iteration,
                     max_steps=self.config.max_steps,
@@ -134,8 +156,63 @@ class AgentRunner:
                     recent_steps=list(recent_steps),
                     run_state=run_state.model_copy(deep=True),
                 )
+                prompt_kind, prompt_body = _prompt_trace(self.model, context)
+                await self.memory.record_trace(
+                    AuditTraceWrite(
+                        event_id=audit_event_id(
+                            "decision.input",
+                            session.run_id,
+                            request_id,
+                            decision_id,
+                        ),
+                        event_type="decision.input",
+                        run_id=session.run_id,
+                        sequence=(iteration - 1) * 100 + 20,
+                        iteration=iteration,
+                        request_id=request_id,
+                        decision_id=decision_id,
+                        outcome_correlation_id=outcome_correlation_id,
+                        producer_id="agent-runner",
+                        producer_version="1.0",
+                        metadata={"prompt_kind": prompt_kind},
+                        raw_bodies={
+                            "prompts": prompt_body,
+                            "observations": {
+                                "latest_result": latest.model_dump(mode="json")
+                            },
+                        },
+                    )
+                )
                 step_started = monotonic()
                 decision = await self.model.decide(context)
+                await self.memory.record_trace(
+                    AuditTraceWrite(
+                        event_id=audit_event_id(
+                            "decision.selected",
+                            session.run_id,
+                            request_id,
+                            decision_id,
+                        ),
+                        event_type="decision.selected",
+                        run_id=session.run_id,
+                        sequence=(iteration - 1) * 100 + 30,
+                        iteration=iteration,
+                        request_id=request_id,
+                        decision_id=decision_id,
+                        outcome_correlation_id=outcome_correlation_id,
+                        producer_id="agent-runner",
+                        producer_version="1.0",
+                        metadata={
+                            "action_kind": decision.action.kind,
+                            "action": decision.action.model_dump(mode="json"),
+                        },
+                        raw_bodies={
+                            "decision_traces": {
+                                "decision": decision.model_dump(mode="json")
+                            }
+                        },
+                    )
+                )
                 result = await self.environment.execute(session, decision.action)
                 duration = monotonic() - step_started
                 completed_steps = iteration
@@ -161,12 +238,74 @@ class AgentRunner:
                     )
                 )
                 await self.memory.record_transition(transition)
+                memory_diagnostics = self.memory.context_diagnostics
+                await self.memory.record_trace(
+                    AuditTraceWrite(
+                        event_id=audit_event_id(
+                            "decision.completed",
+                            session.run_id,
+                            request_id,
+                            decision_id,
+                            transition.transition_id,
+                            outcome_correlation_id,
+                        ),
+                        event_type="decision.completed",
+                        run_id=session.run_id,
+                        sequence=(iteration - 1) * 100 + 90,
+                        iteration=iteration,
+                        request_id=request_id,
+                        decision_id=decision_id,
+                        transition_id=transition.transition_id,
+                        outcome_correlation_id=outcome_correlation_id,
+                        producer_id="agent-runner",
+                        producer_version="1.0",
+                        metadata={
+                            "prompt_included_item_ids": [
+                                item.envelope.item_id for item in memory_context.items
+                            ],
+                            "action_kind": result.action_kind,
+                            "ok": result.ok,
+                            "terminal": result.terminal,
+                            "objective_metrics": [
+                                item.model_dump(mode="json")
+                                for item in result.objective_metrics
+                            ],
+                            "operation_links": [
+                                item.model_dump(mode="json")
+                                for item in result.operation_links
+                            ],
+                        },
+                        raw_bodies={
+                            "observations": {"action_result": result.model_dump(mode="json")},
+                            "decision_traces": {
+                                "memory": memory_diagnostics,
+                                "decision": decision.model_dump(mode="json"),
+                                "result_metadata": {
+                                    "action_kind": result.action_kind,
+                                    "ok": result.ok,
+                                    "terminal": result.terminal,
+                                    "objective_metrics": [
+                                        item.model_dump(mode="json")
+                                        for item in result.objective_metrics
+                                    ],
+                                    "operation_links": [
+                                        item.model_dump(mode="json")
+                                        for item in result.operation_links
+                                    ],
+                                },
+                                "transition_id": transition.transition_id,
+                            },
+                        },
+                    )
+                )
                 record = StepRecord(
                     run_id=session.run_id,
+                    decision_id=decision_id,
+                    transition_id=transition.transition_id,
                     iteration=iteration,
                     decision=decision,
                     result=result,
-                    memory_diagnostics=self.memory.context_diagnostics,
+                    memory_diagnostics=memory_diagnostics,
                     started_at=datetime.now(UTC),
                     duration_seconds=duration,
                 )
@@ -215,29 +354,50 @@ class AgentRunner:
             if final.status in {"completed", "failed", "interrupted", "excluded"}
             else "failed"
         )
-        await self._remember(
-            session.run_id,
-            ToolResult(
-                action_kind="run_outcome",
-                summary=(
-                    f"Run finished with status={final.status}, balance={final.balance_minor}, "
-                    f"lost_revenue={final.lost_revenue_minor}, steps={final.steps}."
+        outcome_evidence_error: BaseException | None = None
+        try:
+            await self._remember(
+                session.run_id,
+                ToolResult(
+                    action_kind="run_outcome",
+                    summary=(
+                        f"Run finished with status={final.status}, balance={final.balance_minor}, "
+                        f"lost_revenue={final.lost_revenue_minor}, steps={final.steps}."
+                    ),
+                    data=final.model_dump(mode="json"),
+                    terminal=True,
                 ),
-                data=final.model_dump(mode="json"),
-                terminal=True,
-            ),
-            kind="outcome",
-            importance=1.0,
-            tags={"run-outcome"},
-        )
-        await self.memory.finalize_run(
-            RunOutcome(
-                run_id=session.run_id,
-                status=outcome_status,
-                stop_reason=final.stop_reason[:2_000] or "run finished without a stop reason",
-                objective_metrics=final.objective_metrics,
+                kind="outcome",
+                importance=1.0,
+                tags={"run-outcome"},
             )
-        )
+        except BaseException as error:
+            # The world outcome is already known; still attempt typed
+            # finalization so structured memory can retain it independently.
+            outcome_evidence_error = error
+
+        finalization_error: BaseException | None = None
+        try:
+            await self.memory.finalize_run(
+                RunOutcome(
+                    run_id=session.run_id,
+                    status=outcome_status,
+                    stop_reason=final.stop_reason[:2_000]
+                    or "run finished without a stop reason",
+                    objective_metrics=final.objective_metrics,
+                )
+            )
+        except BaseException as error:
+            finalization_error = error
+
+        if outcome_evidence_error is not None:
+            if finalization_error is not None:
+                outcome_evidence_error.add_note(
+                    f"Memory finalization also failed with {type(finalization_error).__name__}."
+                )
+            raise outcome_evidence_error
+        if finalization_error is not None:
+            raise finalization_error
         await self.observer.on_finish(final)
         return final
 
@@ -261,10 +421,16 @@ class AgentRunner:
                 importance=1.0,
                 tags={"run-outcome"},
             )
+        except BaseException as evidence_error:
+            error.add_note(
+                f"Memory outcome evidence also failed with {type(evidence_error).__name__}."
+            )
+
+        try:
             await self.memory.finalize_run(
                 RunOutcome(run_id=run_id, status=status, stop_reason=reason)
             )
-        except Exception as finalization_error:
+        except BaseException as finalization_error:
             error.add_note(
                 f"Memory finalization also failed with {type(finalization_error).__name__}."
             )

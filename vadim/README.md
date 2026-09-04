@@ -38,7 +38,7 @@ schema-guided decision loop — и отделена от памяти, моде�
 Стабильные порты находятся в `src/uptick_agent/ports.py`:
 
 - `AgentMemory` — runner-facing граница памяти: контекст, legacy-запись,
-  структурированный transition, очистка (если поддерживается) и финализация;
+  структурированный transition, аудит, очистка (если поддерживается) и финализация;
 - `Memory` — legacy storage port, подключаемый через `legacy_memory_runtime`;
 - `DecisionModel` — получение одного `NextStep` из контекста;
 - `Environment` — запуск мира и выполнение типизированных действий;
@@ -177,6 +177,43 @@ memory = episodic_memory_runtime(
 предлагается. Это не ограничивает обычный запуск `AgentRunner` с созданным выше
 runtime.
 
+Stage 5 подключает структурированный аудит к тому же runtime:
+
+```python
+from uptick_agent.memory import (
+    AuditConfiguration,
+    MemoryConfiguration,
+    StructuredAuditTraceSink,
+    episodic_memory_runtime,
+)
+from uptick_agent.memory.stores import SqliteStructuredStore
+
+configuration = MemoryConfiguration.episodic_only(
+    audit=AuditConfiguration.simulator_default(),
+)
+store = SqliteStructuredStore("artifacts/pilot/memory.sqlite")
+audit = StructuredAuditTraceSink(
+    store,
+    namespace="pilot-2026-09-04-audit",
+    configuration=configuration.audit,
+    runtime_configuration_fingerprint=configuration.fingerprint,
+)
+memory = episodic_memory_runtime(
+    store,
+    namespace="pilot-2026-09-04-episodes",
+    configuration=configuration,
+    audit_sink=audit,
+)
+```
+
+Аудит связывает выбор памяти, запрос модели, выбранное действие, созданный эпизод
+и исход run. `audit.raw_content.prompts`, `observations` и `decision_traces`
+независимо управляют телами аудита; первичные записи памяти сохраняют свою
+структуру. Проверка секретов обязательна перед записью. Политика хранения
+объявлена в конфигурации; автоматического удаления пока нет. Точные границы и
+поведение при сбоях описаны в
+[`STAGE_5_IMPLEMENTATION.md`](docs/agent-memory-design/STAGE_5_IMPLEMENTATION.md).
+
 ## A/B-прогоны
 
 ```bash
@@ -202,7 +239,8 @@ uv run uptick-agent benchmark \
 - `summary.json` — результаты всех seeds и агрегаты по итоговому балансу.
 
 `summary.json` пока является удобным smoke-сравнением, а не полным evaluation manifest:
-его нельзя использовать как validation/promotion evidence до реализации Stage 5.
+его нельзя использовать как validation/promotion evidence. Программный аудит Stage 5
+не добавляет отсутствующий evaluation manifest в legacy CLI.
 
 Ключи сравнения уже нормализованы в `RunResult`: баланс, выручка, потерянная выручка,
 стоимость серверов и деплоев, покупки, число шагов и реальная длительность.

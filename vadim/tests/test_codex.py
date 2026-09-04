@@ -21,6 +21,7 @@ from uptick_agent.llm.contracts import (
     LlmTransientError,
     LlmUnsupportedCapabilityError,
     StructuredGenerationRequest,
+    serialize_structured_generation_request,
 )
 from uptick_agent.llm.openai import DEFAULT_SYSTEM_PROMPT
 from uptick_agent.models import DecisionContext, NextStep, ToolResult
@@ -199,6 +200,37 @@ def test_codex_decide_uses_a_fresh_ephemeral_read_only_thread_and_schema(tmp_pat
         await model.aclose()
         assert not fake.closed
         assert workspace.exists()
+
+    asyncio.run(scenario())
+
+
+def test_codex_prompt_trace_matches_the_neutral_request_before_provider_conversion(
+    tmp_path: Path,
+) -> None:
+    async def scenario() -> None:
+        fake = FakeCodex(FakeResult(final_response=_valid_response()))
+        workspace = tmp_path / "fake-codex-workspace"
+        workspace.mkdir()
+        model = CodexSGRModel(client=fake, model="test-codex-model", workspace_dir=workspace)
+        context = _context()
+
+        trace = model.prompt_trace(context)
+        await model.decide(context)
+
+        request = model._build_request(context)
+        assert trace == serialize_structured_generation_request(request)
+        assert trace["messages"] == [
+            {
+                "role": "user",
+                "content": (
+                    "Choose the next action from this runtime context. JSON follows:\n"
+                    + context.model_dump_json()
+                ),
+            }
+        ]
+        assert trace["model"] == "test-codex-model"
+        assert trace["response_schema"] == NextStep.model_json_schema()
+        assert fake.threads[0].run_calls[0][0] == trace["messages"][0]["content"]
 
     asyncio.run(scenario())
 

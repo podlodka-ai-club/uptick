@@ -1,4 +1,17 @@
-from uptick_agent.memory.config import MemoryConfiguration
+from uptick_agent.memory.audit import (
+    AuditTraceEvent,
+    AuditTraceSink,
+    AuditTraceWrite,
+    RawBodyCapture,
+    StructuredAuditTraceSink,
+    audit_event_id,
+)
+from uptick_agent.memory.config import (
+    AuditConfiguration,
+    AuditRetentionConfiguration,
+    MemoryConfiguration,
+    RawContentConfiguration,
+)
 from uptick_agent.memory.contracts import (
     ConsolidationDelta,
     ConsolidationParticipant,
@@ -6,6 +19,7 @@ from uptick_agent.memory.contracts import (
     ConsolidationResult,
     ContextContributor,
     ContextItem,
+    CreatedMemoryItem,
     DecisionMemoryContext,
     ExperienceSink,
     ExperienceTransition,
@@ -33,12 +47,19 @@ from uptick_agent.memory.orchestrator import (
 )
 
 __all__ = [
+    "AuditConfiguration",
+    "AuditRetentionConfiguration",
+    "AuditTraceEvent",
+    "AuditTraceSink",
+    "AuditTraceWrite",
+    "audit_event_id",
     "ConsolidationDelta",
     "ConsolidationParticipant",
     "ConsolidationRequest",
     "ConsolidationResult",
     "ContextItem",
     "ContextContributor",
+    "CreatedMemoryItem",
     "DecisionMemoryContext",
     "ExperienceSink",
     "ExperienceTransition",
@@ -68,8 +89,11 @@ __all__ = [
     "ObjectiveMetricDelta",
     "OperationLink",
     "ProvenanceRef",
+    "RawBodyCapture",
+    "RawContentConfiguration",
     "RunOutcome",
     "RunFinalizer",
+    "StructuredAuditTraceSink",
     "TransitionAssemblyRequest",
     "UntrustedMemoryEnvelope",
 ]

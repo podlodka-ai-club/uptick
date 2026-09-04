@@ -1,10 +1,17 @@
 import asyncio
 import hashlib
+import json
 from dataclasses import dataclass
 
 import pytest
 
 from uptick_agent.memory import InMemoryMemory, legacy_memory_runtime
+from uptick_agent.memory.audit import (
+    AuditTraceWrite,
+    StructuredAuditTraceSink,
+    audit_event_id,
+)
+from uptick_agent.memory.config import AuditConfiguration, MemoryConfiguration
 from uptick_agent.memory.contracts import (
     ExperienceTransition,
     MemoryPermanentError,
@@ -12,11 +19,13 @@ from uptick_agent.memory.contracts import (
     OperationLink,
     RunOutcome,
 )
+from uptick_agent.memory.stores import InMemoryStructuredStore
 from uptick_agent.models import (
     AgentConfig,
     ApplyFix,
     FinishRun,
     GetOverview,
+    MemoryEntry,
     NextStep,
     RunResult,
     ToolResult,
@@ -111,8 +120,18 @@ class RecordingObserver:
 
 
 class TrackingMemory:
-    def __init__(self, store: InMemoryMemory) -> None:
-        self._runtime = legacy_memory_runtime(store)
+    def __init__(
+        self,
+        store: InMemoryMemory,
+        *,
+        configuration: MemoryConfiguration | None = None,
+        audit_sink=None,
+    ) -> None:
+        self._runtime = legacy_memory_runtime(
+            store,
+            configuration=configuration,
+            audit_sink=audit_sink,
+        )
         self.events = []
         self.outcomes: list[RunOutcome] = []
         self.transitions: list[ExperienceTransition] = []
@@ -138,10 +157,29 @@ class TrackingMemory:
     async def finalize_run(self, outcome: RunOutcome) -> None:
         self.events.append("finalize")
         self.outcomes.append(outcome)
+        await self._runtime.finalize_run(outcome)
+
+    async def record_trace(self, write):
+        return await self._runtime.record_trace(write)
 
     @property
     def context_diagnostics(self):
         return self._runtime.context_diagnostics
+
+
+class RecordingAuditSink:
+    def __init__(self, configuration: MemoryConfiguration) -> None:
+        self.runtime_configuration_fingerprint = configuration.fingerprint
+        self.audit_configuration_fingerprint = configuration.audit.fingerprint
+        self.writes: list[AuditTraceWrite] = []
+
+    async def record(self, write: AuditTraceWrite):
+        self.writes.append(write)
+        return None
+
+
+def _audited_configuration() -> MemoryConfiguration:
+    return MemoryConfiguration.legacy_baseline(audit=AuditConfiguration.simulator_default())
 
 
 def test_runner_uses_memory_as_the_context_boundary() -> None:
@@ -207,6 +245,241 @@ def test_runner_uses_memory_as_the_context_boundary() -> None:
     asyncio.run(scenario())
 
 
+def test_runner_audit_correlations_and_event_order_are_deterministic() -> None:
+    async def scenario() -> None:
+        configuration = _audited_configuration()
+        audit = RecordingAuditSink(configuration)
+        memory = TrackingMemory(
+            InMemoryMemory(), configuration=configuration, audit_sink=audit
+        )
+        runner = AgentRunner(
+            config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=3),
+            model=ScriptedModel(),
+            memory=memory,
+            environment=FakeEnvironment(),
+        )
+
+        await runner.run(7)
+
+        assert [write.event_type for write in audit.writes] == [
+            "memory.context_selected",
+            "decision.input",
+            "decision.selected",
+            "decision.completed",
+            "memory.context_selected",
+            "decision.input",
+            "decision.selected",
+            "decision.completed",
+            "run.outcome",
+        ]
+        outcome = audit.writes[-1]
+        assert outcome.outcome_correlation_id == audit_event_id("run.outcome", "run-123")
+        assert outcome.event_id != outcome.outcome_correlation_id
+        for offset in (0, 4):
+            context, input_event, selected, completed = audit.writes[offset : offset + 4]
+            assert context.request_id == input_event.request_id
+            assert input_event.request_id == selected.request_id == completed.request_id
+            assert input_event.decision_id == selected.decision_id == completed.decision_id
+            assert (
+                input_event.outcome_correlation_id
+                == selected.outcome_correlation_id
+                == completed.outcome_correlation_id
+                == outcome.outcome_correlation_id
+            )
+            assert context.decision_id is None
+            assert completed.transition_id
+            assert len({
+                context.event_id,
+                input_event.event_id,
+                selected.event_id,
+                completed.event_id,
+            }) == 4
+
+    asyncio.run(scenario())
+
+
+def test_runner_keeps_structured_facts_when_decision_traces_are_disabled() -> None:
+    narrative = "NARRATIVE-MUST-NOT-BE-STORED"
+
+    class NarrativeModel(ScriptedModel):
+        async def decide(self, context):
+            decision = await super().decide(context)
+            return decision.model_copy(
+                update={
+                    "current_situation": narrative,
+                    "hypothesis": "NARRATIVE-HYPOTHESIS-MUST-NOT-BE-STORED",
+                }
+            )
+
+    async def scenario() -> None:
+        audit_configuration = AuditConfiguration.simulator_default()
+        audit_configuration.raw_content.prompts = False
+        audit_configuration.raw_content.observations = False
+        audit_configuration.raw_content.decision_traces = False
+        configuration = MemoryConfiguration.legacy_baseline(audit=audit_configuration)
+        store = InMemoryStructuredStore()
+        audit = StructuredAuditTraceSink(
+            store,
+            namespace="runner-raw-disabled",
+            configuration=configuration.audit,
+            runtime_configuration_fingerprint=configuration.fingerprint,
+        )
+        memory = TrackingMemory(
+            InMemoryMemory(
+                [
+                    MemoryEntry(
+                        id="known-item",
+                        kind="lesson",
+                        content="started service is healthy",
+                        importance=0.9,
+                    )
+                ]
+            ),
+            configuration=configuration,
+            audit_sink=audit,
+        )
+        runner = AgentRunner(
+            config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=3),
+            model=NarrativeModel(),
+            memory=memory,
+            environment=FakeEnvironment(),
+        )
+
+        await runner.run(7)
+
+        events = await audit.list_events()
+        assert all(
+            capture.body is None
+            for event in events
+            for capture in event.captures
+            if capture.body_class == "decision_traces"
+        )
+        assert narrative not in json.dumps(
+            [event.model_dump(mode="json") for event in events], sort_keys=True
+        )
+
+        context = next(event for event in events if event.event_type == "memory.context_selected")
+        assert context.metadata["selected_item_ids"]
+        assert context.metadata["selection_evidence"][0]["score"]
+        assert context.metadata["selection_evidence"][0]["selection_reason"]
+        assert context.metadata["effective_item_limit"] == 8
+        assert context.metadata["effective_token_limit"] == 4_000
+        assert context.metadata["estimator_id"] == "utf8-byte-upper-bound"
+
+        selected = next(event for event in events if event.event_type == "decision.selected")
+        assert selected.metadata["action_kind"] == "get_overview"
+        assert selected.metadata["action"] == {"kind": "get_overview"}
+
+        completed = next(event for event in events if event.event_type == "decision.completed")
+        assert completed.metadata["prompt_included_item_ids"]
+        assert completed.metadata["action_kind"] == "get_overview"
+        assert completed.metadata["ok"] is True
+        assert completed.metadata["terminal"] is False
+        assert completed.metadata["objective_metrics"] == [
+            {
+                "schema_version": "1.0",
+                "name": "balance",
+                "value": 10.0,
+                "unit": "minor",
+            }
+        ]
+        assert completed.metadata["operation_links"] == [
+            {
+                "schema_version": "1.1",
+                "operation_id": "operation-1",
+                "relation": "observed",
+            }
+        ]
+
+        outcome = next(event for event in events if event.event_type == "run.outcome")
+        assert outcome.metadata["status"] == "completed"
+        assert outcome.metadata["objective_metrics"] == [
+            {
+                "schema_version": "1.0",
+                "name": "balance",
+                "value": 12.0,
+                "unit": "minor",
+            }
+        ]
+        assert outcome.metadata["outcome_semantics"] == (
+            "runner-observed-before-module-finalizers"
+        )
+
+    asyncio.run(scenario())
+
+
+def test_runner_records_selected_action_before_execution_failure() -> None:
+    class FailingEnvironment(FakeEnvironment):
+        async def execute(self, session, action):
+            raise RuntimeError("environment failed")
+
+    async def scenario() -> None:
+        configuration = _audited_configuration()
+        audit = RecordingAuditSink(configuration)
+        memory = TrackingMemory(
+            InMemoryMemory(), configuration=configuration, audit_sink=audit
+        )
+        runner = AgentRunner(
+            config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=1),
+            model=ScriptedModel(),
+            memory=memory,
+            environment=FailingEnvironment(),
+        )
+
+        with pytest.raises(RuntimeError, match="environment failed"):
+            await runner.run(7)
+
+        assert [write.event_type for write in audit.writes] == [
+            "memory.context_selected",
+            "decision.input",
+            "decision.selected",
+            "run.outcome",
+        ]
+        selected, outcome = audit.writes[2:]
+        assert selected.raw_bodies["decision_traces"]["decision"]["action"]["kind"] == (
+            "get_overview"
+        )
+        assert selected.outcome_correlation_id == outcome.outcome_correlation_id
+        assert outcome.event_id != outcome.outcome_correlation_id
+        assert outcome.raw_bodies["decision_traces"]["status"] == "failed"
+
+    asyncio.run(scenario())
+
+
+def test_runner_cancellation_keeps_input_correlation_and_records_interrupted_outcome() -> None:
+    class CancellingModel:
+        async def decide(self, context):
+            raise asyncio.CancelledError()
+
+    async def scenario() -> None:
+        configuration = _audited_configuration()
+        audit = RecordingAuditSink(configuration)
+        memory = TrackingMemory(
+            InMemoryMemory(), configuration=configuration, audit_sink=audit
+        )
+        runner = AgentRunner(
+            config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=1),
+            model=CancellingModel(),
+            memory=memory,
+            environment=FakeEnvironment(),
+        )
+
+        with pytest.raises(asyncio.CancelledError):
+            await runner.run(7)
+
+        assert [write.event_type for write in audit.writes] == [
+            "memory.context_selected",
+            "decision.input",
+            "run.outcome",
+        ]
+        input_event, outcome = audit.writes[1:]
+        assert input_event.outcome_correlation_id == outcome.outcome_correlation_id
+        assert input_event.decision_id
+        assert outcome.raw_bodies["decision_traces"]["status"] == "interrupted"
+
+    asyncio.run(scenario())
+
+
 @pytest.mark.parametrize(
     ("error", "status"),
     [(RuntimeError("decision failed"), "failed"), (asyncio.CancelledError(), "interrupted")],
@@ -236,6 +509,83 @@ def test_runner_records_and_finalizes_an_aborted_run_without_masking_the_error(
         assert memory.transitions == []
         assert memory.outcomes[0].status == status
         assert type(error).__name__ in memory.outcomes[0].stop_reason
+
+    asyncio.run(scenario())
+
+
+def test_completed_run_surfaces_legacy_outcome_error_after_typed_finalization() -> None:
+    legacy_error = RuntimeError("legacy outcome evidence failed")
+
+    class FailingOutcomeEvidenceMemory(TrackingMemory):
+        async def remember(self, entry) -> None:
+            if entry.kind == "outcome":
+                raise legacy_error
+            await super().remember(entry)
+
+    async def scenario() -> None:
+        memory = FailingOutcomeEvidenceMemory(InMemoryMemory())
+        runner = AgentRunner(
+            config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=3),
+            model=ScriptedModel(),
+            memory=memory,
+            environment=FakeEnvironment(),
+        )
+
+        with pytest.raises(RuntimeError) as raised:
+            await runner.run(7)
+
+        assert raised.value is legacy_error
+        assert [outcome.status for outcome in memory.outcomes] == ["completed"]
+        assert memory.events[-1] == "finalize"
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("error_type", "status"),
+    [(RuntimeError, "failed"), (asyncio.CancelledError, "interrupted")],
+)
+def test_aborted_run_preserves_original_error_when_both_outcome_paths_fail(
+    error_type: type[BaseException], status: str
+) -> None:
+    async def scenario() -> None:
+        original_error = error_type("model stopped")
+        evidence_error = RuntimeError("legacy outcome evidence failed")
+        finalization_error = MemoryPermanentError("typed finalizer failed")
+
+        class FailingOutcomePathsMemory(TrackingMemory):
+            async def remember(self, entry) -> None:
+                if entry.kind == "outcome":
+                    raise evidence_error
+                await super().remember(entry)
+
+            async def finalize_run(self, outcome: RunOutcome) -> None:
+                self.events.append("finalize")
+                self.outcomes.append(outcome)
+                raise finalization_error
+
+        class FailingModel:
+            async def decide(self, context):
+                raise original_error
+
+        memory = FailingOutcomePathsMemory(InMemoryMemory())
+        runner = AgentRunner(
+            config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=1),
+            model=FailingModel(),
+            memory=memory,
+            environment=FakeEnvironment(),
+        )
+
+        with pytest.raises(error_type) as raised:
+            await runner.run(7)
+
+        assert raised.value is original_error
+        assert memory.events == ["finalize"]
+        assert [outcome.status for outcome in memory.outcomes] == [status]
+        assert raised.value.__notes__ == [
+            "Memory outcome evidence also failed with RuntimeError.",
+            "Memory finalization also failed with MemoryPermanentError.",
+        ]
 
     asyncio.run(scenario())
 

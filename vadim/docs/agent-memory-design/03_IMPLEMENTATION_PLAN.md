@@ -286,8 +286,10 @@ Record:
 The trace format must be versioned. For each decision it records candidate and
 selected memory IDs, module/version, scores, selection rationale, budget use,
 truncation, prompt inclusion, final action and outcome correlation IDs. The
-initial simulator profile enables raw prompt, observation and decision-trace
-bodies behind independent versioned flags. A disabled class persists no body.
+initial simulator audit profile enables raw prompt, observation and
+decision-trace bodies behind independent versioned `audit.raw_content` flags.
+A disabled class persists no structured-audit body. These flags do not mutate
+primary episodic/legacy records or their structured outcome semantics.
 Credentials and secrets are removed before every persistence path; detection or
 redaction failure rejects or body-less quarantines the write rather than falling
 back to raw storage.

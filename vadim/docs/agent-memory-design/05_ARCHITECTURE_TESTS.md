@@ -259,8 +259,17 @@ At minimum enforce:
   and deletion without a versioned policy approved by the project owner fails;
 - active candidates with expiring raw provenance are revalidated, demoted or
   retain that provenance before deletion;
-- disabling any raw-content class persists no body, while enabled classes
-  record the applicable policy versions; and
+- disabling any audit raw-content class persists no structured-audit body,
+  while enabled classes record the applicable policy versions; primary
+  episodic/legacy semantics remain intact under every audit flag combination;
+- disabling raw traces retains sanitized selection/budget/action/result facts,
+  provenance links and outcome status in metadata, without retaining full
+  model decision narratives in their place;
+- item-created traces refer to actual module receipts, selected decisions
+  survive environment execution failure, and request/decision/transition/outcome
+  correlations join the relevant events;
+- equivalent audit replays with newly generated timestamps return the original
+  event, while changed retained data under the same event ID conflicts; and
 - safe synthetic credential/secret fixtures never appear in primary storage,
   snapshots, manifests, diagnostics, retry payloads or backup fixtures; a
   redaction failure records only a metadata audit/quarantine event.

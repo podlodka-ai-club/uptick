@@ -1,9 +1,13 @@
 import asyncio
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
 from uptick_agent import cli
+from uptick_agent.llm import StructuredGenerationRequest, serialize_structured_generation_request
+from uptick_agent.models import DecisionContext, NextStep, ToolResult
 
 
 def test_cli_uses_codex_model_default_and_cli_override_without_api_keys(monkeypatch) -> None:
@@ -34,6 +38,53 @@ def test_cli_uses_codex_model_default_and_cli_override_without_api_keys(monkeypa
     overridden_model = cli._decision_model(overridden_args)
     assert overridden_model.model == "chosen-codex"
     assert len(created) == 2
+
+
+def test_cli_prompt_trace_matches_the_neutral_request_sent_to_client() -> None:
+    class FakeClient:
+        model = "cli-model"
+
+        def __init__(self) -> None:
+            self.requests: list[StructuredGenerationRequest[Any]] = []
+
+        async def generate_structured(self, request: StructuredGenerationRequest[Any]):
+            self.requests.append(request)
+            return SimpleNamespace(
+                value=NextStep.model_validate(
+                    {
+                        "current_situation": "started",
+                        "hypothesis": "inspect",
+                        "remaining_steps": [],
+                        "task_completed": False,
+                        "action": {"kind": "get_overview"},
+                    }
+                )
+            )
+
+        async def aclose(self) -> None:
+            return None
+
+    async def scenario() -> None:
+        client = FakeClient()
+        model = cli.StructuredDecisionModel(client)
+        context = DecisionContext(
+            objective="keep healthy",
+            run_id="run-1",
+            seed=1,
+            iteration=1,
+            max_steps=2,
+            latest_result=ToolResult(action_kind="start", summary="started"),
+        )
+
+        trace = model.prompt_trace(context)
+        await model.decide(context)
+
+        assert client.requests
+        assert trace == serialize_structured_generation_request(client.requests[0])
+        assert trace["model"] == "cli-model"
+        assert trace["messages"][1]["content"].endswith(context.model_dump_json(indent=2))
+
+    asyncio.run(scenario())
 
 
 def test_cli_selects_openai_through_registry_with_cli_over_environment(monkeypatch) -> None:

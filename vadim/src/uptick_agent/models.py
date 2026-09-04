@@ -179,6 +179,7 @@ class RunState(StrictModel):
 class DecisionContext(StrictModel):
     objective: str
     run_id: str
+    decision_id: str | None = None
     seed: int
     iteration: int
     max_steps: int
@@ -192,6 +193,8 @@ class DecisionContext(StrictModel):
 
 class StepRecord(StrictModel):
     run_id: str
+    decision_id: str
+    transition_id: str
     iteration: int
     decision: NextStep
     result: ToolResult

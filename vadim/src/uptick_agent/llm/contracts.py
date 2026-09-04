@@ -7,6 +7,7 @@ serialization, retries, and translating their SDK responses.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
@@ -97,6 +98,47 @@ class StructuredGenerationRequest[T]:
             callable(getattr(self.response_model, name, None)) for name in required_methods
         ):
             raise ValueError("response_model must be a Pydantic model class")
+
+
+def serialize_structured_generation_request(
+    request: StructuredGenerationRequest[Any],
+) -> dict[str, Any]:
+    """Return a deterministic, provider-neutral representation of a request.
+
+    The returned value deliberately describes the request before any provider
+    adapter translates it into SDK arguments.  In particular, it contains no
+    provider request/response objects and keeps the exact message order and
+    content supplied by the caller.
+    """
+    response_model = request.response_model
+    payload = {
+        "messages": [
+            {"role": message.role, "content": message.content}
+            for message in request.messages
+        ],
+        "model": request.model,
+        "settings": {
+            "temperature": request.settings.temperature,
+            "max_output_tokens": request.settings.max_output_tokens,
+        },
+        "response_model": {
+            "module": response_model.__module__,
+            "qualname": response_model.__qualname__,
+        },
+        "response_schema": response_model.model_json_schema(),
+    }
+
+    # JSON round-tripping both proves the boundary is JSON-safe and gives all
+    # mapping keys a deterministic order without retaining SDK/model objects.
+    return json.loads(
+        json.dumps(
+            payload,
+            allow_nan=False,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)

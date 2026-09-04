@@ -2,13 +2,22 @@ from __future__ import annotations
 
 import ast
 import asyncio
+import json
+import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
 from uptick_agent.memory import episodic_memory_runtime
+from uptick_agent.memory.audit import StructuredAuditTraceSink
+from uptick_agent.memory.config import (
+    AuditConfiguration,
+    MemoryConfiguration,
+    RawContentConfiguration,
+)
 from uptick_agent.memory.contracts import (
+    CreatedMemoryItem,
     MemoryContextRequest,
     MemoryPermanentError,
     MemoryValidationError,
@@ -58,8 +67,17 @@ def test_episodic_record_finalize_and_retrieve_across_store_reopen(
         memory = EpisodicMemory(store, namespace="experiment-1")
         transition = _transition()
 
-        await memory.record(transition, idempotency_key="transition-key")
-        await memory.record(transition, idempotency_key="transition-key")
+        first_receipt = await memory.record(transition, idempotency_key="transition-key")
+        second_receipt = await memory.record(transition, idempotency_key="transition-key")
+
+        assert first_receipt == second_receipt
+        assert first_receipt == [
+            CreatedMemoryItem(
+                item_id="transition-1",
+                artefact_type="episode",
+                provenance=transition.provenance,
+            )
+        ]
 
         records = await store.list(namespace="experiment-1")
         assert len(records) == 1
@@ -121,6 +139,53 @@ def test_episodic_record_finalize_and_retrieve_across_store_reopen(
             MemoryContextRequest(request_id="isolated", run_id="run-2", query="healthy")
         )
         assert empty.items == []
+
+    asyncio.run(scenario())
+
+
+def test_episodic_replay_derives_receipt_from_authoritative_sqlite_record(
+    tmp_path: Path,
+) -> None:
+    async def scenario() -> None:
+        database = tmp_path / "episodic-receipt-replay.sqlite"
+        store = SqliteStructuredStore(database)
+        memory = EpisodicMemory(store, namespace="receipt-replay")
+        transition = _transition()
+
+        first = await memory.record(transition, idempotency_key="transition-key")
+        with sqlite3.connect(database) as connection:
+            row = connection.execute(
+                """
+                SELECT receipt_json
+                FROM memory_operation_receipts
+                WHERE namespace = ? AND operation = ? AND idempotency_key = ?
+                """,
+                ("receipt-replay", "record-transition", "transition-key"),
+            ).fetchone()
+            assert row is not None
+            forged = json.loads(row[0])
+            forged["record"]["payload"]["transition_id"] = "forged-transition"
+            connection.execute(
+                """
+                UPDATE memory_operation_receipts
+                SET receipt_json = ?
+                WHERE namespace = ? AND operation = ? AND idempotency_key = ?
+                """,
+                (
+                    json.dumps(forged),
+                    "receipt-replay",
+                    "record-transition",
+                    "transition-key",
+                ),
+            )
+
+        replay = await memory.record(transition, idempotency_key="transition-key")
+
+        assert replay == first
+        assert replay[0].item_id == transition.transition_id
+        stored = await store.get(namespace="receipt-replay", record_id=transition.transition_id)
+        assert stored is not None
+        assert stored.payload["transition_id"] == transition.transition_id
 
     asyncio.run(scenario())
 
@@ -210,6 +275,55 @@ def test_public_episodic_runtime_composes_the_module_without_legacy_writes() -> 
         )
         with pytest.raises(MemoryPermanentError, match="fresh namespace"):
             await runtime.clear()
+
+    asyncio.run(scenario())
+
+
+def test_episodic_primary_records_ignore_disabled_audit_raw_flags() -> None:
+    async def scenario() -> None:
+        store = InMemoryStructuredStore()
+        configuration = MemoryConfiguration.episodic_only(
+            audit=AuditConfiguration(
+                enabled=True,
+                raw_content=RawContentConfiguration(
+                    prompts=False,
+                    observations=False,
+                    decision_traces=False,
+                )
+            )
+        )
+        audit_sink = StructuredAuditTraceSink(
+            store,
+            namespace="raw-flags-disabled-audit",
+            configuration=configuration.audit,
+            runtime_configuration_fingerprint=configuration.fingerprint,
+        )
+        runtime = episodic_memory_runtime(
+            store,
+            namespace="raw-flags-disabled",
+            configuration=configuration,
+            audit_sink=audit_sink,
+        )
+        transition = _transition()
+        outcome = RunOutcome(
+            run_id=transition.run_id,
+            status="completed",
+            finished_at=datetime(2026, 9, 4, 11, tzinfo=UTC),
+            stop_reason="finished after validation",
+        )
+
+        await runtime.record_transition(transition)
+        await runtime.finalize_run(outcome)
+
+        records = await store.list(namespace="raw-flags-disabled")
+        persisted_transition = next(
+            record for record in records if record.record_type == "experience-transition"
+        )
+        persisted_outcome = next(
+            record for record in records if record.record_type == "run-outcome"
+        )
+        assert persisted_transition.payload == transition.model_dump(mode="json")
+        assert persisted_outcome.payload["stop_reason"] == outcome.stop_reason
 
     asyncio.run(scenario())
 

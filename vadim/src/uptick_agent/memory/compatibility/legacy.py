@@ -8,6 +8,7 @@ import json
 from collections.abc import Iterable
 from pathlib import Path
 
+from uptick_agent.memory.audit import AuditTraceEvent, AuditTraceSink, AuditTraceWrite
 from uptick_agent.memory.config import MemoryConfiguration, ModuleConfig
 from uptick_agent.memory.contracts import (
     ContextItem,
@@ -40,7 +41,12 @@ class LegacyMemoryAdapter:
     use the separate Stage 1 store contract.
     """
 
-    def __init__(self, delegate: Memory, *, module_version: str = "legacy-1.0") -> None:
+    def __init__(
+        self,
+        delegate: Memory,
+        *,
+        module_version: str = "legacy-1.0",
+    ) -> None:
         self._delegate = delegate
         self._module_version = module_version
 
@@ -170,6 +176,9 @@ class LegacyMemoryRuntime:
     async def finalize_run(self, outcome: RunOutcome) -> None:
         await self._orchestrator.finalize_run(outcome)
 
+    async def record_trace(self, write: AuditTraceWrite) -> AuditTraceEvent | None:
+        return await self._orchestrator.record_trace(write)
+
     @property
     def last_context_diagnostics(self) -> MemoryContextDiagnostics:
         return self._orchestrator.last_context_diagnostics
@@ -177,6 +186,10 @@ class LegacyMemoryRuntime:
     @property
     def context_diagnostics(self) -> dict:
         return self.last_context_diagnostics.model_dump(mode="json")
+
+    @property
+    def audit_sink(self) -> AuditTraceSink | None:
+        return self._orchestrator.audit_sink
 
 
 class _EpisodicMemoryRuntime(LegacyMemoryRuntime):
@@ -186,24 +199,39 @@ class _EpisodicMemoryRuntime(LegacyMemoryRuntime):
         )
 
 
-def legacy_memory_runtime(delegate: Memory | None) -> LegacyMemoryRuntime:
+def legacy_memory_runtime(
+    delegate: Memory | None,
+    *,
+    configuration: MemoryConfiguration | None = None,
+    audit_sink: AuditTraceSink | None = None,
+) -> LegacyMemoryRuntime:
     """Compose the canonical compatibility profile without constructing disabled memory."""
 
-    if delegate is None:
+    if configuration is None and delegate is None:
         configuration = MemoryConfiguration(
             compatibility_legacy=ModuleConfig(enabled=False),
         )
-        return LegacyMemoryRuntime(MemoryOrchestrator(configuration, []), None)
-
-    configuration = MemoryConfiguration.legacy_baseline()
-    legacy = LegacyMemoryAdapter(
-        delegate,
-        module_version=configuration.compatibility_legacy.version,
+    elif configuration is None:
+        configuration = MemoryConfiguration.legacy_baseline()
+    assert configuration is not None
+    if configuration.compatibility_legacy.enabled != (delegate is not None):
+        raise MemoryPermanentError(
+            "legacy delegate presence must match the resolved compatibility module"
+        )
+    legacy = (
+        LegacyMemoryAdapter(
+            delegate,
+            module_version=configuration.compatibility_legacy.version,
+        )
+        if delegate is not None
+        else None
     )
-    orchestrator = MemoryOrchestrator(
-        configuration,
-        [MemoryModuleRegistration(_LEGACY_MODULE_ID, lambda _: legacy)],
+    registrations = (
+        [MemoryModuleRegistration(_LEGACY_MODULE_ID, lambda _: legacy)]
+        if legacy is not None
+        else []
     )
+    orchestrator = MemoryOrchestrator(configuration, registrations, audit_sink=audit_sink)
     return LegacyMemoryRuntime(orchestrator, legacy)
 
 
@@ -211,12 +239,18 @@ def episodic_memory_runtime(
     store: StructuredMemoryStore,
     *,
     namespace: str,
+    configuration: MemoryConfiguration | None = None,
+    audit_sink: AuditTraceSink | None = None,
 ) -> LegacyMemoryRuntime:
     """Compose the experimental episodic-only runner boundary programmatically."""
 
     from uptick_agent.memory.episodic import EPISODIC_MODULE_ID, EpisodicMemory
 
-    configuration = MemoryConfiguration.episodic_only()
+    configuration = configuration or MemoryConfiguration.episodic_only()
+    if configuration.compatibility_legacy.enabled or not configuration.episodic.enabled:
+        raise MemoryPermanentError(
+            "episodic runtime requires episodic enabled and legacy compatibility disabled"
+        )
     module = EpisodicMemory(
         store,
         namespace=namespace,
@@ -225,5 +259,6 @@ def episodic_memory_runtime(
     orchestrator = MemoryOrchestrator(
         configuration,
         [MemoryModuleRegistration(EPISODIC_MODULE_ID, lambda _: module)],
+        audit_sink=audit_sink,
     )
     return _EpisodicMemoryRuntime(orchestrator, None)

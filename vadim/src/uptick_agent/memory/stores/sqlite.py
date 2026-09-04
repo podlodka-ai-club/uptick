@@ -199,14 +199,16 @@ class SqliteStructuredStore:
 
     @staticmethod
     def _record_from_row(row: sqlite3.Row) -> StoredRecord:
-        return StoredRecord(
-            namespace=row["namespace"],
-            record_id=row["record_id"],
-            record_type=row["record_type"],
-            payload=json.loads(row["payload_json"]),
-            created_at=row["created_at"],
-            content_hash=row["content_hash"],
-            schema_version=row["schema_version"],
+        return StoredRecord.validate_integrity(
+            StoredRecord(
+                namespace=row["namespace"],
+                record_id=row["record_id"],
+                record_type=row["record_type"],
+                payload=json.loads(row["payload_json"]),
+                created_at=row["created_at"],
+                content_hash=row["content_hash"],
+                schema_version=row["schema_version"],
+            )
         )
 
     async def append(
@@ -462,18 +464,20 @@ class SqliteStructuredStore:
                 """,
                 (snapshot_id,),
             ).fetchall()
-            return MemorySnapshot(
-                snapshot_id=row["snapshot_id"],
-                namespace=row["namespace"],
-                created_at=row["created_at"],
-                content_hash=row["content_hash"],
-                schema_version=row["schema_version"],
-                members=[
-                    SnapshotMember(
-                        record_id=member["record_id"], content_hash=member["content_hash"]
-                    )
-                    for member in member_rows
-                ],
+            return MemorySnapshot.validate_integrity(
+                MemorySnapshot(
+                    snapshot_id=row["snapshot_id"],
+                    namespace=row["namespace"],
+                    created_at=row["created_at"],
+                    content_hash=row["content_hash"],
+                    schema_version=row["schema_version"],
+                    members=[
+                        SnapshotMember(
+                            record_id=member["record_id"], content_hash=member["content_hash"]
+                        )
+                        for member in member_rows
+                    ],
+                )
             )
 
         return self._read(get_snapshot)

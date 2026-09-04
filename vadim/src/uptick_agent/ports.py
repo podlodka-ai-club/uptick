@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from uptick_agent.memory.audit import AuditTraceEvent, AuditTraceWrite
 from uptick_agent.memory.contracts import (
     DecisionMemoryContext,
     ExperienceTransition,
@@ -43,6 +44,8 @@ class AgentMemory(Protocol):
     async def clear(self, run_id: str | None = None) -> None: ...
 
     async def finalize_run(self, outcome: RunOutcome) -> None: ...
+
+    async def record_trace(self, write: AuditTraceWrite) -> AuditTraceEvent | None: ...
 
     @property
     def context_diagnostics(self) -> dict[str, Any]: ...

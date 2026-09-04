@@ -12,6 +12,7 @@ from pydantic_core import PydanticSerializationError
 
 from uptick_agent.memory.contracts import (
     ContextItem,
+    CreatedMemoryItem,
     ExperienceTransition,
     MemoryContextRequest,
     MemoryContribution,
@@ -68,7 +69,7 @@ class EpisodicMemory:
         transition: ExperienceTransition,
         *,
         idempotency_key: str,
-    ) -> None:
+    ) -> list[CreatedMemoryItem]:
         owned = self._validate_transition(transition)
         await self._store.append(
             RecordWrite(
@@ -81,6 +82,20 @@ class EpisodicMemory:
             operation="record-transition",
             idempotency_key=idempotency_key,
         )
+        stored_record = await self._store.get(
+            namespace=self._namespace,
+            record_id=owned.transition_id,
+        )
+        if stored_record is None:
+            raise MemoryPermanentError("episodic transition is missing after append")
+        stored = self._transition_from_record(StoredRecord.validate_integrity(stored_record))
+        return [
+            CreatedMemoryItem(
+                item_id=stored.transition_id,
+                artefact_type="episode",
+                provenance=stored.provenance,
+            )
+        ]
 
     async def finalize(self, outcome: RunOutcome, *, idempotency_key: str) -> None:
         owned = self._validate_outcome(outcome)
@@ -233,6 +248,8 @@ class EpisodicMemory:
 
     @staticmethod
     def _transition_from_record(record: StoredRecord) -> ExperienceTransition:
+        if record.record_type != _TRANSITION_RECORD_TYPE:
+            raise MemoryPermanentError("stored episodic transition has an invalid record type")
         try:
             return ExperienceTransition.model_validate(record.payload)
         except (TypeError, ValueError, ValidationError) as error:

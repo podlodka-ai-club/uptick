@@ -246,6 +246,83 @@ def test_structured_store_defensively_owns_records_and_snapshots(backend: str, t
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("backend", ["in-memory", "sqlite"])
+@pytest.mark.parametrize("read_method", ["get", "list"])
+@pytest.mark.parametrize("tamper", ["payload", "content_hash"])
+def test_structured_store_rejects_tampered_records_on_read(
+    backend: str, read_method: str, tamper: str, tmp_path
+) -> None:
+    async def scenario() -> None:
+        path = tmp_path / "memory.sqlite"
+        store = InMemoryStructuredStore() if backend == "in-memory" else SqliteStructuredStore(path)
+        await store.append(_write("record"), operation="append", idempotency_key="key")
+
+        if backend == "in-memory":
+            record = store._records[("experiment-1", "record")]
+            update = (
+                {"payload": {"record": "tampered"}}
+                if tamper == "payload"
+                else {"content_hash": "0" * 64}
+            )
+            store._records[("experiment-1", "record")] = record.model_copy(update=update)
+        else:
+            column, value = (
+                ("payload_json", '{"record":"tampered"}')
+                if tamper == "payload"
+                else ("content_hash", "0" * 64)
+            )
+            with sqlite3.connect(path) as connection:
+                connection.execute(
+                    f"UPDATE memory_records SET {column} = ? "
+                    "WHERE namespace = ? AND record_id = ?",
+                    (value, "experiment-1", "record"),
+                )
+
+        with pytest.raises(MemoryPermanentError, match="content hash mismatch"):
+            if read_method == "get":
+                await store.get(namespace="experiment-1", record_id="record")
+            else:
+                await store.list(namespace="experiment-1")
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("backend", ["in-memory", "sqlite"])
+@pytest.mark.parametrize("tamper", ["members", "content_hash"])
+def test_structured_store_rejects_tampered_snapshot_on_read(backend: str, tamper: str, tmp_path):
+    async def scenario() -> None:
+        path = tmp_path / "memory.sqlite"
+        store = InMemoryStructuredStore() if backend == "in-memory" else SqliteStructuredStore(path)
+        await store.append(_write("record"), operation="append", idempotency_key="key")
+        await store.create_snapshot(
+            namespace="experiment-1",
+            snapshot_id="snapshot",
+            operation="freeze",
+            idempotency_key="snapshot-key",
+        )
+        if backend == "in-memory":
+            snapshot = store._snapshots["snapshot"]
+            update = {"members": []} if tamper == "members" else {"content_hash": "0" * 64}
+            store._snapshots["snapshot"] = snapshot.model_copy(update=update)
+        else:
+            with sqlite3.connect(path) as connection:
+                if tamper == "members":
+                    connection.execute(
+                        "DELETE FROM memory_snapshot_members WHERE snapshot_id = ?",
+                        ("snapshot",),
+                    )
+                else:
+                    connection.execute(
+                        "UPDATE memory_snapshots SET content_hash = ? WHERE snapshot_id = ?",
+                        ("0" * 64, "snapshot"),
+                    )
+
+        with pytest.raises(MemoryPermanentError, match="snapshot content hash mismatch"):
+            await store.get_snapshot(snapshot_id="snapshot")
+
+    asyncio.run(scenario())
+
+
 def test_record_content_hash_includes_schema_version() -> None:
     first = _write("record")
     forward_minor = first.model_copy(update={"schema_version": "1.1"})

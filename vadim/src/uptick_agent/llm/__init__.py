@@ -18,6 +18,7 @@ from uptick_agent.llm.contracts import (
     StructuredGenerationResult,
     TextGenerationRequest,
     TextGenerationResult,
+    serialize_structured_generation_request,
 )
 from uptick_agent.llm.openai import OpenAIProviderFactory, OpenAISGRModel
 from uptick_agent.llm.registry import LlmProviderConfig, LlmProviderFactory, LlmProviderRegistry
@@ -45,4 +46,5 @@ __all__ = [
     "StructuredGenerationResult",
     "TextGenerationRequest",
     "TextGenerationResult",
+    "serialize_structured_generation_request",
 ]

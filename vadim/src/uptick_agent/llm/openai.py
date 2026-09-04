@@ -29,6 +29,7 @@ from uptick_agent.llm.contracts import (
     StructuredGenerationResult,
     TextGenerationRequest,
     TextGenerationResult,
+    serialize_structured_generation_request,
     validate_structured_value,
 )
 from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT
@@ -210,23 +211,28 @@ class OpenAISGRModel:
         )
 
     async def decide(self, context: DecisionContext) -> NextStep:
-        result = await self._llm.generate_structured(
-            StructuredGenerationRequest(
-                model=self.model,
-                response_model=NextStep,
-                messages=(
-                    LlmMessage(role="system", content=self.system_prompt),
-                    LlmMessage(
-                        role="user",
-                        content=(
-                            "Choose the next action from this runtime context. JSON follows:\n"
-                            + context.model_dump_json(indent=2)
-                        ),
+        result = await self._llm.generate_structured(self._build_request(context))
+        return result.value
+
+    def prompt_trace(self, context: DecisionContext) -> dict[str, Any]:
+        """Serialize the exact neutral request submitted by ``decide``."""
+        return serialize_structured_generation_request(self._build_request(context))
+
+    def _build_request(self, context: DecisionContext) -> StructuredGenerationRequest[NextStep]:
+        return StructuredGenerationRequest(
+            model=self.model,
+            response_model=NextStep,
+            messages=(
+                LlmMessage(role="system", content=self.system_prompt),
+                LlmMessage(
+                    role="user",
+                    content=(
+                        "Choose the next action from this runtime context. JSON follows:\n"
+                        + context.model_dump_json(indent=2)
                     ),
                 ),
-            )
+            ),
         )
-        return result.value
 
     async def aclose(self) -> None:
         await self._llm.aclose()

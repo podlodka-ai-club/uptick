@@ -9,6 +9,7 @@ import uptick_agent.memory.stores as store_api
 from uptick_agent.memory.config import MemoryConfiguration, ModuleConfig
 from uptick_agent.memory.contracts import (
     ContextItem,
+    CreatedMemoryItem,
     ExperienceTransition,
     MemoryContextRequest,
     ObjectiveMetric,
@@ -30,6 +31,7 @@ def test_stage_one_contracts_are_available_from_the_public_package_api() -> None
         "ConsolidationRequest",
         "ConsolidationResult",
         "ContextItem",
+        "CreatedMemoryItem",
         "ContextContributor",
         "DecisionMemoryContext",
         "ExperienceSink",
@@ -74,6 +76,26 @@ def _envelope() -> UntrustedMemoryEnvelope:
         provenance=_provenance(),
         item={"summary": "untrusted content"},
     )
+
+
+def test_created_memory_item_is_a_strict_stable_receipt_contract() -> None:
+    receipt = CreatedMemoryItem(
+        item_id="episode-1",
+        artefact_type="episode",
+        provenance=_provenance(),
+    )
+
+    assert receipt.schema_version == "1.0"
+    assert receipt.model_dump(mode="json")["item_id"] == "episode-1"
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        CreatedMemoryItem(
+            item_id="episode-1",
+            artefact_type="episode",
+            provenance=_provenance(),
+            unexpected=True,
+        )
+    with pytest.raises(ValidationError):
+        CreatedMemoryItem(item_id="episode-1", artefact_type="episode", provenance=[])
 
 
 def _transition_fields() -> dict[str, object]:

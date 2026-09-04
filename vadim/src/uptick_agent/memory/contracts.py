@@ -103,6 +103,14 @@ class ProvenanceRef(ContractModel):
     content_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
 
 
+class CreatedMemoryItem(ContractModel):
+    """Receipt for a memory artefact durably created by an experience sink."""
+
+    item_id: str = Field(min_length=1, max_length=256)
+    artefact_type: str = Field(min_length=1, max_length=128)
+    provenance: list[ProvenanceRef] = Field(min_length=1)
+
+
 class UntrustedMemoryEnvelope(ContractModel):
     """Prompt-facing memory data, always data rather than instruction/policy."""
 
@@ -306,7 +314,9 @@ class ExperienceTransitionAssembler(Protocol):
 
 @runtime_checkable
 class ExperienceSink(Protocol):
-    async def record(self, transition: ExperienceTransition, *, idempotency_key: str) -> None: ...
+    async def record(
+        self, transition: ExperienceTransition, *, idempotency_key: str
+    ) -> list[CreatedMemoryItem] | None: ...
 
 
 @runtime_checkable

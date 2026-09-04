@@ -256,7 +256,12 @@ Examples:
 
 ```python
 class ExperienceSink(Protocol):
-    async def record(self, transition: ExperienceTransition) -> None: ...
+    async def record(
+        self,
+        transition: ExperienceTransition,
+        *,
+        idempotency_key: str,
+    ) -> list[CreatedMemoryItem] | None: ...
 
 
 class ContextContributor(Protocol):
@@ -274,6 +279,11 @@ class ConsolidationParticipant(Protocol):
 ```
 
 A module implements only the capabilities it actually owns.
+
+`CreatedMemoryItem` identifies a persisted item by ID, artefact type and
+provenance. `None` means the sink cannot report created artefacts; it does not
+authorize the orchestrator to infer an episode or manufacture item-created
+evidence. Equivalent idempotent writes return equivalent receipts.
 
 ### Contract versioning, errors and idempotency
 
@@ -420,14 +430,24 @@ rejects a missing, mismatched or unverifiable approval before module
 construction. Experimental modules may be enabled only in explicitly labeled
 development/experiment profiles and cannot support a default-promotion claim.
 
-The simulator profile enables raw prompt, observation and decision-trace
-bodies. Each class has an independent versioned configuration switch so a later
-profile can disable new raw writes without changing contracts. Configuration
+The simulator audit profile enables raw prompt, observation and decision-trace
+bodies. Each class has an independent versioned `audit.raw_content` switch so a
+later profile can disable new structured-audit body writes without changing
+primary memory semantics. These switches do not suppress or rewrite primary
+episodic/legacy records, including their structured outcomes. A primary-record
+suppression policy would require a separate explicit contract. Configuration
 changes do not delete already-retained data. Before any enabled body is written,
 credentials and secrets must be removed; when that check cannot complete, the
 content write is rejected or quarantined without its body and a metadata-only
 audit event is recorded. No configuration may permit secrets in a primary
 store, snapshot, manifest, diagnostic, retry payload or backup.
+
+Disabling raw captures retains sanitized structured audit metadata: selection
+IDs/scores/rationale, module versions, budgets/truncation, selected action,
+observed result facts, provenance references and outcome status/metrics.
+Decision narratives and raw prompt/observation captures remain conditional.
+Flags apply to the declared capture classes; an enabled prompt may itself
+contain observation or memory content.
 
 `simulator-audit-retention-v1` retains raw prompt, observation and trace bodies
 plus snapshots for at least 90 days after their producing run or experiment
