@@ -9,6 +9,7 @@ from uptick_agent.memory.audit import (
 from uptick_agent.memory.config import (
     AuditConfiguration,
     AuditRetentionConfiguration,
+    LessonSettings,
     MemoryConfiguration,
     RawContentConfiguration,
 )
@@ -40,6 +41,28 @@ from uptick_agent.memory.contracts import (
     TransitionAssemblyRequest,
     UntrustedMemoryEnvelope,
 )
+from uptick_agent.memory.lesson_contracts import (
+    LESSON_QUERY_CONTRACT,
+    LESSON_VALIDATION_POLICY,
+    LessonCandidate,
+    LessonEvidence,
+    LessonRunDeclaration,
+    LessonValidationManifest,
+    ValidatedLesson,
+    context_id,
+    declaration_hash,
+    snapshot_input_hash,
+)
+from uptick_agent.memory.lesson_evidence import StoredEpisodicLessonSource
+from uptick_agent.memory.lesson_runtime import LessonsMemoryRuntime, lessons_memory_runtime
+from uptick_agent.memory.lessons import (
+    LESSON_BATCH_RECORD_TYPE,
+    LESSONS_MODULE_ID,
+    LESSONS_MODULE_VERSION,
+    LessonBatch,
+    LessonEvidenceSource,
+    LessonsMemory,
+)
 from uptick_agent.memory.orchestrator import (
     MemoryContextDiagnostics,
     MemoryModuleRegistration,
@@ -53,6 +76,11 @@ __all__ = [
     "AuditTraceSink",
     "AuditTraceWrite",
     "audit_event_id",
+    "LESSON_BATCH_RECORD_TYPE",
+    "LESSONS_MODULE_ID",
+    "LESSONS_MODULE_VERSION",
+    "LESSON_QUERY_CONTRACT",
+    "LESSON_VALIDATION_POLICY",
     "ConsolidationDelta",
     "ConsolidationParticipant",
     "ConsolidationRequest",
@@ -73,6 +101,21 @@ __all__ = [
     "LegacyMemoryAdapter",
     "LegacyMemoryRuntime",
     "legacy_memory_runtime",
+    "LessonBatch",
+    "LessonCandidate",
+    "LessonEvidence",
+    "LessonEvidenceSource",
+    "LessonRunDeclaration",
+    "LessonSettings",
+    "LessonValidationManifest",
+    "LessonsMemory",
+    "LessonsMemoryRuntime",
+    "ValidatedLesson",
+    "StoredEpisodicLessonSource",
+    "context_id",
+    "declaration_hash",
+    "snapshot_input_hash",
+    "lessons_memory_runtime",
     "MemoryConfiguration",
     "MemoryContextDiagnostics",
     "MemoryConflictError",

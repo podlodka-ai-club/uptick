@@ -59,7 +59,12 @@ export OPENAI_API_KEY=...
 uv run uptick-agent run --seed 1
 ```
 
-По умолчанию используется развернутый симулятор из командного чата. Локальный адрес:
+Проверка 2026-09-05: развёрнутый симулятор из командного чата перешёл на
+API v2; текущий CLI-адаптер использует v1 и получает HTTP 404 на `/v1/start`.
+Для него пока нужен совместимый сервер v1. Прямой smoke-тест v2 прошёл;
+полноценный LLM-прогон требует обновления адаптера. Подробности находятся в
+[`Stage 6 implementation record`](docs/agent-memory-design/STAGE_6_IMPLEMENTATION.md#live-simulator-compatibility-probe-2026-09-05).
+Пример с локальным совместимым сервером:
 
 ```bash
 uv run uptick-agent run \

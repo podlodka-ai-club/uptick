@@ -16,6 +16,13 @@ provides an offline preregistration/reporting scaffold, not collected live
 baseline evidence. Each later stage retains its own implementation and evidence
 gate; examples marked conceptual are not substitutes for those gates.
 
+Stage 6 now has a verified experimental lessons implementation; its held-out
+effectiveness gate is still open. See
+[`STAGE_6_IMPLEMENTATION.md`](STAGE_6_IMPLEMENTATION.md) for contracts, validation
+rules and limits. A live probe also established that the public simulator now
+exposes API v2, while the existing agent adapter still uses v1. Adapter migration
+is required before live LLM runs or the Stage 7 evaluation harness can use it.
+
 The initial simulator policy profile is now owner-approved:
 
 - candidate activation requires support from at least two independent completed

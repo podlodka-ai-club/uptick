@@ -9,6 +9,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from uptick_agent.memory.contracts import ContractModel
+from uptick_agent.memory.lesson_contracts import LessonSettings
 
 _AUDIT_RETENTION_POLICY_ID = "simulator-audit-retention-v1"
 _AUDIT_RETENTION_POLICY_VERSION = "1.0"
@@ -155,7 +156,7 @@ class MemoryConfiguration(ContractModel):
     diagnostics and context budgeting; ``AgentRunner`` sees only ``AgentMemory``.
     """
 
-    schema_version: str = Field(default="1.1", pattern=r"^[1-9][0-9]*\.[0-9]+$")
+    schema_version: str = Field(default="1.2", pattern=r"^[1-9][0-9]*\.[0-9]+$")
     profile_id: str = Field(default="legacy-baseline", min_length=1, max_length=128)
     profile_kind: Literal["development", "experiment", "default"] = "development"
     compatibility_legacy: ModuleConfig = Field(
@@ -168,6 +169,7 @@ class MemoryConfiguration(ContractModel):
     )
     episodic: ModuleConfig = Field(default_factory=ModuleConfig)
     lessons: ModuleConfig = Field(default_factory=ModuleConfig)
+    lesson_settings: LessonSettings | None = None
     world_model: ModuleConfig = Field(default_factory=ModuleConfig)
     playbooks: ModuleConfig = Field(default_factory=ModuleConfig)
     tool_knowledge: ModuleConfig = Field(default_factory=ModuleConfig)
@@ -242,5 +244,34 @@ class MemoryConfiguration(ContractModel):
                 max_context_items=32,
                 max_context_tokens=4_000,
             ),
+            audit=audit or AuditConfiguration(),
+        )
+
+    @classmethod
+    def episodic_with_lessons(
+        cls,
+        *,
+        lesson_settings: LessonSettings,
+        audit: AuditConfiguration | None = None,
+    ) -> MemoryConfiguration:
+        """Explicit experimental profile composing episodic evidence and lessons."""
+
+        return cls(
+            profile_id="episodic-with-lessons",
+            profile_kind="experiment",
+            compatibility_legacy=ModuleConfig(enabled=False),
+            episodic=ModuleConfig(
+                enabled=True,
+                version="1.0",
+                max_context_items=32,
+                max_context_tokens=4_000,
+            ),
+            lessons=ModuleConfig(
+                enabled=True,
+                version="1.0",
+                max_context_items=32,
+                max_context_tokens=4_000,
+            ),
+            lesson_settings=lesson_settings,
             audit=audit or AuditConfiguration(),
         )
