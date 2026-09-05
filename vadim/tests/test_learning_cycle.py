@@ -140,6 +140,11 @@ class _CloseErrorModel(_CycleModel):
         raise RuntimeError("model cleanup unavailable")
 
 
+class _CancelledCloseModel(_CycleModel):
+    async def aclose(self) -> None:
+        raise asyncio.CancelledError()
+
+
 class _BlockingModel:
     model = "double"
 
@@ -352,6 +357,38 @@ def test_cleanup_error_is_retained_without_stopping_later_attempts(tmp_path: Pat
     assert all(row.cleanup_errors for row in report.attempts)
     assert all("model cleanup unavailable" in row.cleanup_errors[0] for row in report.attempts)
     assert report.attempts[-1].status in {"completed", "failed"}
+
+
+def test_cleanup_cancellation_finalizes_current_attempt_and_stops_cycle(tmp_path: Path) -> None:
+    calls: list[tuple[str, str, int]] = []
+
+    def model_factory(phase: str, condition_id: str, seed: int):
+        calls.append((phase, condition_id, seed))
+        return _CancelledCloseModel(phase, condition_id)
+
+    output = tmp_path / "cycle"
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(
+            run_learning_cycle(
+                _manifest(),
+                output=output,
+                sqlite_path=tmp_path / "cycle.sqlite",
+                model_factory=model_factory,
+            )
+        )
+
+    assert calls == [("training", "hypothesis", 11)]
+    journal_rows = [
+        json.loads(line)
+        for line in (output / "attempts.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert len(journal_rows) == 2
+    assert journal_rows[0]["status"] == "started"
+    final = journal_rows[1]
+    assert final["status"] == "interrupted"
+    assert final["run_id"] == "controlled:training-1:q7m:11"
+    assert final["failure"] == "attempt cancelled during cleanup"
+    assert final["cleanup_errors"] == ["cleanup cancelled: CancelledError: "]
 
 
 def test_freeze_failure_retains_all_evaluation_denominator_cells(
