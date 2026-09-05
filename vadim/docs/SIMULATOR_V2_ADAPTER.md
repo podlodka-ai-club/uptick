@@ -106,7 +106,7 @@ premature-finish guard found no remaining actionable defects.
 
 ### Exploratory LLM attempts
 
-All attempts used seed 42, Codex `gpt-5.4-mini`, no memory and a 40-step budget.
+Attempts 1–5 used seed 42, Codex `gpt-5.4-mini`, no memory and a 40-step budget.
 They are sequential debugging attempts with changing code/settings, not paired
 evaluation runs. None is evidence of a successful policy or memory improvement.
 
@@ -138,7 +138,51 @@ Ignored local records are under `artifacts/v2-codex-pilot-2026-09-05/`.
 Attempts 2–5 have a start/failure/result record with run ID and source-content
 hash; attempts 3–5 also have step traces. The pilot wrapper invokes the CLI
 entry point but records startup; attempts 3–5 explicitly set reasoning effort `low`.
-This is a pilot setting, not a new CLI option. The normal CLI observer does not
+At that checkpoint this was a pilot-only setting. The normal CLI observer does not
 record a run ID when model startup fails before the first decision. Stage 7
 must capture every declared attempt, including these failures, in its immutable
 manifest before claiming evaluation coverage.
+
+### Follow-up policy and observability work
+
+The v2 CLI now composes `simulator-v2-time-budget@1.0`: a deterministic,
+observable-only wrapper computes a bounded wait floor from the remaining
+horizon and decision budget. It preserves the stop condition, exempts pending
+operations, and records proposed/effective duration when it adjusts a decision.
+Raw adapter action semantics remain unchanged.
+
+`--reasoning-effort` is now an explicit portable CLI setting. Provider-neutral
+telemetry retains adapter-visible call/validation-retry counts, measured time,
+known usage and usage completeness on success, failure and cancellation.
+SDK-internal transport retries are not observable. Unknown monetary cost remains
+null. Partial log pages now say that unread logs remain; their error counts do
+not describe the full unread journal. The prompt requires investigating the
+observed error stop rather than treating a partial clean page as recovery.
+
+| Attempt | Frozen settings | Result |
+| --- | --- | --- |
+| 6 | Seed 42; no memory; `gpt-5.4-mini`, low, 40 decisions; time policy | Incomplete: 32640.388456408 seconds observed, uptime 0.9975761867223897, SLO null, cost 257006093 minor RUB. Run `oHYrv6cMFNipb78wrJXDRm3Y`. |
+| 7 | Same source capsule as 6; seed 42; no memory; `gpt-5.4`, medium, 160 decisions | Completed 604800 seconds in 159 decisions: SLO false, uptime 0.2657543556929663, cost 8404012903 minor RUB. Run `HnO73c9kpqjlz1VK91K9OzKP`. |
+| 8 | Seed 42; no memory; `gpt-5.4-mini`, low, 40 decisions; explicit CLI effort and corrected log-page visibility | Incomplete: 32592.52497722 seconds observed, uptime 0.99769220832456, SLO null, cost 257006084 minor RUB. Run `LPmofpKzcX0p17ZsLw2US9Yd`. |
+| 9 | Same source, seed, effort and budget as 8; model `gpt-5.6-sol` | Completed 604800 seconds in 27 decisions: SLO false, uptime 0.2659386936335913, cost 8455412903 minor RUB. Run `XQqybzunrxvpO8ul2VvQYZ7w`. |
+
+Attempt 6 confirmed that wait durations were raised, but first-error stops and
+repeated diagnosis still exhausted the budget. Attempt 8 read filtered capacity
+errors and successfully called `server.types.list`, but made no corrective
+resource change and exhausted its budget. The observability fix did not establish
+a task-performance improvement. Attempt 7 changes both model and step budget;
+it is not a one-factor ablation. It successfully created a server, polled the
+asynchronous operation to completion and observed two active resources. It
+then continued reading old logs and finally skipped the remaining 517000.60
+seconds. The full seven-day run had 444071.77 seconds of downtime. This proves
+the authenticated mutation path works; it does not establish a successful SRE
+policy or a memory benefit. Attempt 9 created a server at decision 11 and
+finished in 268.86 wall seconds, but also stopped corrective work and skipped
+the remaining horizon. Faster decisions did not recover the SLO. Its model was
+verified against the local Codex subscription catalog before execution.
+
+Each follow-up pilot imports a frozen source capsule in its ignored attempt
+directory so concurrent development cannot change the code mid-run. Scripts,
+source hashes, physical run IDs, traces and outcomes remain alongside the earlier
+attempts. The Stage 6 v2 learning obstacles are documented in
+`agent-memory-design/STAGE6_V2_DIAGNOSIS.md`.

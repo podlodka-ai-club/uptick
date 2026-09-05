@@ -19,9 +19,21 @@ gate; examples marked conceptual are not substitutes for those gates.
 Stage 6 now has a verified experimental lessons implementation; its held-out
 effectiveness gate is still open. See
 [`STAGE_6_IMPLEMENTATION.md`](STAGE_6_IMPLEMENTATION.md) for contracts, validation
-rules and limits. A live probe also established that the public simulator now
-exposes API v2, while the existing agent adapter still uses v1. Adapter migration
-is required before live LLM runs or the Stage 7 evaluation harness can use it.
+rules and limits. The v2 adapter is implemented and exercised live; the CLI
+defaults to v2 and retains explicit v1 compatibility. Read
+[`../SIMULATOR_V2_ADAPTER.md`](../SIMULATOR_V2_ADAPTER.md) for the actual pilot
+outcomes. Successful SRE behavior has not yet been demonstrated.
+
+The implemented experimental A0–A9 composition, commands and limitations are
+documented in [`EXPERIMENTAL_MEMORY_GUIDE.md`](EXPERIMENTAL_MEMORY_GUIDE.md).
+Implementation and evidence status is tracked in
+[`REMAINING_EXECUTION.md`](REMAINING_EXECUTION.md). The distinct uptime/cost
+experiment protocol is in
+[`SIMULATOR_V2_EVALUATION_PROFILE.md`](SIMULATOR_V2_EVALUATION_PROFILE.md);
+[`STAGE6_V2_DIAGNOSIS.md`](STAGE6_V2_DIAGNOSIS.md) records why the existing
+live traces do not establish eligible lesson support or learning utility.
+The sealed live integration record is in
+[`V2_LIVE_INTEGRATION_RESULTS.md`](V2_LIVE_INTEGRATION_RESULTS.md).
 
 The initial simulator policy profile is now owner-approved:
 

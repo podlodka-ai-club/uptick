@@ -1,150 +1,171 @@
 # Agent Memory implementation handoff
 
-Updated: 2026-09-05 (Asia/Yekaterinburg)
+Updated: 2026-09-05 (Asia/Yekaterinburg).
 
 ## Resume point
 
-- Branch: `codex/vadim-agent-memory`.
-- Stages 1–5 are complete; the Stage 5 checkpoint is
-  `0586b0842d8c9790a7dfdf0b52fa722286751951`.
-- Stage 6 has a verified experimental implementation. Its held-out effectiveness
-  gate remains open; no live training or memory improvement is claimed.
-- Stage 6 checkpoint: `cbc1a9d1c8b396106dafb5ed018931338142d170`.
-- The simulator v2 prerequisite is implemented and exercised live. CLI defaults
-  to v2; explicit `--simulator-api-version v1` preserves the historical adapter.
-- Full offline verification: **361 passed, 2 skipped** with the locked optional
-  Codex dependency; the v2 live integration test separately passed. Ruff and
-  whitespace checks clean. Independent Terra High review and the targeted
-  premature-finish follow-up are clean.
-- All 18 changed Python files pass formatting. Whole-project formatting still
-  reports 17 unchanged files with pre-existing deviations; do not confuse that
-  baseline with a new v2 regression.
-- The commit containing this handoff is the simulator v2 checkpoint; resolve
-  its SHA through Git history and the remote branch.
+- Branch: `codex/vadim-agent-memory`. This continuation started from
+  `0fb3e03182f8ec90f736bb329f2c62d7cdd7ee5d`; resolve the latest implementation
+  checkpoint and remote SHA from Git history. Implementation checkpoint:
+  `dc3154d`; live-discovered snapshot telemetry fix: `2e0b411`.
+- Stages 1–5 are complete. Stage 6 and the subsequent A0–A9 compositions are
+  implemented experimentally. No module has been promoted to default.
+- The v2 evaluation harness, CLI, immutable lifecycle/bindings and reports are
+  executable. Final held-out learning utility and default-promotion gates remain
+  open. Passing tests and bounded live runs do not close those gates.
 - Work only below `vadim/`. The modified root `README.md` and untracked root
-  `docs/` belong to the user and must not be touched or staged.
-- Commits and pushes for `vadim/` on this branch remain explicitly authorized.
+  `docs/` belong to the user; do not edit or stage them. Scoped commits and
+  pushes on this branch remain explicitly authorized.
+- Root owns planning, architecture, review and verification; delegate bounded
+  implementation work to subagents. Ponytail remains active.
 
-## Delivered Stage 6
+## Read next
 
-Read `docs/agent-memory-design/STAGE_6_IMPLEMENTATION.md` for the full record.
+1. `docs/agent-memory-design/EXPERIMENTAL_MEMORY_GUIDE.md`: current modules,
+   configuration, evaluation/maintenance commands and operational limits.
+2. `docs/agent-memory-design/REMAINING_EXECUTION.md`: implementation scope,
+   accepted integration decisions and outstanding research work.
+3. `docs/agent-memory-design/SIMULATOR_V2_EVALUATION_PROFILE.md`: separately
+   versioned uptime/cost protocol; the historical Stage 0 balance profile remains
+   unchanged.
+4. `docs/agent-memory-design/STAGE6_V2_DIAGNOSIS.md`: why current live evidence
+   does not activate lessons or demonstrate learning utility.
+5. `docs/SIMULATOR_V2_ADAPTER.md`: API details and all nine development pilots.
+6. `docs/agent-memory-design/V2_LIVE_INTEGRATION_RESULTS.md`: sealed smoke and
+   A0–A9 integration identities, outcomes and verification.
 
-- Deterministic extraction groups exact observation conditions/action and a
-  configured metric delta; positive and negative lessons share one contract.
-- The separate validator requires two completed eligible first-attempt learning
-  logical runs, two distinct immutable context-content fingerprints, complete
-  assembler-leaf provenance and zero unresolved contradictions. Exact matching
-  preserves JSON type distinctions; renamed identical contexts do not add support.
-- Source capture freezes immutable run declarations before the episodic snapshot;
-  retries use authoritative stored records and preserve snapshot/metadata identity.
-- Every declared learning finalization, including failures/retries, revalidates
-  existing knowledge. Frozen evaluation never supplies support/counters or triggers
-  learning capture. Failed/retried/ineligible runs cannot supply eligible support.
-- One immutable batch stores the evidence, candidates and validation manifests.
-  Retrieval checks authoritative snapshots and fully regenerates the batch before
-  exposing active `derived_untrusted` lessons. Later contradictions remove them
-  from decision context. There is no incremental index or LLM reflection yet.
-- `lessons_memory_runtime` and `MemoryConfiguration.episodic_with_lessons` are
-  programmatic experimental entry points. Settings and run declarations are
-  explicit; disabling lessons avoids constructing its source/module.
+## Delivered runtime
 
-## Delivered simulator v2 and live results
+- v2 remains the CLI default; explicit v1 compatibility is preserved. A
+  versioned decision policy budgets error-stopping waits against the remaining
+  horizon. Pending operations preserve their requested waits. Portable reasoning
+  effort, corrected log visibility and provider telemetry are supported.
+- A0–A9 are real compositions: no memory, legacy, episodes, lessons, world
+  hypotheses, explicit consolidation, advanced retrieval, playbooks, tool
+  knowledge and operational episode decay. Four targeted ablations are
+  supported. Disabling mandatory contradiction validation is unsupported.
+- Candidate generation is separate from activation validation. Activation needs
+  two completed eligible first learning runs across two immutable contexts,
+  complete assembler provenance and counter search, and no unresolved
+  contradictions. Evaluation contributes neither support nor counters.
+- Lesson manifests use schema 1.1 with required acceptance and retention
+  metadata. Legacy batches missing those fields fail closed; revalidate retained
+  evidence explicitly rather than synthesizing acceptance.
+- Consolidation runs only through an explicit out-of-band operation. Immutable
+  dry-run plans are revalidated before idempotent apply. New applied snapshots
+  cannot discard previously admitted evidence. The latest complete plan governs
+  decision visibility; old receipts cannot resurrect disputed candidates.
+- Retrieval is replaceable and budgeted before ranking. Presets allocate 4000
+  UTF-8-byte upper-bound units per module and 16000 globally. The old 1000 cap
+  admitted none of 26 measured real episode views. Semantic embeddings, graph
+  expansion and learned queries are unimplemented research alternatives.
+- Maintenance plans retain sources, summaries/links and supersession evidence,
+  enforce holds and retention floors, and support operational episode age decay.
+  Physical deletion is unimplemented; stored history can continue growing.
 
-- The owner authorized trial runs at `http://81.176.229.58:8080`.
-- Read `docs/SIMULATOR_V2_ADAPTER.md` for contract identity, architecture and all
-  five exploratory LLM attempt outcomes. The v1 endpoint on this server returned
-  404 in the preceding probe; that historical failure is not an offline skip.
-- The v2 client owns private panel/server credentials, sanitizes before model
-  exposure and retries rejected target authentication once with the same request
-  ID. The schema exposes 18 typed commands, no auth fields, no v1 mutations.
-- The environment preserves async operation links and paginated logs/inbox,
-  reports uptime/cost objective metrics and rejects premature `finish` while the
-  server reports `running`. Step-budget exhaustion remains incomplete.
-- Structured-output schemas are shared across providers. Live schema constraints
-  were corrected without dropping local action validation. Generic memory ports
-  remain simulator-independent; v1 compatibility facades stay explicit.
-- Client smoke passed **14 checks**, including authenticated disk access,
-  asynchronous server creation/deletion, polling and same-ID replay. It observed
-  603.22 seconds with zero downtime but did not complete the run. Safe evidence:
-  `artifacts/v2-client-smoke-2026-09-05.json` (ignored).
-- LLM pilot: seed 42, Codex `gpt-5.4-mini`, no memory, 40-step budget. Attempts 1
-  and 2 failed before the first decision (schema, then inherited effort `max`).
-  Attempt 3 used effort `low` but ended early; this led to the finish guard.
-- Attempt 4 completed the **7-day horizon** in 7 decisions with **SLO false**,
-  uptime **0.2603356286** and cost **4317712903 minor RUB units**. Run ID:
-  `ShAdlcABhkj2OkMEuOjmWvpo`. The model skipped almost the entire horizon with
-  `stop_when: null` after seeing clean early logs. The transport worked; a
-  successful policy has not been demonstrated.
-- Attempt 5 tightened that prompt rule and retained error stopping, but exhausted
-  40 decisions on short waits. It observed **10266.57 seconds (1.70% of the
-  horizon)** with uptime **0.9998837226**, cost **77101916 minor RUB units**,
-  status `running` and SLO null. Run ID: `9WLppE0zehmBsmqKZWQG9yEs`.
-  The policy needs to budget monitoring intervals against the remaining horizon;
-  `iteration` and `max_steps` are already supplied to the model.
-- All retained pilot records/traces are ignored under
-  `artifacts/v2-codex-pilot-2026-09-05/`. Attempts 2–5 use a diagnostic wrapper
-  that captures startup/run ID; attempts 3–5 explicitly select reasoning effort
-  `low`. There is no new effort CLI option. Attempt 1's run ID was not retained.
+## Telemetry instrumentation and live checks
 
-## Next work
+The historical matrix identified by source `2e0b411` is the old null-counter
+baseline: its attempt telemetry does not provide stored-artifact totals or
+aggregate module-lifecycle counters. The telemetry instrumentation patch is
+applied in commit `fdd7865`. It adds typed per-module telemetry for construction,
+reads, validated nonempty contributions entering the global merge, writes,
+finalization and consolidation; forwards those rows through the runtime and
+evaluation facade; and reports stored-record counts. Training counts are
+cumulative across a condition's training namespaces, while evaluation counts
+cover only the current attempt's isolated output namespaces. Frozen input is
+reported separately as `snapshot_members`. The legacy `remember()` compatibility
+path bypasses the structured orchestrator and is therefore outside these module
+counters. `finalization_events` exists on per-module runtime telemetry; the
+retained attempt `MemoryTelemetry` schema has no aggregate finalization field.
+`module_contribution_events` counts validated nonempty contributions entering the
+global merge, not selected unique-item counts. Missing or partial values remain
+unavailable (`null`).
 
-- Diagnose and improve v2 monitoring/time-advance policy before freezing a
-  baseline. Do not call the exploratory retries first-attempt evaluation evidence.
-  Seed 42 has been used for debugging and policy tuning, so it is not an unseen
-  holdout candidate.
-- Stage 7 needs a separately versioned uptime/cost profile; preserve the original
-  Stage 0 balance profile and historical memory-design documents. Implement the
-  preregistered paired harness, bind every attempt (including startup failures)
-  to immutable manifests and compare lessons against episodic-only on held-out
-  seeds. Current tests, smoke checks and pilot traces are not promotion evidence.
+The SDK shutdown fix is applied in commit `e35fd58`: production-owned turns use
+shielding, public client close, draining the turn task, and cancellation
+propagation in that order; borrowed-turn behavior is unchanged. The historical
+matrix process was terminated with SIGTERM (exit 143) after printing and
+independently verifying its report. The shutdown regression was red with the old
+five-second timeout and green through the real router. These checks do not
+rewrite the historical matrix or close an evidence gate.
 
-## Delivered Stage 5
+Live verification is complete against source
+`e35fd581b57318ff062fc01ea1d62c1e92268978`. The four-cell telemetry smoke
+completed 4/4 cells with 0/4 passing SLO and CLI exit 0; verification covered
+12 lifecycle events, 11 durable artifacts and 2 bindings. Training A0 measured
+zero module events with `stored_artifacts=5`; training A3 measured construction
+`2`, reads `2`, writes `1` and `stored_artifacts=8`, with the remaining A3
+reported aggregate counters at zero. The four-cell short-wall cancellation probe used
+A0/A3, training/evaluation seeds 43/44, eight decisions and a 12-second wall
+budget; all 4/4 cells were interrupted and each retained
+`provider_telemetry.request_count=1`. After all four cells, the CLI exited with
+code 0 and the evidence passed verification. Probe details are recorded in
+`docs/agent-memory-design/V2_LIVE_INTEGRATION_RESULTS.md`. These checks do not
+close an evidence gate.
 
-Read `docs/agent-memory-design/STAGE_5_IMPLEMENTATION.md` for the complete record.
+## Evaluation integrity
 
-- Structured audit supports natural idempotent replay, append races, one
-  transient retry, mandatory sanitization/quarantine and validated reads.
-- Separate request, decision, transition and outcome correlations join context
-  selection, input, selection before execution, completion and terminal status.
-- Created-item evidence comes from typed module receipts; episodic receipts
-  are reconstructed from the authoritative stored record after append.
-- Raw-body flags affect audit captures only. Primary memory semantics remain
-  intact; sanitized selection/action/result/provenance/outcome facts remain
-  in audit metadata when raw captures are disabled.
-- `run.outcome` is the runner-observed outcome, recorded before module
-  finalizers. It does not claim atomic finalization across stores. Legacy
-  evidence failures do not prevent typed finalization attempts or replace an
-  original run failure/cancellation.
-- Provider-neutral prompt capture uses each supported facade's request builder.
-  Custom models without it are explicitly labelled as context surrogates.
-- Redaction covers quoted and nested JSON in prompt strings, including normal
-  JSON escaping and quote-only escaped fragments. It remains pattern-based,
-  not an arbitrary-secret detector.
+- Manifest precedes all external calls; each cell retains requested/running/
+  terminal lifecycle, including startup failures and incomplete horizons.
+- Source, dependency, prompt, generation settings, policy, estimator and endpoint
+  pins must match actual execution. Namespaces bind to the sealed manifest hash.
+- Training provenance is validated before immutable snapshot binding. Evaluation
+  reads only the bound records, including verified nested historical snapshots;
+  writes/finalization/audit use isolated output namespaces.
+- Real v2 sessions receive experiment-owned environment/scenario attribution.
+  Unknown immutable world identity creates no eligible learning declaration.
+- First attempts remain primary. Failed/incomplete cells stay in denominators;
+  paired costs require both completed runs to pass SLO. Unknown/partial usage
+  and monetary costs remain unavailable, and mixed currencies are not averaged.
+- Existing lifecycle/training namespaces cannot be resumed. Each diagnostic
+  rerun needs a new sealed manifest/output directory and keeps previous evidence.
 
-## Standing scope and next gates
+## Live evidence and outstanding gates
 
-- Ponytail remains active: keep the smallest implementation satisfying the
-  frozen design. Root owns planning, architecture, review and verification;
-  delegate bounded implementation work to subagents.
-- Structured audit is programmatic. Legacy CLI/observer JSONL and summaries
-  remain smoke output, not promotion/evaluation evidence.
-- `simulator-audit-retention-v1@1.0` declares retention; expiry, holds enforcement,
-  compaction and deletion engines are not implemented.
-- Stage 6 is implemented experimentally; Stage 7 evaluation remains unimplemented.
-  Their evidence gates still apply; do not infer measured improvement from tests
-  or traces. The v2 adapter prerequisite is complete; live pilots either failed
-  SLO or remained incomplete.
-- Stage 0 has an offline scaffold, not collected live baseline evidence.
+The owner authorized simulator runs at `http://81.176.229.58:8080`.
+Raw sanitized artifacts remain ignored under `artifacts/`.
 
-## Verification commands
+- v2 client smoke passed 14 checks; the live adapter integration test passed
+  again during this continuation.
+- The completed A0–A9 and targeted integration matrix is recorded in
+  `docs/agent-memory-design/V2_LIVE_INTEGRATION_RESULTS.md`: 42/42 cells have
+  terminal records, with 41 completed and 1 interrupted; 0/42 passed SLO.
+  Training completed 27/28 attempts and evaluation completed 14/14. All 14
+  bindings were valid, and independent verification passed for 126 lifecycle
+  events and 98 durable artifacts. This verifies bounded execution and
+  reporting only; it does not close the held-out utility or promotion gates.
+- Development pilots 6 and 8 exhausted 40 decisions without completing the
+  horizon. Pilots 7 and 9 completed seven days but failed SLO: uptime about
+  0.266. Pilot 9 used catalog-verified `gpt-5.6-sol`, low effort, 27 decisions,
+  268.86 wall seconds, run `XQqybzunrxvpO8ul2VvQYZ7w`.
+- Seed 42 is a development seed, never an unseen holdout. Model/budget diagnostic
+  retries are not a controlled memory ablation.
+- Public API world-content hashes and causal-family identity are unavailable.
+  Do not replace them with seed labels or API-schema hashes. This prevents
+  qualifying new live derived knowledge and closing causal-family holdout gates.
+- The bounded A0–A9 integration matrix is complete as recorded in
+  `docs/agent-memory-design/V2_LIVE_INTEGRATION_RESULTS.md`; it checks execution and reporting. A final
+  learning-utility experiment still needs authoritative world identities, a
+  locked causal-family split, sufficient complete runs and the specified
+  promotion/rollback/approval evidence. No successful SRE policy is claimed.
 
-Run from `vadim/`. The child environment excludes inherited API keys because
-Codex subscription-guard tests intentionally reject them; all SDK tests are fake.
+## Verification
+
+Implementation checkpoint: **504 passed, 2 skipped in 6.12s**. Ruff, formatting
+checks for changed Python files and `git diff --check` passed. The separate live
+v2 adapter integration check also passed during this continuation.
+
+Run from `vadim/`:
 
 ```bash
 env -u OPENAI_API_KEY -u CODEX_API_KEY \
   UV_CACHE_DIR=/private/tmp/uptick-uv-cache \
-  uv run --extra codex --locked pytest -q -ra
+  uv run --extra codex --locked pytest -q -ra --tb=short
 UV_CACHE_DIR=/private/tmp/uptick-uv-cache uv run --extra codex --locked ruff check .
 git diff --check -- .
 ```
+
+The two integration tests require explicit simulator URL variables. Their
+normal offline skips are not live failures. Format only changed Python files;
+17 unchanged files had formatting deviations at the preceding checkpoint.
