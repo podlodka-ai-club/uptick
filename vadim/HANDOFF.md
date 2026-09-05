@@ -8,6 +8,12 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
   `0fb3e03182f8ec90f736bb329f2c62d7cdd7ee5d`; resolve the latest implementation
   checkpoint and remote SHA from Git history. Implementation checkpoint:
   `dc3154d`; live-discovered snapshot telemetry fix: `2e0b411`.
+- Latest continuation starts at `dbfe6c8`: policy 1.1 restores first-error stops
+  for unproved no-stop waits, and a prompt follow-up avoids tight operation polls.
+  Both new 80-decision/900-second diagnostics failed to complete the horizon:
+  one reached the step limit, one the wall limit; 0/2 demonstrated SLO success.
+  Resume with public-evidence incident diagnosis and capacity-target sufficiency,
+  using `V2_POLICY_GUARD_RESULTS.md`; do not claim a successful baseline yet.
 - Stages 1–5 are complete. Stage 6 and the subsequent A0–A9 compositions are
   implemented experimentally. No module has been promoted to default.
 - The v2 evaluation harness, CLI, immutable lifecycle/bindings and reports are
@@ -30,7 +36,7 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
    unchanged.
 4. `docs/agent-memory-design/STAGE6_V2_DIAGNOSIS.md`: why current live evidence
    does not activate lessons or demonstrate learning utility.
-5. `docs/SIMULATOR_V2_ADAPTER.md`: API details and all nine development pilots.
+5. `docs/SIMULATOR_V2_ADAPTER.md`: API details and historical development pilots.
 6. `docs/agent-memory-design/V2_LIVE_INTEGRATION_RESULTS.md`: sealed smoke and
    A0–A9 integration identities, outcomes and verification.
 7. `docs/agent-memory-design/ARCHITECTURE_AUDIT.md`: current completeness,
@@ -39,6 +45,8 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
    (the identification as Alex's agent remains provisional).
 9. `docs/XMEMORY_INTEGRATION.md`: optional research xMemory integration and its
    upstream verification limits.
+10. `docs/agent-memory-design/V2_POLICY_GUARD_RESULTS.md`: observed blind-wait
+    failure, policy 1.1 correction and operation-polling diagnostics.
 
 ## Architecture audit and optional xMemory
 
@@ -68,7 +76,10 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
 
 - v2 remains the CLI default; explicit v1 compatibility is preserved. A
   versioned decision policy budgets error-stopping waits against the remaining
-  horizon. Pending operations preserve their requested waits. Portable reasoning
+  horizon. Policy 1.1 restores first-error stopping unless current public metrics
+  prove the full-horizon SLO unrecoverable. Pending operations preserve their
+  requested duration. The v2 prompt uses bounded monitored advances between
+  operation polls; resource summaries distinguish backend/database counts. Portable reasoning
   effort, corrected log visibility and provider telemetry are supported.
 - A0–A9 are real compositions: no memory, legacy, episodes, lessons, world
   hypotheses, explicit consolidation, advanced retrieval, playbooks, tool
@@ -169,6 +180,12 @@ Raw sanitized artifacts remain ignored under `artifacts/`.
   horizon. Pilots 7 and 9 completed seven days but failed SLO: uptime about
   0.266. Pilot 9 used catalog-verified `gpt-5.6-sol`, low effort, 27 decisions,
   268.86 wall seconds, run `XQqybzunrxvpO8ul2VvQYZ7w`.
+- Policy-1.1 diagnostic `TaQUWekTn2Vq3YM3ch0MUTc8` stopped at 80 decisions,
+  14.54% of the horizon, current uptime 0.9954124323 and SLO null. The prompt-only
+  follow-up `baRQeQU3gPUvlcfkkh7XzOT0` timed out after 900 seconds/78 steps,
+  covering 14.55%; its last measured uptime was 0.9957498183 at step 74, not
+  a terminal result. Frozen source pins and exact metrics are in
+  `docs/agent-memory-design/V2_POLICY_GUARD_RESULTS.md`.
 - Seed 42 is a development seed, never an unseen holdout. Model/budget diagnostic
   retries are not a controlled memory ablation.
 - Public API world-content hashes and causal-family identity are unavailable.
@@ -182,7 +199,10 @@ Raw sanitized artifacts remain ignored under `artifacts/`.
 
 ## Verification
 
-Current architecture/xmemory checkpoint: **524 passed, 2 skipped in 6.37s**.
+Current policy-guard checkpoint: **536 passed, 2 skipped in 6.68s**.
+The subsequent prompt-only operation-polling correction passed 53 applicable
+policy, provider-boundary and CLI tests. Earlier architecture/xmemory checkpoint:
+524 passed, 2 skipped in 6.37s.
 The subsequent focused xmemory/architecture/CLI verification passed 31/31,
 including 256-character journal keys and reopened-SQLite finalization replay.
 Ruff, changed-file formatting and `git diff --check` passed. The separate live

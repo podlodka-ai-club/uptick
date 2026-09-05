@@ -145,7 +145,7 @@ manifest before claiming evaluation coverage.
 
 ### Follow-up policy and observability work
 
-The v2 CLI now composes `simulator-v2-time-budget@1.0`: a deterministic,
+The historical pilots below used `simulator-v2-time-budget@1.0`: a deterministic,
 observable-only wrapper computes a bounded wait floor from the remaining
 horizon and decision budget. It preserves the stop condition, exempts pending
 operations, and records proposed/effective duration when it adjusts a decision.
@@ -186,3 +186,18 @@ directory so concurrent development cannot change the code mid-run. Scripts,
 source hashes, physical run IDs, traces and outcomes remain alongside the earlier
 attempts. The Stage 6 v2 learning obstacles are documented in
 `agent-memory-design/STAGE6_V2_DIAGNOSIS.md`.
+
+
+### No-stop wait correction (policy 1.1)
+
+The current CLI composes `simulator-v2-time-budget@1.1`. An explicit no-stop
+wait now needs current public evidence that the full-horizon downtime allowance
+is already exceeded; unknown or recoverable SLO evidence restores the default
+first-error stop. Pending operations retain their proposed duration. Proposed
+and effective stop settings, durations and eligibility evidence are observable.
+Resource summaries distinguish active backend and database counts.
+
+See [`V2_POLICY_GUARD_RESULTS.md`](agent-memory-design/V2_POLICY_GUARD_RESULTS.md)
+for the exact pilot-9 failure, regression checks, frozen diagnostic identity
+and limits on interpreting the results. Historical pilot outcomes above remain
+attached to their original source capsules.

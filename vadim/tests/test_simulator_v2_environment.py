@@ -1,6 +1,8 @@
 import asyncio
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from uptick_agent.memory.contracts import DecisionMemoryContext
 from uptick_agent.models import (
     AgentConfig,
@@ -10,6 +12,7 @@ from uptick_agent.models import (
     GetLogs,
     GetMetrics,
     GetOperation,
+    GetResources,
     NextStep,
     V2AdvanceTime,
     V2ProbePage,
@@ -109,6 +112,24 @@ class FakeV2Client:
                 "current_cost_per_hour_minor": 20,
             },
             "series": [],
+        }
+
+    async def resources(self, run_id):
+        self.calls.append(("resources", {"run_id": run_id}))
+        return {
+            "clock": _clock(),
+            # Keep the aggregate intentionally stale to ensure the summary also
+            # communicates the role-specific inventory.
+            "active_instances": 2,
+            "total_capacity_units": 300,
+            "used_load_units": 0,
+            "total_cost_per_hour_minor": 15,
+            "servers": [
+                {"server_id": "backend-1", "role": "backend", "status": "active"},
+                {"server_id": "backend-2", "role": "backend", "status": "active"},
+                {"server_id": "database-1", "role": "database", "status": "active"},
+                {"server_id": "backend-old", "role": "backend", "status": "stopped"},
+            ],
         }
 
     async def logs(self, run_id, **kwargs):
@@ -232,6 +253,42 @@ def test_start_and_metrics_are_sanitized_and_use_v2_objective_metrics() -> None:
             ("backup_storage_cost_minor", "minor", 2.0),
             ("current_cost_per_hour_minor", "minor", 20.0),
         ]
+
+    asyncio.run(scenario())
+
+
+def test_resources_summary_reports_active_servers_by_explicit_role() -> None:
+    async def scenario() -> None:
+        client = FakeV2Client()
+        environment = SimulatorV2Environment(client)  # type: ignore[arg-type]
+        result = await environment.execute(_session(), GetResources())
+
+        assert "active_instances=2" in result.summary
+        assert "active_backend_instances=2" in result.summary
+        assert "active_database_instances=1" in result.summary
+        assert "capacity=300" in result.summary
+        assert result.data["servers"][3]["status"] == "stopped"
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "servers",
+    [None, [{"role": ["backend"], "status": "active"}], [{"role": "backend"}]],
+)
+def test_resources_summary_does_not_invent_role_counts_for_incomplete_inventory(servers) -> None:
+    async def scenario() -> None:
+        client = FakeV2Client()
+
+        async def resources(run_id):
+            return {"clock": _clock(), "servers": servers}
+
+        client.resources = resources
+        environment = SimulatorV2Environment(client)  # type: ignore[arg-type]
+        result = await environment.execute(_session(), GetResources())
+
+        assert "active_backend_instances=unknown" in result.summary
+        assert "active_database_instances=unknown" in result.summary
 
     asyncio.run(scenario())
 

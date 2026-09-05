@@ -22,7 +22,9 @@ effectiveness gate is still open. See
 rules and limits. The v2 adapter is implemented and exercised live; the CLI
 defaults to v2 and retains explicit v1 compatibility. Read
 [`../SIMULATOR_V2_ADAPTER.md`](../SIMULATOR_V2_ADAPTER.md) for the actual pilot
-outcomes. Successful SRE behavior has not yet been demonstrated.
+outcomes. The follow-up no-stop wait correction and its frozen diagnostic are
+recorded in [`V2_POLICY_GUARD_RESULTS.md`](V2_POLICY_GUARD_RESULTS.md).
+Successful SRE behavior has not yet been demonstrated.
 
 The implemented experimental A0–A9 composition, commands and limitations are
 documented in [`EXPERIMENTAL_MEMORY_GUIDE.md`](EXPERIMENTAL_MEMORY_GUIDE.md).

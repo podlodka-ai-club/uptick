@@ -13,10 +13,20 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
-from uptick_agent.models import DecisionContext, NextStep, V2AdvanceTime
+from uptick_agent.models import (
+    AdvanceTimeStopCondition,
+    DecisionContext,
+    NextStep,
+    V2AdvanceTime,
+)
 
 V2_TIME_BUDGET_POLICY_ID = "simulator-v2-time-budget"
-V2_TIME_BUDGET_POLICY_VERSION = "1.0"
+V2_TIME_BUDGET_POLICY_VERSION = "1.1"
+_SLO_DOWNTIME_FRACTION = 0.01
+_SLO_COUNTER_UNITS = {
+    "downtime_seconds": "seconds",
+    "observed_seconds": "seconds",
+}
 
 
 class DecisionModelDelegate(Protocol):
@@ -75,7 +85,9 @@ def _timestamp(value: object) -> datetime | None:
         return None
 
 
-def _finite_remaining_seconds(context: DecisionContext) -> float | None:
+def _finite_remaining_seconds(
+    context: DecisionContext, *, allow_zero: bool = False
+) -> float | None:
     data = context.latest_result.data
     if not isinstance(data, Mapping):
         return None
@@ -98,9 +110,86 @@ def _finite_remaining_seconds(context: DecisionContext) -> float | None:
             remaining = float(raw)
         except (OverflowError, ValueError):
             return None
-    if not math.isfinite(remaining) or remaining <= 0:
+    if not math.isfinite(remaining) or remaining < 0 or (remaining == 0 and not allow_zero):
         return None
     return remaining
+
+
+def _no_stop_eligibility(context: DecisionContext) -> dict[str, Any]:
+    """Return auditable evidence for disabling the default error stop.
+
+    Only typed metrics and the clock from the same latest response qualify.  A
+    missing, malformed, unit-mismatched, or ambiguous counter leaves the
+    default stop condition in force.
+    """
+
+    remaining_seconds = _finite_remaining_seconds(context, allow_zero=True)
+    evidence: dict[str, Any] = {
+        "eligible": False,
+        "reason": "unknown_clock" if remaining_seconds is None else "unknown_metrics",
+        "downtime_seconds": None,
+        "observed_seconds": None,
+        "remaining_seconds": remaining_seconds,
+        "allowance_seconds": None,
+    }
+    if remaining_seconds is None:
+        return evidence
+
+    metrics = context.latest_result.objective_metrics
+    selected: dict[str, list[object]] = {name: [] for name in _SLO_COUNTER_UNITS}
+    for metric in metrics:
+        name = getattr(metric, "name", None)
+        if name in selected:
+            selected[name].append(metric)
+
+    if any(len(items) != 1 for items in selected.values()):
+        if any(len(items) > 1 for items in selected.values()):
+            evidence["reason"] = "ambiguous_metrics"
+        return evidence
+
+    values: dict[str, float] = {}
+    for name, expected_unit in _SLO_COUNTER_UNITS.items():
+        metric = selected[name][0]
+        if getattr(metric, "unit", None) != expected_unit:
+            evidence["reason"] = "invalid_metric_units"
+            return evidence
+        value = getattr(metric, "value", None)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            evidence["reason"] = "invalid_metrics"
+            return evidence
+        try:
+            numeric = float(value)
+        except (OverflowError, ValueError):
+            evidence["reason"] = "invalid_metrics"
+            return evidence
+        if not math.isfinite(numeric) or numeric < 0:
+            evidence["reason"] = "invalid_metrics"
+            return evidence
+        values[name] = numeric
+
+    downtime_seconds = values["downtime_seconds"]
+    observed_seconds = values["observed_seconds"]
+    total_seconds = observed_seconds + remaining_seconds
+    allowance_seconds = _SLO_DOWNTIME_FRACTION * total_seconds
+    if not math.isfinite(total_seconds) or not math.isfinite(allowance_seconds):
+        evidence["reason"] = "invalid_metrics"
+        return evidence
+    evidence.update(
+        {
+            "downtime_seconds": downtime_seconds,
+            "observed_seconds": observed_seconds,
+            "allowance_seconds": allowance_seconds,
+        }
+    )
+    if downtime_seconds > observed_seconds:
+        evidence["reason"] = "inconsistent_metrics"
+        return evidence
+    if downtime_seconds <= allowance_seconds:
+        evidence["reason"] = "slo_recoverable"
+        return evidence
+    evidence["eligible"] = True
+    evidence["reason"] = "verified_unrecoverable_slo"
+    return evidence
 
 
 def calculate_v2_time_budget(context: DecisionContext) -> V2TimeBudgetPlan | None:
@@ -136,6 +225,7 @@ def _policy_context(
     plan: V2TimeBudgetPlan | None,
     *,
     pending_operations: bool,
+    no_stop_eligibility: dict[str, Any],
 ) -> DecisionContext:
     data = dict(context.latest_result.data)
     if plan is None:
@@ -145,34 +235,70 @@ def _policy_context(
             "time_budget": {
                 "available": False,
                 "hint": (
-                    "No finite positive public clock is available; choose the typed action "
-                    "unchanged."
+                    "No duration floor is available from the public clock and decision "
+                    "budget; "
+                    "retain the default first-new-error stop unless full-horizon SLO "
+                    "evidence verifies that the run is unrecoverable."
                 ),
             },
         }
     else:
         metadata = plan.metadata(pending_operations=pending_operations)
+    metadata["no_stop_eligibility"] = no_stop_eligibility
     data["runtime_policy"] = metadata
     latest_result = context.latest_result.model_copy(update={"data": data})
     return context.model_copy(update={"latest_result": latest_result})
 
 
-def _runtime_note(*, proposed: int, effective: int) -> str:
+def _stop_label(stop_when: AdvanceTimeStopCondition | None) -> str:
+    if stop_when is None:
+        return "None"
+    if stop_when == AdvanceTimeStopCondition():
+        return "default"
+    return str(stop_when.model_dump(mode="json", exclude_none=True))
+
+
+def _runtime_note(
+    *,
+    proposed: int,
+    effective: int,
+    proposed_stop: AdvanceTimeStopCondition | None,
+    effective_stop: AdvanceTimeStopCondition | None,
+) -> str:
     return (
         f"[runtime-policy id={V2_TIME_BUDGET_POLICY_ID} "
         f"version={V2_TIME_BUDGET_POLICY_VERSION}: "
-        f"proposed_duration_seconds={proposed}; effective_duration_seconds={effective}]"
+        f"proposed_duration_seconds={proposed}; effective_duration_seconds={effective}; "
+        f"proposed_stop_when={_stop_label(proposed_stop)}; "
+        f"effective_stop_when={_stop_label(effective_stop)}]"
     )
 
 
-def _annotate(decision: NextStep, *, proposed: int, effective: int) -> NextStep:
-    note = _runtime_note(proposed=proposed, effective=effective)
+def _annotate(
+    decision: NextStep,
+    *,
+    proposed: int,
+    effective: int,
+    proposed_stop: AdvanceTimeStopCondition | None,
+    effective_stop: AdvanceTimeStopCondition | None,
+) -> NextStep:
+    note = _runtime_note(
+        proposed=proposed,
+        effective=effective,
+        proposed_stop=proposed_stop,
+        effective_stop=effective_stop,
+    )
     available = max(0, 1000 - len(note) - 1)
     situation = f"{decision.current_situation[:available]} {note}"
     return decision.model_copy(
         update={
             "current_situation": situation,
-            "action": decision.action.model_copy(update={"duration_seconds": effective}),
+            "action": decision.action.model_copy(
+                update={
+                    "duration_seconds": effective,
+                    "stop_when": effective_stop,
+                }
+            ),
         }
     )
 
@@ -205,30 +331,53 @@ class SimulatorV2TimeBudgetPolicy:
     async def decide(self, context: DecisionContext) -> NextStep:
         plan = calculate_v2_time_budget(context)
         pending_operations = _has_pending_operation(context)
+        no_stop_eligibility = _no_stop_eligibility(context)
         decision = await self._delegate.decide(
-            _policy_context(context, plan, pending_operations=pending_operations)
+            _policy_context(
+                context,
+                plan,
+                pending_operations=pending_operations,
+                no_stop_eligibility=no_stop_eligibility,
+            )
         )
         action = decision.action
+        if _terminal_context(context) or not isinstance(action, V2AdvanceTime):
+            return decision
+
+        effective_stop = action.stop_when
+        if action.stop_when is None and not no_stop_eligibility["eligible"]:
+            effective_stop = AdvanceTimeStopCondition()
+
+        effective_duration = action.duration_seconds
         if (
-            plan is None
-            or _terminal_context(context)
-            or not isinstance(action, V2AdvanceTime)
-            or action.stop_when is None
-            or action.duration_seconds >= plan.minimum_duration_seconds
-            or pending_operations
+            plan is not None
+            and not pending_operations
+            and effective_stop is not None
+            and action.duration_seconds < plan.minimum_duration_seconds
         ):
+            effective_duration = plan.minimum_duration_seconds
+
+        if effective_stop == action.stop_when and effective_duration == action.duration_seconds:
             return decision
         return _annotate(
             decision,
             proposed=action.duration_seconds,
-            effective=plan.minimum_duration_seconds,
+            effective=effective_duration,
+            proposed_stop=action.stop_when,
+            effective_stop=effective_stop,
         )
 
     def prompt_trace(self, context: DecisionContext) -> dict[str, Any]:
         plan = calculate_v2_time_budget(context)
         pending_operations = _has_pending_operation(context)
+        no_stop_eligibility = _no_stop_eligibility(context)
         trace = self._delegate.prompt_trace(
-            _policy_context(context, plan, pending_operations=pending_operations)
+            _policy_context(
+                context,
+                plan,
+                pending_operations=pending_operations,
+                no_stop_eligibility=no_stop_eligibility,
+            )
         )
         if not isinstance(trace, dict):
             raise TypeError("decision model prompt_trace must return a JSON object")

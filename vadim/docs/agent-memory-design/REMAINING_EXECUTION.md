@@ -58,9 +58,13 @@ implementation work is delegated. All changes remain below `vadim/`.
 - Remaining normative stages and existing extension points inventoried.
 - V2 policy implementation: a versioned decision-model wrapper raises undersized
   error-stopping waits to `ceil(remaining_seconds / max(1, decisions_left // 2))`,
-  with the API minimum of 300 seconds. Pending operations and explicit no-stop
-  waits keep their original duration. Prompts and effective decisions record
-  the arithmetic and any adjustment; the HTTP adapter remains exact.
+  with the API minimum of 300 seconds. Policy 1.1 preserves pending-operation
+  durations and permits explicit no-stop waits only when current public evidence
+  proves the full-horizon SLO unrecoverable. Other no-stop proposals regain the
+  default first-error stop and ordinary duration planning. Prompts and effective
+  decisions record arithmetic, eligibility and adjustments; the HTTP adapter
+  remains exact. The operation-polling prompt correction and new diagnostic
+  outcomes are recorded in `V2_POLICY_GUARD_RESULTS.md`.
 - Stage 7 contracts/reporting, CLI execution and the standalone retrieval
   strategy are implemented. The exploratory v2 protocol is recorded in
   `SIMULATOR_V2_EVALUATION_PROFILE.md`.

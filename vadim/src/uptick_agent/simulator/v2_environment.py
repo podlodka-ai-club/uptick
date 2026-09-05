@@ -8,6 +8,7 @@ is needed by a run.
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -197,6 +198,31 @@ def _objective_metrics(data: Mapping[str, Any], *, kind: str) -> list[ObjectiveM
             continue
         result.append(ObjectiveMetric(name=name, value=float(value), unit=unit))
     return result
+
+
+def _active_server_counts(data: Mapping[str, Any]) -> dict[str, int | str]:
+    """Count active backend and database rows when the inventory is complete."""
+
+    servers = data.get("servers")
+    if not isinstance(servers, list):
+        return {"backend": "unknown", "database": "unknown"}
+
+    counts: Counter[str] = Counter()
+    for server in servers:
+        if not isinstance(server, Mapping):
+            return {"backend": "unknown", "database": "unknown"}
+        role = server.get("role")
+        status = server.get("status")
+        if (
+            not isinstance(role, str)
+            or role not in {"backend", "database"}
+            or not isinstance(status, str)
+            or not status
+        ):
+            return {"backend": "unknown", "database": "unknown"}
+        if status == "active":
+            counts[role] += 1
+    return {"backend": counts["backend"], "database": counts["database"]}
 
 
 def _terminal_for(data: Mapping[str, Any], *, overview: bool = False) -> bool:
@@ -401,10 +427,13 @@ class SimulatorV2Environment:
         if isinstance(action, GetResources):
             value = _safe(await self.client.resources(session.run_id))
             self._observe(session, value)
+            active_roles = _active_server_counts(value)
             return _result(
                 action.kind,
                 value,
                 f"active_instances={value.get('active_instances', 'unknown')}; "
+                f"active_backend_instances={active_roles['backend']}; "
+                f"active_database_instances={active_roles['database']}; "
                 f"capacity={value.get('total_capacity_units', 'unknown')}; "
                 f"hourly_cost={value.get('total_cost_per_hour_minor', 'unknown')}.",
                 terminal=_terminal_for(value),

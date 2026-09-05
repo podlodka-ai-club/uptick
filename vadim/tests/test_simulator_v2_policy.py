@@ -4,8 +4,9 @@ from typing import Any
 import pytest
 
 from uptick_agent import cli
-from uptick_agent.memory.contracts import DecisionMemoryContext
+from uptick_agent.memory.contracts import DecisionMemoryContext, ObjectiveMetric
 from uptick_agent.models import (
+    AdvanceTimeStopCondition,
     AgentConfig,
     DecisionContext,
     FinishRun,
@@ -30,6 +31,7 @@ def _context(
     iteration: int = 1,
     max_steps: int = 5,
     operation_statuses: dict[str, str] | None = None,
+    objective_metrics: list[ObjectiveMetric] | None = None,
 ) -> DecisionContext:
     data: dict[str, Any] = {"clock": {"remaining_seconds": remaining}}
     return DecisionContext(
@@ -38,7 +40,12 @@ def _context(
         seed=42,
         iteration=iteration,
         max_steps=max_steps,
-        latest_result=ToolResult(action_kind="get_overview", summary="observed", data=data),
+        latest_result=ToolResult(
+            action_kind="get_overview",
+            summary="observed",
+            data=data,
+            objective_metrics=objective_metrics or [],
+        ),
         run_state=RunState(operation_statuses=operation_statuses or {}),
     )
 
@@ -199,6 +206,8 @@ def test_v2_policy_adjustment_is_typed_auditable_and_prompt_trace_contains_same_
         assert delegated["policy_id"] == V2_TIME_BUDGET_POLICY_ID
         assert delegated["policy_version"] == V2_TIME_BUDGET_POLICY_VERSION
         assert delegated["time_budget"]["minimum_duration_seconds"] == 2_251
+        assert delegated["no_stop_eligibility"]["eligible"] is False
+        assert delegated["no_stop_eligibility"]["reason"] == "unknown_metrics"
         assert delegated == trace_context
         assert "ceil(9001.1/max(1, 8//2))=2251" in delegated["time_budget"]["hint"]
         assert policy.model == "fake-model"
@@ -211,17 +220,17 @@ def test_v2_policy_adjustment_is_typed_auditable_and_prompt_trace_contains_same_
 
 
 @pytest.mark.parametrize(
-    ("action", "operation_statuses"),
+    ("action", "operation_statuses", "expected_duration", "expected_stop", "annotated"),
     [
-        (_advance_decision(duration=2_251), {}),
-        (_advance_decision(duration=300, stop_when=None), {}),
-        (_advance_decision(duration=300), {"op-1": "accepted"}),
-        (_advance_decision(duration=300), {"op-1": "pending"}),
-        (_advance_decision(duration=300), {"op-1": "running"}),
+        (_advance_decision(duration=2_251), {}, 2_251, "default", False),
+        (_advance_decision(duration=300, stop_when=None), {}, 2_251, "default", True),
+        (_advance_decision(duration=300), {"op-1": "accepted"}, 300, "default", False),
+        (_advance_decision(duration=300), {"op-1": "pending"}, 300, "default", False),
+        (_advance_decision(duration=300), {"op-1": "running"}, 300, "default", False),
     ],
 )
-def test_v2_policy_does_not_change_large_unbounded_or_pending_waits(
-    action, operation_statuses
+def test_v2_policy_guards_unbounded_waits_and_preserves_pending_durations(
+    action, operation_statuses, expected_duration, expected_stop, annotated
 ) -> None:
     delegate = FakeDelegate(action)
     policy = SimulatorV2TimeBudgetPolicy(delegate)
@@ -230,9 +239,122 @@ def test_v2_policy_does_not_change_large_unbounded_or_pending_waits(
         decision = await policy.decide(
             _context(9_001.1, iteration=3, max_steps=10, operation_statuses=operation_statuses)
         )
-        assert decision.action.duration_seconds == action.action.duration_seconds
-        assert decision.action.stop_when == action.action.stop_when
-        assert "runtime-policy" not in decision.current_situation
+        assert decision.action.duration_seconds == expected_duration
+        assert ("None" if decision.action.stop_when is None else "default") == expected_stop
+        assert ("runtime-policy" in decision.current_situation) is annotated
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "context",
+    [
+        _context(
+            9_001.1,
+            iteration=3,
+            max_steps=10,
+            objective_metrics=[ObjectiveMetric(name="uptime_ratio", value=0.999, unit="ratio")],
+        ),
+        _context(
+            None,
+            iteration=3,
+            max_steps=10,
+            objective_metrics=[
+                ObjectiveMetric(name="downtime_seconds", value=500, unit="seconds"),
+                ObjectiveMetric(name="observed_seconds", value=20_000, unit="seconds"),
+            ],
+        ),
+    ],
+)
+def test_v2_policy_restores_default_stop_for_unknown_metrics_or_clock(context) -> None:
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+
+    async def scenario() -> None:
+        decision = await policy.decide(context)
+        assert decision.action.stop_when is not None
+        assert decision.action.stop_when == AdvanceTimeStopCondition()
+
+    asyncio.run(scenario())
+
+
+def test_v2_policy_keeps_stop_for_recoverable_low_current_uptime() -> None:
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+    context = _context(
+        10_000,
+        objective_metrics=[
+            ObjectiveMetric(name="downtime_seconds", value=2, unit="seconds"),
+            ObjectiveMetric(name="observed_seconds", value=100, unit="seconds"),
+        ],
+    )
+
+    async def scenario() -> None:
+        decision = await policy.decide(context)
+        assert decision.action.stop_when == AdvanceTimeStopCondition()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("downtime", "observed", "expected_allowance", "expected_eligible"),
+    [(500, 20_000, 209, True), (10, 100, 10, False)],
+)
+def test_v2_policy_allows_no_stop_only_after_full_horizon_slo_proof(
+    downtime, observed, expected_allowance, expected_eligible
+) -> None:
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+    context = _context(
+        900,
+        objective_metrics=[
+            ObjectiveMetric(name="downtime_seconds", value=downtime, unit="seconds"),
+            ObjectiveMetric(name="observed_seconds", value=observed, unit="seconds"),
+        ],
+    )
+
+    async def scenario() -> None:
+        trace = policy.prompt_trace(context)
+        decision = await policy.decide(context)
+        eligibility = trace["delegate_context"]["latest_result"]["data"]["runtime_policy"][
+            "no_stop_eligibility"
+        ]
+        assert eligibility["eligible"] is expected_eligible
+        assert eligibility["allowance_seconds"] == expected_allowance
+        if expected_eligible:
+            assert decision.action.stop_when is None
+            assert "runtime-policy" not in decision.current_situation
+        else:
+            assert decision.action.stop_when == AdvanceTimeStopCondition()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "objective_metrics",
+    [
+        [
+            ObjectiveMetric(name="downtime_seconds", value=500, unit="milliseconds"),
+            ObjectiveMetric(name="observed_seconds", value=20_000, unit="seconds"),
+        ],
+        [
+            ObjectiveMetric(name="downtime_seconds", value=500, unit="seconds"),
+            ObjectiveMetric(name="downtime_seconds", value=500, unit="seconds"),
+            ObjectiveMetric(name="observed_seconds", value=20_000, unit="seconds"),
+        ],
+        [
+            ObjectiveMetric(name="downtime_seconds", value=20_001, unit="seconds"),
+            ObjectiveMetric(name="observed_seconds", value=20_000, unit="seconds"),
+        ],
+    ],
+)
+def test_v2_policy_rejects_invalid_or_ambiguous_no_stop_counters(objective_metrics) -> None:
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+
+    async def scenario() -> None:
+        decision = await policy.decide(_context(1_000, objective_metrics=objective_metrics))
+        assert decision.action.stop_when == AdvanceTimeStopCondition()
 
     asyncio.run(scenario())
 
