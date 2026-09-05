@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import json
 from collections import deque
@@ -8,14 +9,13 @@ from datetime import UTC, datetime
 from time import monotonic
 from uuid import uuid4
 
-from uptick_agent.decisions.actions import (
-    AgentAction,
-    ApplyFix,
-    GetOperation,
-    ScaleBackend,
-    StartDeployment,
+from uptick_agent.decisions.runtime import RuntimeDecisionContext, RuntimeRecentStep, ToolResult
+from uptick_agent.environment.contracts import (
+    EnvironmentDecisionSpec,
+    decision_action,
+    public_state_payload,
+    validate_decision,
 )
-from uptick_agent.decisions.contracts import DecisionContext, RecentStep, RunState, ToolResult
 from uptick_agent.memory.audit_contracts import AuditTraceWrite, audit_event_id
 from uptick_agent.memory.compatibility.contracts import MemoryEntry
 from uptick_agent.memory.contracts import (
@@ -28,8 +28,10 @@ from uptick_agent.observers import NullObserver
 from uptick_agent.ports import AgentMemory, DecisionModel, Environment, RunObserver
 from uptick_agent.redaction import sanitize_json
 from uptick_agent.runs.config import AgentConfig
-from uptick_agent.runs.results import RunResult, StepRecord
+from uptick_agent.runs.runtime_results import RuntimeRunResult, RuntimeStepRecord
 from uptick_agent.transition_assembly import DefaultExperienceTransitionAssembler
+
+_DEFAULT_RUNTIME_OBJECTIVE = "Follow the objective in the environment startup instructions."
 
 
 def _memory_text(result: ToolResult, *, limit: int = 6_000) -> str:
@@ -43,45 +45,9 @@ def _memory_text(result: ToolResult, *, limit: int = 6_000) -> str:
     return payload[:limit] + f"\n...[{len(payload) - limit} characters omitted]"
 
 
-def _record_run_state(run_state: RunState, action: AgentAction, result: ToolResult) -> None:
-    for link in result.operation_links:
-        if link.relation == "initiated" and result.ok:
-            run_state.operation_statuses[link.operation_id] = "accepted"
-        elif link.relation == "observed":
-            status = result.data.get("status")
-            if isinstance(status, str):
-                run_state.operation_statuses[link.operation_id] = status
-
-    if not result.ok:
-        return
-
-    if isinstance(action, ApplyFix) and result.data.get("applied") is True:
-        if action.message not in run_state.applied_fix_messages:
-            run_state.applied_fix_messages.append(action.message)
-        return
-
-    operation_id = result.data.get("operation_id")
-    if isinstance(action, ScaleBackend) and isinstance(operation_id, str):
-        run_state.desired_backend_instances = action.desired_instances
-        run_state.operation_statuses[operation_id] = "accepted"
-        return
-
-    if isinstance(action, StartDeployment) and isinstance(operation_id, str):
-        if action.deployment_id not in run_state.started_deployment_ids:
-            run_state.started_deployment_ids.append(action.deployment_id)
-        run_state.operation_statuses[operation_id] = "accepted"
-        return
-
-    if isinstance(action, GetOperation):
-        status = result.data.get("status")
-        resolved_operation_id = result.data.get("operation_id", action.operation_id)
-        if isinstance(resolved_operation_id, str) and isinstance(status, str):
-            run_state.operation_statuses[resolved_operation_id] = status
-
-
 def _prompt_trace(
     model: DecisionModel,
-    context: DecisionContext,
+    context: RuntimeDecisionContext,
 ) -> tuple[str, dict]:
     builder = getattr(model, "prompt_trace", None)
     if not callable(builder):
@@ -90,6 +56,21 @@ def _prompt_trace(
     if not isinstance(trace, dict):
         raise TypeError("decision model prompt_trace must return a JSON object")
     return "provider-neutral-structured-generation-request", trace
+
+
+def _decision_spec(environment: Environment) -> EnvironmentDecisionSpec:
+    spec = getattr(environment, "decision_spec", None)
+    if not isinstance(spec, EnvironmentDecisionSpec):
+        raise TypeError("environment must provide an EnvironmentDecisionSpec")
+    return spec
+
+
+def _environment_state(environment: Environment, session: object) -> object:
+    provider = getattr(environment, "public_state", None)
+    if not callable(provider):
+        return {}
+    state = provider(session)
+    return copy.deepcopy(public_state_payload(state))
 
 
 class AgentRunner:
@@ -112,7 +93,7 @@ class AgentRunner:
         self.observer = observer or NullObserver()
         self.transition_assembler = transition_assembler or DefaultExperienceTransitionAssembler()
 
-    async def run(self, seed: int) -> RunResult:
+    async def run(self, seed: int) -> RuntimeRunResult:
         run_started = monotonic()
         session, latest = await self.environment.start(
             seed=seed,
@@ -120,12 +101,14 @@ class AgentRunner:
             agent_version=self.config.agent_version,
         )
         try:
+            spec = _decision_spec(self.environment)
+            objective = spec.objective or _DEFAULT_RUNTIME_OBJECTIVE
             await self._remember(session.run_id, latest, kind="observation", importance=0.7)
 
             stop_reason = "maximum step limit reached"
             completed_steps = 0
-            recent_steps: deque[RecentStep] = deque(maxlen=6)
-            run_state = RunState()
+            recent_steps: deque[RuntimeRecentStep] = deque(maxlen=6)
+            run_state = _environment_state(self.environment, session)
             for iteration in range(1, self.config.max_steps + 1):
                 request_id = hashlib.sha256(
                     f"memory-context:{session.run_id}:{iteration}".encode()
@@ -146,8 +129,8 @@ class AgentRunner:
                         max_items=self.config.memory_recall_limit,
                     )
                 )
-                context = DecisionContext(
-                    objective=self.config.objective,
+                context = RuntimeDecisionContext(
+                    objective=objective,
                     run_id=session.run_id,
                     decision_id=decision_id,
                     seed=seed,
@@ -156,7 +139,7 @@ class AgentRunner:
                     latest_result=latest,
                     memory_context=memory_context,
                     recent_steps=list(recent_steps),
-                    run_state=run_state.model_copy(deep=True),
+                    run_state=copy.deepcopy(run_state),
                 )
                 prompt_kind, prompt_body = _prompt_trace(self.model, context)
                 await self.memory.record_trace(
@@ -184,7 +167,8 @@ class AgentRunner:
                     )
                 )
                 step_started = monotonic()
-                decision = await self.model.decide(context)
+                decision = validate_decision(spec, await self.model.decide(context))
+                action = decision_action(decision)
                 await self.memory.record_trace(
                     AuditTraceWrite(
                         event_id=audit_event_id(
@@ -203,15 +187,15 @@ class AgentRunner:
                         producer_id="agent-runner",
                         producer_version="1.0",
                         metadata={
-                            "action_kind": decision.action.kind,
-                            "action": decision.action.model_dump(mode="json"),
+                            "action_kind": getattr(action, "kind", type(action).__name__),
+                            "action": action.model_dump(mode="json"),
                         },
                         raw_bodies={
                             "decision_traces": {"decision": decision.model_dump(mode="json")}
                         },
                     )
                 )
-                result = await self.environment.execute(session, decision.action)
+                result = await self.environment.execute(session, action)
                 duration = monotonic() - step_started
                 completed_steps = iteration
                 transition = self.transition_assembler.assemble(
@@ -225,9 +209,9 @@ class AgentRunner:
                         environment_id=getattr(session, "environment_id", None),
                         scenario_id=getattr(session, "scenario_id", None),
                         trust_classification="external_untrusted",
-                        pre_state=run_state.model_dump(mode="json"),
+                        pre_state=public_state_payload(run_state),
                         observation=latest.model_dump(mode="json"),
-                        action=decision.action.model_dump(mode="json"),
+                        action=action.model_dump(mode="json"),
                         result=result.model_dump(mode="json"),
                         before_objective_metrics=latest.objective_metrics,
                         after_objective_metrics=result.objective_metrics,
@@ -294,7 +278,7 @@ class AgentRunner:
                         },
                     )
                 )
-                record = StepRecord(
+                record = RuntimeStepRecord(
                     run_id=session.run_id,
                     decision_id=decision_id,
                     transition_id=transition.transition_id,
@@ -316,11 +300,11 @@ class AgentRunner:
                     },
                 )
                 await self.observer.on_step(record)
-                _record_run_state(run_state, decision.action, result)
+                run_state = _environment_state(self.environment, session)
                 recent_steps.append(
-                    RecentStep(
+                    RuntimeRecentStep(
                         iteration=iteration,
-                        action=decision.action,
+                        action=action,
                         result_action_kind=result.action_kind,
                         result_ok=result.ok,
                         result_summary=result.summary[:2_000],
@@ -352,17 +336,12 @@ class AgentRunner:
             if final.status == "running"
             else "failed"
         )
-        if final.objective_kind == "uptime_cost":
-            outcome_summary = (
-                f"Run finished with status={final.status}, uptime_ratio={final.uptime_ratio}, "
-                f"slo_passed={final.slo_passed}, total_cost_minor={final.total_cost_minor}, "
-                f"steps={final.steps}."
-            )
-        else:
-            outcome_summary = (
-                f"Run finished with status={final.status}, balance={final.balance_minor}, "
-                f"lost_revenue={final.lost_revenue_minor}, steps={final.steps}."
-            )
+        metrics = [(item.name, item.value, item.unit) for item in final.objective_metrics]
+        outcome_summary = (
+            f"Run finished with status={final.status}, "
+            f"objective_metrics={metrics}, "
+            f"steps={final.steps}."
+        )
         outcome_evidence_error: BaseException | None = None
         try:
             await self._remember(

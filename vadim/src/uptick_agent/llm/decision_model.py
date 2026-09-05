@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from uptick_agent.decisions.contracts import DecisionContext, NextStep
+from pydantic import BaseModel
+
 from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT, compose_system_prompt
+from uptick_agent.decisions.runtime import RuntimeDecisionContext
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec
 from uptick_agent.llm.contracts import (
     GenerationSettings,
     LlmClient,
@@ -22,33 +25,44 @@ class StructuredDecisionModel:
         self,
         client: LlmClient,
         *,
-        response_model: type[NextStep] = NextStep,
+        response_model: type[BaseModel],
         system_prompt: str | None = None,
         environment_briefing: str | None = None,
         settings: GenerationSettings | None = None,
     ) -> None:
         self._client = client
         self.model = getattr(client, "model", None)
-        self.response_model = response_model
-        self.system_prompt = compose_system_prompt(
+        self._spec = EnvironmentDecisionSpec(response_model, environment_briefing)
+        self._system_prompt = compose_system_prompt(
             CORE_SYSTEM_PROMPT if system_prompt is None else system_prompt,
             environment_briefing,
         )
         self.settings = settings or GenerationSettings()
 
     @property
+    def response_model(self) -> type[BaseModel]:
+        return self._spec.response_model
+
+    @property
+    def system_prompt(self) -> str:
+        return self._system_prompt
+
+    @property
     def last_telemetry(self):
         return getattr(self._client, "last_telemetry", None)
 
-    async def decide(self, context: DecisionContext) -> NextStep:
+    async def decide(self, context: RuntimeDecisionContext) -> BaseModel:
         result = await self._client.generate_structured(self._build_request(context))
         return result.value
 
-    def prompt_trace(self, context: DecisionContext) -> dict[str, Any]:
+    def prompt_trace(self, context: RuntimeDecisionContext) -> dict[str, Any]:
         """Serialize the exact neutral request submitted by ``decide``."""
         return serialize_structured_generation_request(self._build_request(context))
 
-    def _build_request(self, context: DecisionContext) -> StructuredGenerationRequest[NextStep]:
+    def _build_request(
+        self, context: RuntimeDecisionContext
+    ) -> StructuredGenerationRequest[BaseModel]:
+        self._spec.assert_unchanged()
         return StructuredGenerationRequest(
             model=self.model,
             settings=self.settings,

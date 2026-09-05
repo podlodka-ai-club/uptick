@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Awaitable
 from typing import Literal, Protocol
 
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec
 from uptick_agent.evaluation.contracts import (
     FrozenEvaluationBinding,
     V2AttemptRecord,
@@ -28,6 +29,7 @@ class EvaluationModelFactory(Protocol):
         condition: V2Condition,
         attempt: V2AttemptRecord,
         run_id: str,
+        decision_spec: EnvironmentDecisionSpec,
     ) -> DecisionModel | Awaitable[DecisionModel]: ...
 
 

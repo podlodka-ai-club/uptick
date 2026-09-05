@@ -8,10 +8,13 @@ import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, Protocol
 
 from uptick_agent.composition.evaluation_memory import DefaultEvaluationMemoryFactory
-from uptick_agent.decisions.contracts import V1NextStep, V2NextStep
+from uptick_agent.decisions.contracts import NextStep, V1NextStep, V2NextStep
+from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT, compose_system_prompt
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec
+from uptick_agent.environment.prestarted import PrestartedEnvironment
 from uptick_agent.evaluation.artifacts import FilesystemEvaluationArtifactStore
 from uptick_agent.evaluation.contracts import V2EvaluationProfile, V2Manifest, resolved_manifest
 from uptick_agent.evaluation.execution import EvaluationRuntime
@@ -24,19 +27,19 @@ from uptick_agent.llm import (
     LlmProviderRegistry,
     OpenAIProviderFactory,
 )
-from uptick_agent.llm.decision_model import StructuredDecisionModel
+from uptick_agent.llm.decision_model import (
+    StructuredDecisionModel as _GenericStructuredDecisionModel,
+)
 from uptick_agent.memory import InMemoryMemory, JsonlMemory, legacy_memory_runtime
 from uptick_agent.memory.stores import SqliteStructuredStore
 from uptick_agent.observers import CompositeObserver, ConsoleObserver, JsonlObserver
-from uptick_agent.ports import AgentMemory, DecisionModel, Environment
+from uptick_agent.ports import AgentMemory, DecisionModel
 from uptick_agent.runs.config import AgentConfig
 from uptick_agent.runs.execute import AgentRunner
 from uptick_agent.simulator import SimulatorClient, SimulatorEnvironment
 from uptick_agent.simulator.briefings import (
     V1_ENVIRONMENT_BRIEFING,
     V2_ENVIRONMENT_BRIEFING,
-    V2_OBJECTIVE,
-    V2_SYSTEM_PROMPT,
 )
 from uptick_agent.simulator.v2_client import SimulatorV2Client
 from uptick_agent.simulator.v2_environment import SimulatorV2Environment
@@ -50,6 +53,13 @@ class CloseableDecisionModel(DecisionModel, Protocol):
 
 class CodexFactoryConstructor(Protocol):
     def __call__(self) -> LlmProviderFactory: ...
+
+
+class StructuredDecisionModel(_GenericStructuredDecisionModel):
+    """Historical CLI facade; canonical bridge callers must pass a schema."""
+
+    def __init__(self, client, *, response_model=NextStep, **kwargs):
+        super().__init__(client, response_model=response_model, **kwargs)
 
 
 def _decision_provider_default() -> str:
@@ -132,6 +142,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     evaluate.add_argument("--profile", type=Path, required=True)
     evaluate.add_argument(
+        "--environment-briefing",
+        type=Path,
+        default=None,
+        help="Previously observed sanitized startup text used to preregister the prompt.",
+    )
+    evaluate.add_argument(
         "--simulator-url", default=os.getenv("SIMULATOR_URL", "http://81.176.229.58:8080")
     )
     evaluate.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"))
@@ -162,9 +178,25 @@ def _trace_name(args: argparse.Namespace) -> str:
     return f"seed-{args.seed}"
 
 
-def _decision_model(args: argparse.Namespace) -> CloseableDecisionModel:
+def _decision_model(
+    args: argparse.Namespace,
+    decision_spec: EnvironmentDecisionSpec | None = None,
+) -> CloseableDecisionModel:
     if args.decision_provider not in {"openai", "codex"}:
         raise ValueError(f"Unsupported decision provider {args.decision_provider!r}.")
+    if decision_spec is None:
+        # Compatibility for callers of this private helper.  The real CLI
+        # path constructs the environment first and passes its immutable spec.
+        if getattr(args, "simulator_api_version", "v2") == "v1":
+            decision_spec = EnvironmentDecisionSpec(
+                response_model=V1NextStep,
+                environment_briefing=V1_ENVIRONMENT_BRIEFING,
+            )
+        else:
+            decision_spec = EnvironmentDecisionSpec(
+                response_model=V2NextStep,
+                environment_briefing=V2_ENVIRONMENT_BRIEFING,
+            )
 
     registry = LlmProviderRegistry()
     registry.register(
@@ -191,18 +223,29 @@ def _decision_model(args: argparse.Namespace) -> CloseableDecisionModel:
         model = args.model or os.getenv("CODEX_MODEL") or None
     settings = GenerationSettings(reasoning_effort=args.reasoning_effort)
     client = registry.create(LlmProviderConfig(provider=args.decision_provider, model=model))
+    assert decision_spec is not None
+    return _build_decision_model(client, args, decision_spec, settings=settings)
+
+
+def _build_decision_model(
+    client: Any,
+    args: argparse.Namespace,
+    decision_spec: EnvironmentDecisionSpec,
+    *,
+    settings: GenerationSettings,
+) -> CloseableDecisionModel:
     if getattr(args, "simulator_api_version", "v2") == "v1":
         return StructuredDecisionModel(
             client,
-            response_model=V1NextStep,
-            environment_briefing=V1_ENVIRONMENT_BRIEFING,
+            response_model=decision_spec.response_model,
+            environment_briefing=decision_spec.environment_briefing,
             settings=settings,
         )
     return SimulatorV2TimeBudgetPolicy(
         StructuredDecisionModel(
             client,
-            response_model=V2NextStep,
-            environment_briefing=V2_ENVIRONMENT_BRIEFING,
+            response_model=decision_spec.response_model,
+            environment_briefing=decision_spec.environment_briefing,
             settings=settings,
         )
     )
@@ -340,9 +383,12 @@ def _verify_v2_pins(
             "runtime_fingerprint must equal sha256_json(source_tree_hash, pyproject_hash)"
         )
 
-    expected_prompt = hashlib.sha256(V2_SYSTEM_PROMPT.encode("utf-8")).hexdigest()
+    expected_briefing = _expected_environment_briefing(args)
+    expected_prompt = _prompt_fingerprint(expected_briefing)
     if profile.provider.prompt_fingerprint != expected_prompt:
-        raise ValueError("v2 provider prompt_fingerprint does not match V2_SYSTEM_PROMPT")
+        raise ValueError(
+            "v2 provider prompt_fingerprint does not match the external environment briefing"
+        )
     settings = _profile_generation_settings(profile)
     resolved_settings = {
         key: getattr(settings, key)
@@ -388,7 +434,19 @@ def _verify_v2_pins(
             )
 
 
-def _v2_model_factory(profile: V2EvaluationProfile, args: argparse.Namespace):
+def _v2_model_factory(
+    profile: V2EvaluationProfile,
+    args: argparse.Namespace,
+    decision_spec: EnvironmentDecisionSpec,
+):
+    decision_spec.assert_unchanged()
+    if (
+        _prompt_fingerprint(decision_spec.environment_briefing)
+        != profile.provider.prompt_fingerprint
+    ):
+        raise ValueError("actual environment startup prompt differs from the preregistered prompt")
+    if decision_spec.response_model.model_json_schema() != V2NextStep.model_json_schema():
+        raise ValueError("actual environment tool schema differs from the pinned v2 adapter")
     provider = profile.provider.provider
     if provider not in {"openai", "codex"}:
         raise ValueError(f"v2 evaluation does not support provider {provider!r}")
@@ -410,8 +468,8 @@ def _v2_model_factory(profile: V2EvaluationProfile, args: argparse.Namespace):
     return SimulatorV2TimeBudgetPolicy(
         StructuredDecisionModel(
             client,
-            response_model=V2NextStep,
-            environment_briefing=V2_ENVIRONMENT_BRIEFING,
+            response_model=decision_spec.response_model,
+            environment_briefing=decision_spec.environment_briefing,
             settings=_profile_generation_settings(profile),
         )
     )
@@ -435,8 +493,8 @@ async def _evaluate_v2(args: argparse.Namespace) -> int:
     def environment_factory(block, condition, attempt):
         return OwnedV2Environment(SimulatorV2Client(args.simulator_url))
 
-    def model_factory(block, condition, attempt, run_id):
-        return _v2_model_factory(manifest.profile, args)
+    def model_factory(block, condition, attempt, run_id, decision_spec):
+        return _v2_model_factory(manifest.profile, args, decision_spec)
 
     runtime = EvaluationRuntime(
         manifest,
@@ -468,8 +526,6 @@ async def _main(args) -> int:
         "agent_version": args.agent_version,
         "max_steps": args.max_steps,
     }
-    if api_version == "v2":
-        config_values["objective"] = V2_OBJECTIVE
     config = AgentConfig(**config_values)
     seeds: list[int] | None = None
     if args.command == "benchmark":
@@ -478,55 +534,105 @@ async def _main(args) -> int:
             raise ValueError("at least one seed is required")
         if 0 in seeds:
             raise ValueError("simulator seed 0 is invalid")
-    model: CloseableDecisionModel | None = None
-    client: Any | None = None
-    try:
-        model = _decision_model(args)
-        assert model is not None
-        if api_version == "v1":
-            client = SimulatorClient(args.simulator_url)
-            environment = cast(Environment, SimulatorEnvironment(client))
-        else:
-            from uptick_agent.simulator.v2_client import SimulatorV2Client
-            from uptick_agent.simulator.v2_environment import SimulatorV2Environment
+    memory_factory = _memory_factory(args)
 
-            client = SimulatorV2Client(args.simulator_url)
-            environment = cast(Environment, SimulatorV2Environment(client))
-        memory_factory = _memory_factory(args)
+    class PreparedRun:
+        def __init__(self):
+            self.memory = memory_factory()
 
-        def make_runner() -> AgentRunner:
-            observer = CompositeObserver(
-                ConsoleObserver(),
-                JsonlObserver(args.artifacts / _trace_name(args) / "trace.jsonl"),
-            )
-            return AgentRunner(
-                config=config,
-                model=model,
-                memory=memory_factory(),
-                environment=environment,
-                observer=observer,
-            )
+        async def run(self, seed):
+            return await _run_seed(args, config, self.memory, seed)
 
-        if args.command == "run":
-            result = await make_runner().run(args.seed)
-            print(result.model_dump_json(indent=2))
-        else:
-            assert seeds is not None
-            result = await ExperimentRunner(make_runner).run(
-                name=args.name,
-                seeds=seeds,
-                carry_memory=args.carry_memory,
-            )
-            destination = args.artifacts / args.name / "summary.json"
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_text(result.model_dump_json(indent=2), encoding="utf-8")
-            print(result.model_dump_json(indent=2))
-    finally:
-        if model is not None:
-            await model.aclose()
-        if client is not None:
-            await client.aclose()
+    if args.command == "run":
+        result = await PreparedRun().run(args.seed)
+        print(result.model_dump_json(indent=2))
+    else:
+        assert seeds is not None
+        result = await ExperimentRunner(PreparedRun).run(
+            name=args.name,
+            seeds=seeds,
+            carry_memory=args.carry_memory,
+        )
+        destination = args.artifacts / args.name / "summary.json"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(result.model_dump_json(indent=2), encoding="utf-8")
+        print(result.model_dump_json(indent=2))
     return 0
+
+
+def _prompt_fingerprint(briefing: str | None) -> str:
+    return hashlib.sha256(compose_system_prompt(CORE_SYSTEM_PROMPT, briefing).encode()).hexdigest()
+
+
+def _expected_environment_briefing(args: argparse.Namespace) -> str:
+    path = getattr(args, "environment_briefing", None)
+    if path is None:
+        raise ValueError(
+            "evaluate-v2 requires --environment-briefing "
+            "with the preregistered external startup text"
+        )
+    value = Path(path).read_text(encoding="utf-8")
+    if not value.strip():
+        raise ValueError("external environment briefing must not be empty")
+    return value
+
+
+async def _run_seed(args, config: AgentConfig, memory: AgentMemory, seed: int):
+    model = None
+    api_version = getattr(args, "simulator_api_version", "v2")
+    client = (
+        SimulatorClient(args.simulator_url)
+        if api_version == "v1"
+        else SimulatorV2Client(args.simulator_url)
+    )
+    try:
+        environment = (
+            SimulatorEnvironment(client, environment_briefing=V1_ENVIRONMENT_BRIEFING)
+            if api_version == "v1"
+            else SimulatorV2Environment(client)
+        )
+        session, latest = await environment.start(
+            seed=seed,
+            agent_id=config.agent_id,
+            agent_version=config.agent_version,
+        )
+        startup_artifacts = FilesystemEvaluationArtifactStore(args.artifacts / _trace_name(args))
+        startup_artifacts.put(
+            "startup_observation",
+            session.run_id,
+            {"run_id": session.run_id, "observation": latest.model_dump(mode="json")},
+        )
+        prepared = PrestartedEnvironment(environment, session, latest)
+        spec = prepared.decision_spec
+        # Retain exact effective public inputs before any decision-provider call.
+        startup_artifacts.put(
+            "startup_spec",
+            session.run_id,
+            {
+                "run_id": session.run_id,
+                "spec": spec.public_input(),
+                "spec_fingerprint": spec.fingerprint,
+                "prompt_fingerprint": _prompt_fingerprint(spec.environment_briefing),
+            },
+        )
+        model = _decision_model(args, spec)
+        observer = CompositeObserver(
+            ConsoleObserver(),
+            JsonlObserver(args.artifacts / _trace_name(args) / "trace.jsonl"),
+        )
+        return await AgentRunner(
+            config=config,
+            model=model,
+            memory=memory,
+            environment=prepared,
+            observer=observer,
+        ).run(seed)
+    finally:
+        try:
+            if model is not None:
+                await model.aclose()
+        finally:
+            await client.aclose()
 
 
 def main() -> None:

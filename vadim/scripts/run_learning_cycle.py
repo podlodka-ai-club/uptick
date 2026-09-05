@@ -163,19 +163,18 @@ def _manifest(root: Path, output: Path) -> LearningCycleManifest:
 
 def _model_factory():
     # Provider imports happen only after the sealed manifest is written.
-    from uptick_agent.decisions.contracts import NextStep
     from uptick_agent.llm.codex import CodexProviderFactory
     from uptick_agent.llm.contracts import GenerationSettings
     from uptick_agent.llm.decision_model import StructuredDecisionModel
     from uptick_agent.llm.registry import LlmProviderConfig
 
-    def factory(_phase: str, _condition_id: str, _seed: int):
+    def factory(_phase: str, _condition_id: str, _seed: int, spec):
         client = CodexProviderFactory().create(
             LlmProviderConfig(provider="codex-subscription", model="gpt-5.6-sol")
         )
         return StructuredDecisionModel(
             client,
-            response_model=NextStep,
+            response_model=spec.response_model,
             system_prompt=LEARNING_SYSTEM_PROMPT,
             settings=GenerationSettings(**GENERATION_SETTINGS),
         )

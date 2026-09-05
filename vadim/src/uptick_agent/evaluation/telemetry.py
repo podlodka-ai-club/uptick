@@ -40,6 +40,8 @@ def _trace_payload(observer: _TraceObserver, model: DecisionModel | None) -> dic
         "steps": [item.model_dump(mode="json") for item in observer.steps],
         "finish": observer.result.model_dump(mode="json") if observer.result else None,
     }
+    if observer.startup_artifacts:
+        payload["startup_artifacts"] = dict(observer.startup_artifacts)
     if not observer.steps and observer.result is None:
         payload["trace_status"] = "unavailable"
         payload["model_type"] = type(model).__name__ if model else None

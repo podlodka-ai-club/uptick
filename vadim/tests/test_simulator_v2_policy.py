@@ -379,6 +379,8 @@ def test_v2_policy_leaves_other_actions_unchanged() -> None:
 
 
 def test_cli_wraps_only_v2_structured_models(monkeypatch) -> None:
+    from uptick_agent.simulator.briefings import V2_SYSTEM_PROMPT
+
     class Client:
         model = "fake-model"
 
@@ -398,7 +400,7 @@ def test_cli_wraps_only_v2_structured_models(monkeypatch) -> None:
     assert isinstance(v1_model, cli.StructuredDecisionModel)
     assert isinstance(v2_model, SimulatorV2TimeBudgetPolicy)
     assert v1_model.system_prompt == V1_SYSTEM_PROMPT
-    assert v2_model._delegate.system_prompt == cli.V2_SYSTEM_PROMPT
+    assert v2_model._delegate.system_prompt == V2_SYSTEM_PROMPT
 
 
 def test_v2_policy_runner_reaches_horizon_with_scripted_short_waits() -> None:

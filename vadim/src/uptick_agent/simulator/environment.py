@@ -4,7 +4,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import uuid4
 
-from uptick_agent.decisions.actions import (
+from uptick_agent.decisions.contracts import V1NextStep
+from uptick_agent.decisions.runtime import ToolResult
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec
+from uptick_agent.memory.contracts import ObjectiveMetric, OperationLink
+from uptick_agent.runs.results import RunResult
+from uptick_agent.simulator.actions import (
     AdvanceTime,
     AgentAction,
     ApplyFix,
@@ -19,9 +24,6 @@ from uptick_agent.decisions.actions import (
     ScaleBackend,
     StartDeployment,
 )
-from uptick_agent.decisions.contracts import ToolResult
-from uptick_agent.memory.contracts import ObjectiveMetric, OperationLink
-from uptick_agent.runs.results import RunResult
 from uptick_agent.simulator.client import SimulatorApiError, SimulatorClient
 from uptick_agent.simulator.models import (
     DeploymentsResponse,
@@ -47,6 +49,7 @@ class SimulatorSession:
     seen_log_ids: set[str] = field(default_factory=set)
     logs_cursor: str | None = None
     logs_cursor_status: int | None = None
+    operation_statuses: dict[str, str] = field(default_factory=dict)
 
     def next_request_id(self, kind: str) -> str:
         self.request_number += 1
@@ -104,8 +107,36 @@ def _result(action_kind: str, value, summary: str, *, terminal: bool = False) ->
 
 
 class SimulatorEnvironment:
-    def __init__(self, client: SimulatorClient) -> None:
+    def __init__(self, client: SimulatorClient, *, environment_briefing: str | None = None) -> None:
         self.client = client
+        self._environment_briefing = environment_briefing
+
+    @property
+    def decision_spec(self) -> EnvironmentDecisionSpec:
+        from uptick_agent.simulator.briefings import V1_ENVIRONMENT_BRIEFING, V1_OBJECTIVE
+
+        return EnvironmentDecisionSpec(
+            response_model=V1NextStep,
+            environment_briefing=(
+                V1_ENVIRONMENT_BRIEFING
+                if self._environment_briefing is None
+                else self._environment_briefing
+            ),
+            objective=V1_OBJECTIVE,
+        )
+
+    @staticmethod
+    def _update_public_state(session: SimulatorSession, result: ToolResult) -> None:
+        for link in result.operation_links:
+            if link.relation == "initiated" and result.ok:
+                session.operation_statuses[link.operation_id] = "accepted"
+            elif link.relation == "observed":
+                status = result.data.get("status")
+                if isinstance(status, str):
+                    session.operation_statuses[link.operation_id] = status
+
+    def public_state(self, session: SimulatorSession) -> dict[str, object]:
+        return {"operation_statuses": dict(session.operation_statuses)}
 
     async def start(
         self, *, seed: int, agent_id: str, agent_version: str
@@ -135,18 +166,18 @@ class SimulatorEnvironment:
 
     async def execute(self, session: SimulatorSession, action: AgentAction) -> ToolResult:
         try:
-            return await self._execute(session, action)
+            result = await self._execute(session, action)
         except SimulatorApiError as error:
             if error.code == "RUN_COMPLETED":
                 session.status = "completed"
-                return ToolResult(
+                result = ToolResult(
                     action_kind=action.kind,
                     ok=True,
                     terminal=True,
                     summary="The simulator reports that the run is completed.",
                     data={"code": error.code, "message": error.message},
                 )
-            return ToolResult(
+            result = ToolResult(
                 action_kind=action.kind,
                 ok=False,
                 summary=str(error),
@@ -156,6 +187,8 @@ class SimulatorEnvironment:
                     "message": error.message,
                 },
             )
+        self._update_public_state(session, result)
+        return result
 
     async def _execute(self, session: SimulatorSession, action: AgentAction) -> ToolResult:
         if isinstance(action, FinishRun):

@@ -4,7 +4,11 @@ Canonical implementations live under :mod:`uptick_agent.evaluation` and
 :mod:`uptick_agent.composition`.
 """
 
+import inspect
+
 from uptick_agent.composition.evaluation_memory import DefaultEvaluationMemoryFactory
+from uptick_agent.decisions.contracts import NextStep
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec
 from uptick_agent.evaluation.artifacts import (
     EvaluationArtifactStore,
     FilesystemEvaluationArtifactStore,
@@ -62,6 +66,8 @@ class EvaluationRuntime(_ExecutionEvaluationRuntime):
             memory_factory = default_memory
             if binding_factory is None:
                 binding_factory = default_memory.freeze_binding
+        environment_factory = _legacy_environment_factory(environment_factory)
+        model_factory = _legacy_model_factory(model_factory)
         super().__init__(
             manifest,
             environment_factory=environment_factory,
@@ -72,6 +78,77 @@ class EvaluationRuntime(_ExecutionEvaluationRuntime):
             runner_factory=runner_factory,
             journal=journal,
         )
+
+
+def _legacy_environment_factory(factory):
+    async def wrapped(block, condition, attempt):
+        environment = factory(block, condition, attempt)
+        if inspect.isawaitable(environment):
+            environment = await environment
+        if _publishes_environment_spec(environment):
+            return environment
+        return _LegacyEnvironmentAdapter(environment)
+
+    return wrapped
+
+
+def _publishes_environment_spec(environment: object) -> bool:
+    """Detect a startup-bound spec without evaluating its property early."""
+
+    declared = inspect.getattr_static(environment, "decision_spec", None)
+    if isinstance(declared, (property, EnvironmentDecisionSpec)):
+        return True
+    try:
+        return isinstance(environment.decision_spec, EnvironmentDecisionSpec)
+    except (AttributeError, RuntimeError):
+        return False
+
+
+def _legacy_model_factory(factory):
+    def wrapped(block, condition, attempt, run_id, decision_spec):
+        try:
+            signature = inspect.signature(factory)
+        except (TypeError, ValueError):
+            return factory(block, condition, attempt, run_id, decision_spec)
+        four_args = (block, condition, attempt, run_id)
+        five_args = (*four_args, decision_spec)
+        try:
+            signature.bind(*five_args)
+        except TypeError:
+            return factory(*four_args)
+        else:
+            return factory(block, condition, attempt, run_id, decision_spec)
+
+    return wrapped
+
+
+class _LegacyEnvironmentAdapter:
+    """Compatibility port for pre-spec evaluation test/application adapters."""
+
+    decision_spec = EnvironmentDecisionSpec(response_model=NextStep)
+
+    def __init__(self, environment):
+        self._environment = environment
+
+    async def start(self, **kwargs):
+        return await self._environment.start(**kwargs)
+
+    async def execute(self, session, action):
+        return await self._environment.execute(session, action)
+
+    def public_state(self, session):
+        return {}
+
+    async def finish(self, session, **kwargs):
+        return await self._environment.finish(session, **kwargs)
+
+    async def aclose(self):
+        closer = getattr(self._environment, "aclose", None)
+        if callable(closer):
+            result = closer()
+            if inspect.isawaitable(result):
+                await result
+
 
 __all__ = [
     "EvaluationArtifactStore",

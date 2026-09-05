@@ -13,6 +13,17 @@ Sources: [Sync 3](https://notes.granola.ai/d/6f474ea2-9ae9-4928-a4dc-f8dcb5f0fd5
 These are shared meeting summaries, not verbatim transcripts or independent
 performance verification.
 
+The user also supplied a 2026-09-05 chat excerpt in which Alexey describes a
+minimal universal core prompt and proposes adding a separate environment
+prompt. This is useful design context, not a pinned source or benchmark result.
+Moving knowledge from code into a prompt does not by itself establish
+universality: environment-specific rules still need an explicit owner outside
+the reusable core. A public API/task briefing and declared operating priors can
+be supplied at startup, but they must remain distinct from lessons learned
+through observed outcomes. More training runs alone do not establish that the
+agent will discover an effective policy. A fair comparison must align or
+explicitly vary those initial priors as well as tools, models and budgets.
+
 ## Scope and revisions
 
 This comparison covers the two agent trees as they exist in the shared repository. It does not modify `simple_agent`, call an external model, call a simulator endpoint, or claim a performance result that was not measured under a common protocol.

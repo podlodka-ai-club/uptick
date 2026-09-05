@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Protocol
 
-from uptick_agent.decisions.actions import AgentAction
-from uptick_agent.decisions.contracts import DecisionContext, NextStep, ToolResult
+from pydantic import BaseModel
+
+from uptick_agent.decisions.runtime import RuntimeDecisionContext, ToolResult
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec
 from uptick_agent.memory.audit_contracts import AuditTraceEvent, AuditTraceWrite
 from uptick_agent.memory.compatibility.contracts import MemoryEntry, MemoryMatch, MemoryQuery
 from uptick_agent.memory.contracts import (
@@ -12,7 +15,7 @@ from uptick_agent.memory.contracts import (
     MemoryContextRequest,
     RunOutcome,
 )
-from uptick_agent.runs.results import RunResult, StepRecord
+from uptick_agent.runs.runtime_results import RuntimeRunResult, RuntimeStepRecord
 
 
 class Memory(Protocol):
@@ -47,7 +50,7 @@ class AgentMemory(Protocol):
 class DecisionModel(Protocol):
     """Turns context into one schema-constrained decision."""
 
-    async def decide(self, context: DecisionContext) -> NextStep: ...
+    async def decide(self, context: RuntimeDecisionContext) -> BaseModel: ...
 
 
 class EnvironmentSession(Protocol):
@@ -58,11 +61,16 @@ class EnvironmentSession(Protocol):
 class Environment(Protocol):
     """A world adapter. The runner does not depend on HTTP or this simulator."""
 
+    @property
+    def decision_spec(self) -> EnvironmentDecisionSpec: ...
+
     async def start(
         self, *, seed: int, agent_id: str, agent_version: str
     ) -> tuple[EnvironmentSession, ToolResult]: ...
 
-    async def execute(self, session: EnvironmentSession, action: AgentAction) -> ToolResult: ...
+    async def execute(self, session: EnvironmentSession, action: BaseModel) -> ToolResult: ...
+
+    def public_state(self, session: EnvironmentSession) -> Mapping[str, Any] | BaseModel: ...
 
     async def finish(
         self,
@@ -71,10 +79,10 @@ class Environment(Protocol):
         steps: int,
         duration_seconds: float,
         stop_reason: str,
-    ) -> RunResult: ...
+    ) -> RuntimeRunResult: ...
 
 
 class RunObserver(Protocol):
-    async def on_step(self, record: StepRecord) -> None: ...
+    async def on_step(self, record: RuntimeStepRecord) -> None: ...
 
-    async def on_finish(self, result: RunResult) -> None: ...
+    async def on_finish(self, result: RuntimeRunResult) -> None: ...

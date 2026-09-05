@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import Field, model_validator
 
 from uptick_agent._model_base import StrictModel, preserve_legacy_identity
 from uptick_agent.memory.compatibility.contracts import MemoryMatch
-from uptick_agent.memory.contracts import DecisionMemoryContext, ObjectiveMetric, OperationLink
+from uptick_agent.memory.contracts import DecisionMemoryContext
+from uptick_agent.simulator.actions import AgentAction, V1AgentAction, V2AgentAction
 
-from .actions import AgentAction, V1AgentAction, V2AgentAction
+from .runtime import ToolResult
 
 
 class NextStep(StrictModel):
@@ -33,16 +32,6 @@ class V1NextStep(NextStep):
 
 class V2NextStep(NextStep):
     action: V2AgentAction
-
-
-class ToolResult(StrictModel):
-    action_kind: str
-    ok: bool = True
-    summary: str
-    data: dict[str, Any] = Field(default_factory=dict)
-    objective_metrics: list[ObjectiveMetric] = Field(default_factory=list)
-    operation_links: list[OperationLink] = Field(default_factory=list)
-    terminal: bool = False
 
 
 class RecentStep(StrictModel):

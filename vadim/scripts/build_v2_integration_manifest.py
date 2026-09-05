@@ -12,6 +12,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT, compose_system_prompt
 from uptick_agent.evaluation import (
     V2Budget,
     V2Condition,
@@ -26,7 +27,6 @@ from uptick_agent.evaluation import (
 )
 from uptick_agent.evaluation_presets import all_experimental_presets
 from uptick_agent.memory.config import AuditConfiguration
-from uptick_agent.simulator.briefings import V2_SYSTEM_PROMPT
 from uptick_agent.simulator.v2_policy import SimulatorV2TimeBudgetPolicy
 from uptick_agent.stage0 import sha256_file, sha256_json, sha256_tree
 
@@ -107,10 +107,13 @@ def build_manifest(
     max_context_items: int = 128,
     max_context_tokens: int = 16_000,
     smoke: bool = False,
+    environment_briefing: str,
 ) -> V2Manifest:
     """Return a sealed declaration without performing any evaluation work."""
 
     root = source_root.resolve()
+    if not environment_briefing.strip():
+        raise ValueError("external environment briefing must not be empty")
     source_dir = root / "src"
     if not source_dir.is_dir():
         raise ValueError(f"source root must contain src/: {root}")
@@ -140,7 +143,9 @@ def build_manifest(
             provider="codex",
             model="gpt-5.6-sol",
             settings=settings,
-            prompt_fingerprint=hashlib.sha256(V2_SYSTEM_PROMPT.encode()).hexdigest(),
+            prompt_fingerprint=hashlib.sha256(
+                compose_system_prompt(CORE_SYSTEM_PROMPT, environment_briefing).encode()
+            ).hexdigest(),
             settings_fingerprint=sha256_json(settings),
             token_estimator_id="utf8-byte-upper-bound",
             token_estimator_version="1.0",
@@ -201,6 +206,12 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--source-root", type=Path, required=True)
+    parser.add_argument(
+        "--environment-briefing",
+        type=Path,
+        required=True,
+        help="Previously observed sanitized environment startup text.",
+    )
     parser.add_argument("--simulator-url", default=_DEFAULT_SIMULATOR_URL)
     parser.add_argument("--profile-id", default=_DEFAULT_PROFILE_ID)
     parser.add_argument("--training-seeds", nargs="+", type=int, default=_DEFAULT_TRAINING_SEEDS)
@@ -234,6 +245,7 @@ def main(argv: list[str] | None = None) -> int:
             max_context_items=args.max_context_items,
             max_context_tokens=args.max_context_tokens,
             smoke=args.smoke,
+            environment_briefing=args.environment_briefing.read_text(encoding="utf-8"),
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))

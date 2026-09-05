@@ -7,6 +7,8 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Protocol
 
+from pydantic import BaseModel
+
 from uptick_agent.benchmarks.incidents import (
     DEFAULT_REPAIR_MAPPING,
     ControlledIncidentEnvironment,
@@ -16,7 +18,8 @@ from uptick_agent.benchmarks.incidents import (
     validate_mapping,
 )
 from uptick_agent.composition.memory import compose_experimental_runtime
-from uptick_agent.decisions.contracts import DecisionContext, NextStep
+from uptick_agent.decisions.runtime import RuntimeDecisionContext
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec
 from uptick_agent.evaluation.contracts import V2SnapshotRef
 from uptick_agent.evaluation.learning_cycle import (
     AttemptEvidence,
@@ -33,12 +36,14 @@ from uptick_agent.memory.stores import SqliteStructuredStore
 from uptick_agent.ports import DecisionModel
 from uptick_agent.runs.config import AgentConfig
 from uptick_agent.runs.execute import AgentRunner
-from uptick_agent.runs.results import RunResult, StepRecord
+from uptick_agent.runs.runtime_results import RuntimeRunResult, RuntimeStepRecord
 from uptick_agent.stage0 import sha256_file
 
 
 class LearningModelFactory(Protocol):
-    def __call__(self, phase: str, condition_id: str, seed: int) -> DecisionModel: ...
+    def __call__(
+        self, phase: str, condition_id: str, seed: int, spec: EnvironmentDecisionSpec
+    ) -> DecisionModel: ...
 
 
 def hypothesis_configuration() -> MemoryConfiguration:
@@ -96,7 +101,7 @@ class _RecordedModel:
     def last_telemetry(self) -> object:
         return getattr(self._model, "last_telemetry", None)
 
-    async def decide(self, context: DecisionContext) -> NextStep:
+    async def decide(self, context: RuntimeDecisionContext) -> BaseModel:
         builder = getattr(self._model, "prompt_trace", None)
         request = (
             builder(context) if callable(builder) else {"context": context.model_dump(mode="json")}
@@ -120,7 +125,7 @@ class _RecordedModel:
         self._on_record(record)
         return decision
 
-    def prompt_trace(self, context: DecisionContext) -> dict[str, object]:
+    def prompt_trace(self, context: RuntimeDecisionContext) -> dict[str, object]:
         builder = getattr(self._model, "prompt_trace", None)
         if callable(builder):
             value = builder(context)
@@ -138,12 +143,12 @@ class _RecordedModel:
 
 class _Observer:
     def __init__(self) -> None:
-        self.steps: list[StepRecord] = []
+        self.steps: list[RuntimeStepRecord] = []
 
-    async def on_step(self, record: StepRecord) -> None:
+    async def on_step(self, record: RuntimeStepRecord) -> None:
         self.steps.append(record.model_copy(deep=True))
 
-    async def on_finish(self, result: RunResult) -> None:
+    async def on_finish(self, result: RuntimeRunResult) -> None:
         return None
 
 
@@ -179,7 +184,7 @@ def _declaration(
     )
 
 
-def _recovered(result: RunResult | None) -> bool | None:
+def _recovered(result: RuntimeRunResult | None) -> bool | None:
     if result is None:
         return None
     for metric in result.objective_metrics:
@@ -243,14 +248,14 @@ async def _run_attempt(
     finish_updates: dict[str, object]
     cancelled: asyncio.CancelledError | None = None
     try:
-        model = _RecordedModel(
-            model_factory(phase, condition_id, seed),
-            on_record=lambda record: journal.record_prompt(row.attempt_id, record),
-        )
         environment = ControlledIncidentEnvironment(
             case,
             mapping,
             run_id_suffix=run_id_suffix,  # type: ignore[arg-type]
+        )
+        model = _RecordedModel(
+            model_factory(phase, condition_id, seed, environment.decision_spec),
+            on_record=lambda record: journal.record_prompt(row.attempt_id, record),
         )
         config = AgentConfig(
             agent_id="controlled-incident-learning",

@@ -15,7 +15,13 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from uptick_agent.decisions.actions import (
+from uptick_agent.decisions.contracts import V2NextStep
+from uptick_agent.decisions.runtime import ToolResult
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec
+from uptick_agent.memory.contracts import ObjectiveMetric, OperationLink
+from uptick_agent.redaction import sanitize_json
+from uptick_agent.runs.results import RunResult
+from uptick_agent.simulator.actions import (
     AdvanceTime,
     AgentAction,
     FinishRun,
@@ -27,10 +33,6 @@ from uptick_agent.decisions.actions import (
     V2AdvanceTime,
     V2ProbePage,
 )
-from uptick_agent.decisions.contracts import ToolResult
-from uptick_agent.memory.contracts import ObjectiveMetric, OperationLink
-from uptick_agent.redaction import sanitize_json
-from uptick_agent.runs.results import RunResult
 from uptick_agent.simulator.v2_client import SimulatorV2ApiError, SimulatorV2Client
 from uptick_agent.v2_actions import ControlCommand, GetControlCommands, GetInbox
 
@@ -61,6 +63,7 @@ class SimulatorV2Session:
     seen_log_ids: set[str] = field(default_factory=set)
     inbox_cursor: str | None = None
     seen_inbox_ids: set[str] = field(default_factory=set)
+    operation_statuses: dict[str, str] = field(default_factory=dict)
 
     def next_request_id(self, kind: str) -> str:
         self.request_number += 1
@@ -291,8 +294,36 @@ def _error_result(action_kind: str, error: BaseException, *, terminal: bool = Fa
 class SimulatorV2Environment:
     """Translate simulator v2 actions and responses to generic agent ports."""
 
-    def __init__(self, client: SimulatorV2Client) -> None:
+    def __init__(
+        self, client: SimulatorV2Client, *, environment_briefing: str | None = None
+    ) -> None:
         self.client = client
+        # An optional briefing is an expected external startup document.  It
+        # is never used as a local fallback when the server omits its public
+        # commands document.
+        self._expected_environment_briefing = environment_briefing
+        self._decision_spec: EnvironmentDecisionSpec | None = None
+        self._startup_spec_error: str | None = None
+
+    @property
+    def decision_spec(self) -> EnvironmentDecisionSpec:
+        if self._decision_spec is None:
+            detail = self._startup_spec_error or "environment has not started"
+            raise RuntimeError(f"environment decision spec is unavailable: {detail}")
+        return self._decision_spec
+
+    @staticmethod
+    def _update_public_state(session: SimulatorV2Session, result: ToolResult) -> None:
+        for link in result.operation_links:
+            if link.relation == "initiated" and result.ok:
+                session.operation_statuses[link.operation_id] = "accepted"
+            elif link.relation == "observed":
+                status = result.data.get("status")
+                if isinstance(status, str):
+                    session.operation_statuses[link.operation_id] = status
+
+    def public_state(self, session: SimulatorV2Session) -> dict[str, object]:
+        return {"operation_statuses": dict(session.operation_statuses)}
 
     async def start(
         self,
@@ -310,6 +341,8 @@ class SimulatorV2Environment:
             request_id=request_id or f"uptick-{prefix}-start",
         )
         data = _safe(started)
+        self._decision_spec = None
+        self._startup_spec_error = None
         simulation_time = _clock_time(data)
         run_id = data.get("run_id")
         status = data.get("status")
@@ -332,6 +365,22 @@ class SimulatorV2Environment:
             logs_initial_from=simulation_time,
             request_prefix=prefix,
         )
+        startup_briefing = data.get("commands_markdown")
+        if not isinstance(startup_briefing, str) or not startup_briefing.strip():
+            self._startup_spec_error = "start response has no non-empty sanitized commands_markdown"
+        elif (
+            self._expected_environment_briefing is not None
+            and startup_briefing != self._expected_environment_briefing
+        ):
+            self._startup_spec_error = (
+                "start response commands_markdown differs from the expected briefing"
+            )
+        else:
+            # Freeze the actual public startup input before any decision request.
+            self._decision_spec = EnvironmentDecisionSpec(
+                response_model=V2NextStep,
+                environment_briefing=startup_briefing,
+            )
         return session, _result(
             "start",
             data,
@@ -341,12 +390,12 @@ class SimulatorV2Environment:
 
     async def execute(self, session: SimulatorV2Session, action: AgentAction) -> ToolResult:
         try:
-            return await self._execute(session, action)
+            result = await self._execute(session, action)
         except SimulatorV2ApiError as error:
             code = getattr(error, "code", "")
             if code in {"RUN_COMPLETED", "RUN_NOT_RUNNING"}:
                 # The final status is checked by finish() through overview.
-                return ToolResult(
+                result = ToolResult(
                     action_kind=action.kind,
                     ok=True,
                     summary="The simulator reports that this run is no longer running.",
@@ -359,7 +408,9 @@ class SimulatorV2Environment:
                     ),
                     terminal=True,
                 )
-            return _error_result(action.kind, error)
+            result = _error_result(action.kind, error)
+        self._update_public_state(session, result)
+        return result
 
     async def _execute(self, session: SimulatorV2Session, action: AgentAction) -> ToolResult:
         if isinstance(action, FinishRun):

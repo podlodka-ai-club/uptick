@@ -173,6 +173,7 @@ def test_swapping_hidden_mapping_leaves_public_first_request_identical() -> None
         )
         trace = StructuredDecisionModel(
             _CaptureClient(),
+            response_model=NextStep,
             system_prompt="Choose one typed repair from public evidence.",
         ).prompt_trace(context)
         return latest.model_dump(mode="json"), trace
@@ -227,7 +228,7 @@ def test_wrong_repair_keeps_incident_active_until_a_later_action() -> None:
 
 
 def test_learning_cycle_uses_observed_hypotheses_and_reopened_isolated_eval(tmp_path: Path) -> None:
-    def model_factory(phase: str, condition_id: str, _seed: int):
+    def model_factory(phase: str, condition_id: str, _seed: int, _spec):
         return _CycleModel(phase, condition_id)
 
     report = asyncio.run(
@@ -340,7 +341,7 @@ def test_timeout_retains_started_run_id_and_inflight_request(tmp_path: Path) -> 
 
 
 def test_cleanup_error_is_retained_without_stopping_later_attempts(tmp_path: Path) -> None:
-    def model_factory(phase: str, condition_id: str, _seed: int):
+    def model_factory(phase: str, condition_id: str, _seed: int, _spec):
         return _CloseErrorModel(phase, condition_id)
 
     report = asyncio.run(
@@ -362,7 +363,7 @@ def test_cleanup_error_is_retained_without_stopping_later_attempts(tmp_path: Pat
 def test_cleanup_cancellation_finalizes_current_attempt_and_stops_cycle(tmp_path: Path) -> None:
     calls: list[tuple[str, str, int]] = []
 
-    def model_factory(phase: str, condition_id: str, seed: int):
+    def model_factory(phase: str, condition_id: str, seed: int, _spec):
         calls.append((phase, condition_id, seed))
         return _CancelledCloseModel(phase, condition_id)
 

@@ -9,6 +9,7 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Literal, TypeVar
 
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec
 from uptick_agent.evaluation.contracts import (
     FrozenEvaluationBinding,
     V2AttemptRecord,
@@ -57,6 +58,7 @@ def _stable_run_identifier(manifest_hash: str, *, block_id: str, condition_id: s
         {"manifest_hash": manifest_hash, "block_id": block_id, "condition_id": condition_id}
     )
     return f"run:{manifest_hash[:16]}:{digest[:48]}"
+
 
 class EvaluationRuntime:
     """Execute the ordered v2 matrix and return a verified exploratory report."""
@@ -333,7 +335,30 @@ class EvaluationRuntime:
         telemetry_model: _TelemetryModelAdapter | None = None
         memory_adapter: _MemoryAdapter | None = None
         try:
-            model = await _maybe_await(self.model_factory(block, condition, running, run_id))
+            observer.startup_artifacts["startup_observation"] = self.journal.artifacts.put(
+                "startup_observation",
+                running.attempt_id,
+                {"run_id": run_id, "observation": latest.model_dump(mode="json")},
+            )
+            decision_spec = getattr(environment, "decision_spec", None)
+            if not isinstance(decision_spec, EnvironmentDecisionSpec):
+                raise TypeError("evaluation environment must provide an EnvironmentDecisionSpec")
+            expected_prompt = self.manifest.profile.provider.prompt_fingerprint
+            observer.startup_artifacts["startup_spec"] = self.journal.artifacts.put(
+                "startup_spec",
+                running.attempt_id,
+                {
+                    "run_id": run_id,
+                    "spec": decision_spec.public_input(),
+                    "spec_fingerprint": decision_spec.fingerprint,
+                    "expected_prompt_fingerprint": expected_prompt,
+                },
+            )
+            if decision_spec.objective is not None:
+                config = config.model_copy(update={"objective": decision_spec.objective})
+            model = await _maybe_await(
+                self.model_factory(block, condition, running, run_id, decision_spec)
+            )
             telemetry_model = _TelemetryModelAdapter(model)
             memory = await _maybe_await(
                 self.memory_factory(block, condition, running, run_id, block.phase, binding)

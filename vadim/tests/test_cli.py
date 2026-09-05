@@ -68,6 +68,7 @@ def test_cli_prompt_trace_matches_the_neutral_request_sent_to_client() -> None:
     async def scenario() -> None:
         client = FakeClient()
         model = cli.StructuredDecisionModel(client)
+        assert model.response_model is NextStep
         context = DecisionContext(
             objective="keep healthy",
             run_id="run-1",

@@ -61,11 +61,14 @@ explicit revalidation; missing acceptance metadata is never inferred.
 ## Evaluation command
 
 From `vadim/`, first build an offline integration declaration (the command
-refuses to overwrite an existing manifest):
+refuses to overwrite an existing manifest). Supply the exact sanitized startup
+document from an earlier observation or separately recorded discovery run. Do not
+fetch it during the declared experiment and then rewrite its manifest:
 
 ```bash
 uv run --extra codex --locked python scripts/build_v2_integration_manifest.py \
-  --source-root "$PWD" --output artifacts/matrix-manifest.json
+  --source-root "$PWD" --output artifacts/matrix-manifest.json \
+  --environment-briefing path/to/observed-sanitized-commands.md
 ```
 
 Defaults: 14 supported conditions, training seeds 51/52, evaluation seed 53,
@@ -80,6 +83,7 @@ env -u OPENAI_API_KEY -u CODEX_API_KEY \
   uv run --extra codex --locked uptick-agent evaluate-v2 \
   --source-root "$PWD" \
   --profile path/to/manifest.json \
+  --environment-briefing path/to/observed-sanitized-commands.md \
   --simulator-url http://81.176.229.58:8080 \
   --artifacts artifacts/new-experiment
 ```
@@ -88,7 +92,10 @@ The source root must contain the executing package under `src/`,
 `pyproject.toml` and `uv.lock`. Execution verifies the actual source revision,
 scoped dirty state, source and lock hashes, pyproject/runtime fingerprint,
 prompt, policy, resolved generation settings, context estimator and declared
-endpoint fingerprint before constructing clients. Referenced immutable world
+endpoint fingerprint before constructing clients. After physical startup, the
+actual environment text is checked again before provider construction; a mismatch
+retains the failed attempt and its run ID. Startup observations/specifications are
+linked to the sealed trace. Referenced immutable world
 content identities must come from the experiment owner; API schema hashes and
 seed labels do not establish them.
 

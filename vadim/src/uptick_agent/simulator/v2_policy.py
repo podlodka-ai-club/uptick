@@ -13,8 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
-from uptick_agent.decisions.actions import AdvanceTimeStopCondition, V2AdvanceTime
 from uptick_agent.decisions.contracts import DecisionContext, NextStep
+from uptick_agent.simulator.actions import AdvanceTimeStopCondition, V2AdvanceTime
 
 V2_TIME_BUDGET_POLICY_ID = "simulator-v2-time-budget"
 V2_TIME_BUDGET_POLICY_VERSION = "1.1"
@@ -207,8 +207,16 @@ def calculate_v2_time_budget(context: DecisionContext) -> V2TimeBudgetPlan | Non
 
 def _has_pending_operation(context: DecisionContext) -> bool:
     pending = {"accepted", "pending", "queued", "running"}
+    state = context.run_state
+    statuses = (
+        state.get("operation_statuses", {})
+        if isinstance(state, dict)
+        else getattr(state, "operation_statuses", {})
+    )
+    if not isinstance(statuses, dict):
+        return False
     return any(
-        status.lower() in pending for status in context.run_state.operation_statuses.values()
+        isinstance(status, str) and status.lower() in pending for status in statuses.values()
     )
 
 

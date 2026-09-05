@@ -140,12 +140,24 @@ def _verify_artifact_links(
                 expected_hash=attempt.result_hash,
             )
         if attempt.trace_hash is not None:
-            _require_artifact(
+            trace = _require_artifact(
                 artifacts,
                 kind="trace",
                 artifact_id=attempt.attempt_id,
                 expected_hash=attempt.trace_hash,
             )
+            startup = trace["value"].get("startup_artifacts", {})
+            if not isinstance(startup, dict):
+                raise ValueError("invalid startup artifact links in trace")
+            for kind, digest in startup.items():
+                if kind not in {"startup_observation", "startup_spec"}:
+                    raise ValueError("unknown startup artifact kind")
+                _require_artifact(
+                    artifacts,
+                    kind=kind,
+                    artifact_id=attempt.attempt_id,
+                    expected_hash=digest,
+                )
     for binding in report.frozen_bindings:
         artifact = _require_artifact(
             artifacts,

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 
-from uptick_agent.decisions.contracts import ToolResult
+from uptick_agent.decisions.runtime import ToolResult
 from uptick_agent.memory.compatibility.contracts import MemoryEntry
 from uptick_agent.memory.contracts import (
     DecisionMemoryContext,
@@ -14,7 +14,7 @@ from uptick_agent.memory.contracts import (
     RunOutcome,
 )
 from uptick_agent.ports import AgentMemory, DecisionModel, Environment, EnvironmentSession
-from uptick_agent.runs.results import RunResult, StepRecord
+from uptick_agent.runs.runtime_results import RuntimeRunResult, RuntimeStepRecord
 
 
 class _PrestartedEnvironment:
@@ -33,6 +33,7 @@ class _PrestartedEnvironment:
         self._session = _AttributedSession(session, environment_id, scenario_id)
         self._latest = latest
         self._consumed = False
+        self.decision_spec = environment.decision_spec
 
     async def start(
         self, *, seed: int, agent_id: str, agent_version: str
@@ -50,6 +51,14 @@ class _PrestartedEnvironment:
             action,
         )  # type: ignore[arg-type]
 
+    def public_state(self, session: EnvironmentSession) -> Mapping[str, object]:
+        state = self._environment.public_state(
+            self._session._session if isinstance(session, _AttributedSession) else session
+        )
+        if isinstance(state, Mapping):
+            return state
+        return state.model_dump(mode="json")
+
     async def finish(
         self,
         session: EnvironmentSession,
@@ -57,7 +66,7 @@ class _PrestartedEnvironment:
         steps: int,
         duration_seconds: float,
         stop_reason: str,
-    ) -> RunResult:
+    ) -> RuntimeRunResult:
         return await self._environment.finish(
             self._session._session if isinstance(session, _AttributedSession) else session,
             steps=steps,
@@ -82,13 +91,14 @@ class _TraceObserver:
     """Capture the runner's actual step and finish records for the artifact."""
 
     def __init__(self) -> None:
-        self.steps: list[StepRecord] = []
-        self.result: RunResult | None = None
+        self.steps: list[RuntimeStepRecord] = []
+        self.startup_artifacts: dict[str, str] = {}
+        self.result: RuntimeRunResult | None = None
 
-    async def on_step(self, record: StepRecord) -> None:
+    async def on_step(self, record: RuntimeStepRecord) -> None:
         self.steps.append(record.model_copy(deep=True))
 
-    async def on_finish(self, result: RunResult) -> None:
+    async def on_finish(self, result: RuntimeRunResult) -> None:
         self.result = result.model_copy(deep=True)
 
 

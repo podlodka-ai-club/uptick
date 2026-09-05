@@ -5,12 +5,16 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 
-from uptick_agent.decisions.actions import ApplyFix
-from uptick_agent.decisions.contracts import ToolResult
+from pydantic import Field, model_validator
+
+from uptick_agent._model_base import StrictModel
+from uptick_agent.decisions.runtime import ToolResult
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec
 from uptick_agent.evaluation.learning_cycle import content_hash
 from uptick_agent.memory.contracts import ObjectiveMetric
 from uptick_agent.ports import EnvironmentSession
-from uptick_agent.runs.results import RunResult
+from uptick_agent.runs.runtime_results import RuntimeRunResult
+from uptick_agent.simulator.actions import ApplyFix
 
 INCIDENT_CODES = ("q7m", "k2p", "r4x", "v9n")
 REPAIR_IDS = ("lumen", "ivory")
@@ -45,6 +49,26 @@ class IncidentSession:
     scenario_id: str = ""
     recovered: bool = False
     action_count: int = 0
+
+
+class IncidentDecision(StrictModel):
+    """The benchmark's complete public decision schema.
+
+    It deliberately advertises one adapter-owned remediation tool.  The
+    evaluator's private mapping is never part of this model or its schema.
+    """
+
+    current_situation: str = Field(max_length=1000)
+    hypothesis: str = Field(max_length=500)
+    remaining_steps: list[str] = Field(min_length=0, max_length=5)
+    task_completed: bool = False
+    action: ApplyFix
+
+    @model_validator(mode="after")
+    def cannot_finish_before_recovery(self) -> IncidentDecision:
+        if self.task_completed:
+            raise ValueError("incident decisions cannot finish without an environment outcome")
+        return self
 
 
 def training_case_for_seed(seed: int) -> IncidentCase:
@@ -92,6 +116,22 @@ class ControlledIncidentEnvironment:
         self._mapping = dict(mapping)
         self._run_id_suffix = run_id_suffix
         self.last_session: IncidentSession | None = None
+
+    @property
+    def decision_spec(self) -> EnvironmentDecisionSpec:
+        return EnvironmentDecisionSpec(
+            response_model=IncidentDecision,
+            environment_briefing=(
+                "The public incident interface exposes one typed ApplyFix action. "
+                "Use only observed incident evidence and the listed repair choices."
+            ),
+            objective="Recover the incident through public evidence and typed remediation.",
+        )
+
+    def public_state(self, session: IncidentSession) -> dict[str, object]:
+        # Recovery is already returned in the public ToolResult.  No hidden
+        # fixture state is projected into the model context here.
+        return {}
 
     async def start(self, *, seed: int, agent_id: str, agent_version: str):
         expected = (
@@ -156,10 +196,10 @@ class ControlledIncidentEnvironment:
         steps: int,
         duration_seconds: float,
         stop_reason: str,
-    ) -> RunResult:
+    ) -> RuntimeRunResult:
         if not isinstance(session, IncidentSession):
             raise TypeError("controlled fixture received another session")
-        return RunResult(
+        return RuntimeRunResult(
             run_id=session.run_id,
             seed=session.seed,
             agent_id="controlled-incident-learning",
@@ -198,6 +238,7 @@ __all__ = [
     "EVALUATION_CASES",
     "INCIDENT_CODES",
     "IncidentCase",
+    "IncidentDecision",
     "REPAIR_IDS",
     "TRAINING_SEEDS",
     "evaluation_case_for_seed",

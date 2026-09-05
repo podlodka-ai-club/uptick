@@ -62,6 +62,7 @@ class FakeV2Client:
             "status": "running",
             "simulation_time": "2033-03-01T00:00:00Z",
             "simulation_ends_at": "2033-03-01T01:00:00Z",
+            "commands_markdown": "public simulator startup instructions",
             "control_panel_auth": {
                 "scheme": "basic",
                 "username": "panel-user",

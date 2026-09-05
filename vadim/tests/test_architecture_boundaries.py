@@ -128,6 +128,7 @@ def test_structured_decision_bridge_has_a_provider_neutral_import_boundary() -> 
     _fresh_process(
         """
 import sys
+from pydantic import BaseModel
 from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT
 from uptick_agent.llm.decision_model import StructuredDecisionModel
 
@@ -137,7 +138,12 @@ assert 'uptick_agent.llm.openai' not in sys.modules
 assert 'uptick_agent.simulator' not in sys.modules
 class Client:
     model = 'test-model'
-assert StructuredDecisionModel(Client()).system_prompt == CORE_SYSTEM_PROMPT
+class Response(BaseModel):
+    value: int
+assert (
+    StructuredDecisionModel(Client(), response_model=Response).system_prompt
+    == CORE_SYSTEM_PROMPT
+)
 """
     )
 
@@ -145,6 +151,7 @@ assert StructuredDecisionModel(Client()).system_prompt == CORE_SYSTEM_PROMPT
 def test_prompt_composition_uses_one_neutral_core_and_legacy_exports() -> None:
     import hashlib
 
+    from uptick_agent.decisions.contracts import NextStep
     from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT, compose_system_prompt
     from uptick_agent.llm.decision_model import StructuredDecisionModel
     from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT
@@ -169,7 +176,9 @@ def test_prompt_composition_uses_one_neutral_core_and_legacy_exports() -> None:
         model = "legacy-model"
 
     assert (
-        StructuredDecisionModel(Client(), system_prompt=DEFAULT_SYSTEM_PROMPT).system_prompt
+        StructuredDecisionModel(
+            Client(), response_model=NextStep, system_prompt=DEFAULT_SYSTEM_PROMPT
+        ).system_prompt
         == DEFAULT_SYSTEM_PROMPT
     )
     assert LegacyV2 == V2_SYSTEM_PROMPT
@@ -177,11 +186,21 @@ def test_prompt_composition_uses_one_neutral_core_and_legacy_exports() -> None:
 
 
 def test_cli_and_manifest_builder_use_the_composed_v2_prompt() -> None:
+    import hashlib
     import runpy
 
-    from uptick_agent import cli
-    from uptick_agent.simulator.briefings import V2_SYSTEM_PROMPT
+    from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT, compose_system_prompt
 
-    assert cli.V2_SYSTEM_PROMPT is V2_SYSTEM_PROMPT
     manifest_module = runpy.run_path(str(ROOT / "scripts/build_v2_integration_manifest.py"))
-    assert manifest_module["V2_SYSTEM_PROMPT"] is V2_SYSTEM_PROMPT
+    external_briefing = "externally preregistered startup commands"
+    manifest = manifest_module["build_manifest"](
+        ROOT,
+        environment_briefing=external_briefing,
+        smoke=True,
+    )
+    assert (
+        manifest.profile.provider.prompt_fingerprint
+        == hashlib.sha256(
+            compose_system_prompt(CORE_SYSTEM_PROMPT, external_briefing).encode()
+        ).hexdigest()
+    )

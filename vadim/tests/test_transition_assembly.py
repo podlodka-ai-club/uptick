@@ -171,7 +171,7 @@ def test_transition_assembler_has_no_environment_provider_or_module_imports() ->
 
 
 def test_runner_does_not_import_an_environment_or_episodic_implementation() -> None:
-    source = (Path(__file__).parents[1] / "src/uptick_agent/runner.py").read_text()
+    source = (Path(__file__).parents[1] / "src/uptick_agent/runs/execute.py").read_text()
     imports: set[str] = set()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Import):

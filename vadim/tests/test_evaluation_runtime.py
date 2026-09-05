@@ -28,6 +28,7 @@ from uptick_agent.evaluation_runtime import (
     EvaluationRuntime,
     FilesystemEvaluationArtifactStore,
     InMemoryEvaluationArtifactStore,
+    _legacy_model_factory,
     _provider_telemetry,
 )
 from uptick_agent.memory.config import AuditConfiguration, MemoryConfiguration, ModuleConfig
@@ -293,6 +294,27 @@ def _binding_factory(manifest, seen):
         )
 
     return factory
+
+
+def test_legacy_model_factory_does_not_treat_kwargs_as_fifth_positional() -> None:
+    calls: list[tuple] = []
+
+    def factory(block, condition, attempt, run_id, **kwargs):
+        calls.append((block, condition, attempt, run_id, kwargs))
+        return "model"
+
+    wrapped = _legacy_model_factory(factory)
+
+    assert wrapped("block", "condition", "attempt", "run", object()) == "model"
+    assert calls == [("block", "condition", "attempt", "run", {})]
+
+
+def test_legacy_model_factory_preserves_type_error_raised_inside_factory() -> None:
+    def factory(block, condition, attempt, run_id):
+        raise TypeError("factory body")
+
+    with pytest.raises(TypeError, match="factory body"):
+        _legacy_model_factory(factory)("block", "condition", "attempt", "run", object())
 
 
 def test_runtime_seals_manifest_before_start_and_passes_physical_run_id_to_factories() -> None:

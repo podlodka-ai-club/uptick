@@ -4,11 +4,33 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
 
 ## Resume point
 
+- The environment boundary now supplies typed tools and a fixed external startup
+  description. Canonical model construction follows physical startup; v2 uses
+  actual sanitized `commands_markdown`, with no local fallback. The runner is
+  neutral and preserves new actions through context, traces and native SQLite.
+  Startup observations/specs are linked into sealed evaluation traces; missing
+  or mismatched input retains the physical ID and fails before the provider.
+  Both v2 manifest building and execution now require `--environment-briefing`
+  for an already observed external document. See `ENVIRONMENT_BOUNDARY.md`.
+- Root completed the first boundary review and repaired four concrete issues:
+  legacy environment/factory compatibility, startup artifact binding, historical
+  CLI schema default and memory finalization after missing startup specs.
+  Final full suite: 567 passed, two opt-in live skips. All 56 old schemas/identities
+  and four historical sealed reports remain compatible. Review pass 2 is clean;
+  no new live effectiveness claim is attached to these refactors yet.
+- Subagent `policy_guard` is implementing two missing public observability tools
+  (`query_logs`, `query_metrics`) only in ignored scratch copy
+  `artifacts/observability-tools-draft/`. Root must review and transfer its exact
+  changed files after this boundary checkpoint. The main checkout is not its
+  current write target. Inventory: `PUBLIC_TOOL_COVERAGE.md`.
+- Next: test and commit those tools, run a separately sealed current-code learning
+  cycle, verify actual requests/support/outcomes, and record conclusions. Keep
+  the prior two results; no-memory losses and all failed attempts remain visible.
 - Branch: `codex/vadim-agent-memory`. Latest implementation checkpoint:
   `17ef1a6` (controlled decision prompt); `c8c16df` implements the learning cycle,
   and `948cc36` separates architecture owners. Resolve the latest documentation
   checkpoint and remote SHA from Git history.
-- The requested architecture correction and controlled learning-cycle mechanism
+- The earlier responsibility split and controlled learning-cycle mechanism
   are complete. Owners are `decisions/`, `runs/`, `evaluation/`, `composition/`
   and native `memory/`; old imports remain compatibility facades. The runner and
   extracted provenance validator preserve behavior; 56 old schemas/identities
