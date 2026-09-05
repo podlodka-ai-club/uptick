@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
+from ipaddress import IPv4Address, IPv6Address, ip_network
 from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
@@ -69,7 +69,6 @@ MetricName = Literal[
     "uptime_ratio",
 ]
 IPAddress = IPv4Address | IPv6Address
-NetworkCIDR = IPv4Network | IPv6Network
 
 
 class QueryLogs(StrictModel):
@@ -83,7 +82,12 @@ class QueryLogs(StrictModel):
     has_error: bool | None = None
     error: RequestFailureCode | None = None
     source_ip: IPAddress | None = None
-    source_cidr: NetworkCIDR | None = None
+    source_cidr: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=49,
+        pattern=r"^[0-9A-Fa-f:.]+/[0-9]{1,3}$",
+    )
     user_agent: str | None = Field(default=None, min_length=1, max_length=2048)
     region_code: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
     firewall_rule_id: str | None = Field(
@@ -99,6 +103,11 @@ class QueryLogs(StrictModel):
         _validate_time_window(self.from_time, self.to_time, require_pair=False)
         if self.has_error is False and self.error is not None:
             raise ValueError("error is incompatible with has_error=false")
+        if self.source_cidr is not None:
+            try:
+                ip_network(self.source_cidr, strict=True)
+            except ValueError:
+                raise ValueError("source_cidr must be a canonical IPv4 or IPv6 network") from None
         return self
 
 

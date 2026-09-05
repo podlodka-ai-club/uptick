@@ -96,6 +96,19 @@ def test_canonical_v2_decision_adds_queries_without_changing_legacy_schema() -> 
     assert "query_logs" in str(SimulatorV2Decision.model_json_schema())
     assert "query_metrics" in str(SimulatorV2Decision.model_json_schema())
     assert "query_logs" not in str(V2NextStep.model_json_schema())
+    schema = str(SimulatorV2Decision.model_json_schema())
+    assert "ipv4network" not in schema
+    assert "ipv6network" not in schema
+
+
+def test_query_logs_accepts_canonical_ipv4_and_ipv6_cidrs() -> None:
+    assert QueryLogs(source_cidr="203.0.113.0/24").source_cidr == "203.0.113.0/24"
+    assert QueryLogs(source_cidr="2001:db8::/32").source_cidr == "2001:db8::/32"
+
+    with pytest.raises(ValidationError):
+        QueryLogs(source_cidr="203.0.113.1/24")
+    with pytest.raises(ValidationError):
+        QueryLogs(source_cidr="not-a-network")
 
 
 def test_v2_environment_publishes_canonical_decision_schema_after_start() -> None:
