@@ -18,6 +18,7 @@ from uptick_agent.models import (
     V2ProbePage,
 )
 from uptick_agent.runner import AgentRunner
+from uptick_agent.simulator.v2_client import SimulatorV2ApiError
 from uptick_agent.simulator.v2_environment import SimulatorV2Environment, SimulatorV2Session
 from uptick_agent.v2_actions import ControlCommand, ServerDeleteRequest
 
@@ -345,6 +346,39 @@ def test_probe_logical_failure_and_operation_failure_do_not_claim_terminal_run()
         assert operation.ok is False
         assert operation.terminal is False
         assert operation.operation_links[0].relation == "observed"
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("code", ["RUN_COMPLETED", "RUN_NOT_RUNNING"])
+def test_run_terminal_api_errors_preserve_terminal_result(code: str) -> None:
+    class TerminalErrorEnvironment(SimulatorV2Environment):
+        async def _execute(self, session, action):
+            raise SimulatorV2ApiError(409, code, "run is no longer running")
+
+    async def scenario() -> None:
+        result = await TerminalErrorEnvironment(object()).execute(_session(), GetMetrics())  # type: ignore[arg-type]
+        assert result.ok is True
+        assert result.terminal is True
+        assert result.data["code"] == code
+
+    asyncio.run(scenario())
+
+
+def test_ordinary_api_errors_remain_nonterminal_failures() -> None:
+    class ErrorEnvironment(SimulatorV2Environment):
+        async def _execute(self, session, action):
+            raise SimulatorV2ApiError(503, "TARGET_UNAVAILABLE", "target is unavailable")
+
+    async def scenario() -> None:
+        result = await ErrorEnvironment(object()).execute(_session(), GetMetrics())  # type: ignore[arg-type]
+        assert result.ok is False
+        assert result.terminal is False
+        assert result.data == {
+            "status_code": 503,
+            "code": "TARGET_UNAVAILABLE",
+            "message": "target is unavailable",
+        }
 
     asyncio.run(scenario())
 

@@ -73,7 +73,7 @@ class StructuredDecisionModel:
                     role="user",
                     content=(
                         "Choose the next action from this runtime context. JSON follows:\n"
-                        + context.model_dump_json(indent=2)
+                        + context.model_dump_json()
                     ),
                 ),
             ),

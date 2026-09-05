@@ -716,7 +716,8 @@ class SimulatorV2Environment:
                     ),
                     terminal=True,
                 )
-            result = _error_result(action.kind, error)
+            else:
+                result = _error_result(action.kind, error)
         self._update_public_state(session, result)
         self._update_last_observed(session, result, action)
         return result

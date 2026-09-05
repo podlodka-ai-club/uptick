@@ -193,8 +193,11 @@ def test_environment_owned_tool_round_trips_typed_action_and_transition(tmp_path
             "target_celsius": 21,
         }
         second_user_message = client.requests[1].messages[1].content
-        assert '"kind": "set_thermostat"' in second_user_message
-        assert '"target_celsius": 21' in second_user_message
+        second_context = json.loads(second_user_message.split("JSON follows:\n", 1)[1])
+        assert second_context["recent_steps"][0]["action"] == {
+            "kind": "set_thermostat",
+            "target_celsius": 21,
+        }
         assert "GetOverview" not in json.dumps(
             serialize_structured_generation_request(client.requests[0]), sort_keys=True
         )

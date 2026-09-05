@@ -84,7 +84,7 @@ def test_cli_prompt_trace_matches_the_neutral_request_sent_to_client() -> None:
         assert client.requests
         assert trace == serialize_structured_generation_request(client.requests[0])
         assert trace["model"] == "cli-model"
-        assert trace["messages"][1]["content"].endswith(context.model_dump_json(indent=2))
+        assert trace["messages"][1]["content"].endswith(context.model_dump_json())
 
     asyncio.run(scenario())
 

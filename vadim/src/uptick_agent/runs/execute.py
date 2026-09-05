@@ -9,7 +9,12 @@ from datetime import UTC, datetime
 from time import monotonic
 from uuid import uuid4
 
-from uptick_agent.decisions.runtime import RuntimeDecisionContext, RuntimeRecentStep, ToolResult
+from uptick_agent.decisions.runtime import (
+    RuntimeDecisionContext,
+    RuntimeRecentStep,
+    ToolResult,
+    serialize_previous_decision,
+)
 from uptick_agent.environment.contracts import (
     EnvironmentDecisionSpec,
     decision_action,
@@ -108,6 +113,7 @@ class AgentRunner:
             stop_reason = "maximum step limit reached"
             completed_steps = 0
             recent_steps: deque[RuntimeRecentStep] = deque(maxlen=6)
+            previous_decision: str | None = None
             run_state = _environment_state(self.environment, session)
             for iteration in range(1, self.config.max_steps + 1):
                 request_id = hashlib.sha256(
@@ -137,6 +143,7 @@ class AgentRunner:
                     iteration=iteration,
                     max_steps=self.config.max_steps,
                     latest_result=latest,
+                    previous_decision=previous_decision,
                     memory_context=memory_context,
                     recent_steps=list(recent_steps),
                     run_state=copy.deepcopy(run_state),
@@ -168,6 +175,9 @@ class AgentRunner:
                 )
                 step_started = monotonic()
                 decision = validate_decision(spec, await self.model.decide(context))
+                # Copy the validated output before the environment or observer
+                # can mutate the model instance passed across their boundaries.
+                previous_decision = serialize_previous_decision(decision)
                 action = decision_action(decision)
                 await self.memory.record_trace(
                     AuditTraceWrite(
