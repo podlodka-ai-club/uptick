@@ -4,76 +4,70 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
 
 ## Resume point
 
-- The environment boundary now supplies typed tools and a fixed external startup
-  description. Canonical model construction follows physical startup; v2 uses
-  actual sanitized `commands_markdown`, with no local fallback. The runner is
-  neutral and preserves new actions through context, traces and native SQLite.
-  Startup observations/specs are linked into sealed evaluation traces; missing
-  or mismatched input retains the physical ID and fails before the provider.
-  Both v2 manifest building and execution now require `--environment-briefing`
-  for an already observed external document. See `ENVIRONMENT_BOUNDARY.md`.
-- Root completed the first boundary review and repaired four concrete issues:
-  legacy environment/factory compatibility, startup artifact binding, historical
-  CLI schema default and memory finalization after missing startup specs.
-  Final full suite: 567 passed, two opt-in live skips. All 56 old schemas/identities
-  and four historical sealed reports remain compatible. Review pass 2 is clean;
-  no new live effectiveness claim is attached to these refactors yet.
-- Subagent `policy_guard` is implementing two missing public observability tools
-  (`query_logs`, `query_metrics`) only in ignored scratch copy
-  `artifacts/observability-tools-draft/`. Root must review and transfer its exact
-  changed files after this boundary checkpoint. The main checkout is not its
-  current write target. Inventory: `PUBLIC_TOOL_COVERAGE.md`.
-- Next: test and commit those tools, run a separately sealed current-code learning
-  cycle, verify actual requests/support/outcomes, and record conclusions. Keep
-  the prior two results; no-memory losses and all failed attempts remain visible.
-- Branch: `codex/vadim-agent-memory`. Latest implementation checkpoint:
-  `17ef1a6` (controlled decision prompt); `c8c16df` implements the learning cycle,
-  and `948cc36` separates architecture owners. Resolve the latest documentation
-  checkpoint and remote SHA from Git history.
-- The earlier responsibility split and controlled learning-cycle mechanism
-  are complete. Owners are `decisions/`, `runs/`, `evaluation/`, `composition/`
-  and native `memory/`; old imports remain compatibility facades. The runner and
-  extracted provenance validator preserve behavior; 56 old schemas/identities
-  match, and all four historical sealed experiments still verify.
-- The controlled fixture lives in `benchmarks/incidents.py`, accounting in
-  `evaluation/learning_cycle.py`, and wiring in `composition/learning_cycle.py`.
-  `scripts/run_learning_cycle.py` is the explicit entry point.
-  `StructuredDecisionModel` belongs to provider-neutral `llm/decision_model.py`;
-  lazy exports prevent provider import side effects.
-- Two real-model experiments completed and passed independent verification.
-  Each retained 8 training and 16 paired evaluation attempts. Initial
-  `sol-low-01`: training 8/8; no memory 4/8 versus hypotheses 6/8; 4 wins,
-  2 losses, 2 ties. The separately frozen prompt clarification `sol-low-02`:
-  training 8/8; no memory 4/8 versus hypotheses 8/8; 4 wins, 0 losses, 4 ties.
-  Each used 28 logical decisions, reopened SQLite, 44 frozen members and six
-  selected hypothesis IDs. Neither had timeouts or retained runtime failure
-  rows; both exited 0. Keep the first result, do not pool the experiments.
-  Exact pins and limitations: `LEARNING_CYCLE_RESULTS.md`.
-- These are development variants of one designed causal family, not a held-out
-  SRE or xMemory utility result. Evaluator answers stay outside model requests;
-  observed training transitions supply hypothesis evidence. Frozen evaluation
-  writes remain isolated. Provider tool restrictions are practical safeguards,
-  not a formal security-isolation proof. No activation threshold was weakened.
-- Verification: architecture checkpoint 543 passed, 2 skipped; learning-cycle
-  source checkpoint 552 passed, 2 skipped; subsequent focused suite 9/9 after
-  adding cleanup-cancellation coverage. Root review repaired config-body binding,
-  timeout physical IDs and cleanup diagnostics before the real experiments.
-- Next effectiveness priority remains public-evidence SRE diagnosis and
-  sufficient capacity targets. Policy checkpoint `8ab2b46` and its two
-  80-decision/900-second diagnostics did not complete the horizon (0/2
-  demonstrated SLO success). Use `V2_POLICY_GUARD_RESULTS.md`; obtain authoritative
-  world/context identity and a locked causal-family split before claiming live
-  learned world knowledge or held-out benefit. Seed 42 remains development data.
-- Stages 1–5 are complete. Stage 6 and the subsequent A0–A9 compositions are
-  implemented experimentally. No module has been promoted to default.
-- The v2 evaluation harness, CLI, immutable lifecycle/bindings and reports are
-  executable. Final held-out learning utility and default-promotion gates remain
-  open. Passing tests and bounded live runs do not close those gates.
+- This continuation is implemented and verified. Environment/tool boundary:
+  `62bce25`; filtered logs and metric history: `373f6ee`; provider-compatible
+  CIDR schema: `2fc633b`; lossless public timestamps: `c92e094`. Branch remains
+  `codex/vadim-agent-memory`; resolve the latest documentation/remote SHA in Git.
+- Canonical model construction follows physical startup. The environment
+  supplies a frozen decision schema and the actual sanitized server
+  `commands_markdown`, without a local startup fallback. The generic runner
+  preserves environment actions through context, traces and SQLite. Startup
+  artifacts are bound to sealed evaluation traces; missing/mismatched input
+  fails before the provider while retaining the physical ID.
+- `simulator/decisions.py` publishes `SimulatorV2Decision`; simulator actions
+  and dispatch remain adapter-owned. Historical `V2NextStep` is a compatibility
+  schema. `query_logs` exposes public filters/cursors and preserves incremental
+  reader state; `query_metrics` exposes historical windows and selected series.
+  Both preserve RFC3339 fractions exactly through decision validation and HTTP.
+  All 18 public control commands remain covered. See `PUBLIC_TOOL_COVERAGE.md`.
+- Final verification: **583 passed, 2 opt-in live skips**, Ruff and changed-file
+  formatting clean. All **56 historical schemas/identities** remain identical.
+  Root's focused implementation reviews are clean. Real tests additionally
+  verified nonempty repeat/cursor reads, the exact boundary error and metric
+  window, plus final model schema acceptance. No background model run remains.
+- Three separately retained controlled learning-cycle experiments passed
+  independent request/provenance/outcome verification. Each trained 8/8,
+  retained 24 attempts and 28 logical decisions, reopened SQLite and read
+  44 frozen members with six selected hypothesis IDs. `sol-low-01`: none 4/8,
+  hypotheses 6/8 (4 wins, 2 losses, 2 ties). `sol-low-02`: 4/8 versus 8/8.
+  `sol-low-03`, on frozen `62bce25` after the architecture refactor: 4/8 versus
+  8/8. The latter two each have 4 wins, 0 losses and 4 ties. No retained runtime
+  failures, timeouts or cleanup errors. Keep all three results separate.
+- These are variants of one designed causal family, not a held-out SRE or
+  xMemory utility result. Evaluator answers stay outside model requests;
+  observed training transitions supply evidence. Frozen evaluation writes
+  stay isolated. No activation threshold was weakened. Exact pins and limits:
+  `LEARNING_CYCLE_RESULTS.md`.
+- Live observability work retained two 60-decision/600-second diagnostics.
+  First, `bk9rZlWjelDngsa97veov1Po`, failed before a decision because the provider
+  rejected `ipv4network`. Second, `K1Ov1amam35yi4XjfXD4Uw1Q`, accepted the CIDR
+  correction, executed 42 decisions and timed out. It selected query_logs 3
+  times and query_metrics twice, reaching 14.4836% of the horizon. Last metric
+  at step 40: uptime 0.9993373478400721, downtime 58.016577125 seconds. These
+  are intermediate measurements; **0/2 demonstrated SLO successes**.
+- The live empty-window investigation found nanosecond truncation: a to-bound
+  ending .524467 returned zero errors; original .524467913Z returned the exact
+  stopping error. The c92e094 canonical decision/HTTP path now returns that row,
+  repeats it and preserves the metric window. A separate 2-decision schema
+  check, `T3t3dlx2KGrNrlqhWv1qNJLC`, exited 0 on c92e094, still nonterminal.
+  Direct smokes and the failed pre-HTTP verification helper remain recorded.
+  See `OBSERVABILITY_RESULTS.md`; do not turn these checks into SLO claims.
+- Next effectiveness priority: use precise public error windows to diagnose and
+  test sufficient corrective capacity through a full SRE horizon. Declare a
+  new development experiment before running; preserve the failed diagnostics.
+  A successful no-memory SRE policy is still unproven. Live memory activation
+  and held-out benefit also require authoritative immutable world/family
+  identities, absent from the public API. Seed 42 remains development data.
+- Stages 1–5 are complete. Stage 6 and A0–A9 compositions are implemented
+  experimentally; their integration matrix is complete. Held-out utility and
+  default-promotion gates remain open. xMemory is optional, with no full
+  upstream generation/embedding effectiveness run or immutable snapshot export.
+  No fair comparison with Alex's actual agent has been executed.
 - Work only below `vadim/`. The modified root `README.md` and untracked root
-  `docs/` belong to the user; do not edit or stage them. Scoped commits and
-  pushes on this branch remain explicitly authorized.
-- Root owns planning, architecture, review and verification; delegate bounded
-  implementation work to subagents. Ponytail remains active.
+  `docs/` belong to the user; do not edit or stage them. Scoped commits/pushes
+  on this branch remain authorized. Runtime artifacts are ignored and must
+  never be committed. Root owns planning, architecture, review and verification;
+  delegate bounded implementation. Ponytail remains active.
 
 ## Read next
 
@@ -99,8 +93,11 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
     failure, policy 1.1 correction and operation-polling diagnostics.
 11. `docs/agent-memory-design/LEARNING_CYCLE_PLAN.md`: controlled durable learning
     experiment, paired decisions, evaluator separation and limits.
-12. `docs/agent-memory-design/LEARNING_CYCLE_RESULTS.md`: both real-model results,
+12. `docs/agent-memory-design/LEARNING_CYCLE_RESULTS.md`: all three controlled real-model results,
     independent request/provenance verification and exact source/manifest seals.
+
+13. `docs/agent-memory-design/OBSERVABILITY_RESULTS.md`: real tool/model attempts,
+    discovered CIDR/timestamp defects, fixes and remaining SRE limitations.
 
 ## Shared Granola notes
 
@@ -142,9 +139,10 @@ multi-step agent, but do not prove this repository's `simple_agent` is an oracle
   versioned decision policy budgets error-stopping waits against the remaining
   horizon. Policy 1.1 restores first-error stopping unless current public metrics
   prove the full-horizon SLO unrecoverable. Pending operations preserve their
-  requested duration. The v2 prompt uses bounded monitored advances between
-  operation polls; resource summaries distinguish backend/database counts. Portable reasoning
-  effort, corrected log visibility and provider telemetry are supported.
+  requested duration. The v2 policy exposes public horizon/pending-operation
+  hints; canonical startup instructions come from the environment. Resource
+  summaries distinguish backend/database counts. Portable reasoning effort,
+  filtered historical observability and provider telemetry are supported.
 - A0–A9 are real compositions: no memory, legacy, episodes, lessons, world
   hypotheses, explicit consolidation, advanced retrieval, playbooks, tool
   knowledge and operational episode decay. Four targeted ablations are
@@ -263,10 +261,12 @@ Raw sanitized artifacts remain ignored under `artifacts/`.
 
 ## Verification
 
-Current controlled-cycle source checkpoint: **552 passed, 2 skipped**;
-the subsequent cleanup-cancellation regression and prompt correction passed
-the focused **9/9** suite. Both real-model experiments passed independent
-manifest, snapshot, evidence ancestry, request and outcome verification.
+Current source checkpoint `c92e094`: **583 passed, 2 skipped** in 19.81 seconds.
+The skipped checks are opt-in live tests; separate real API/model verification
+is recorded in `OBSERVABILITY_RESULTS.md`. All three controlled learning-cycle
+experiments passed independent manifest, snapshot, evidence ancestry, request
+and outcome verification. The original learning-cycle checkpoint had 552 passing
+tests and two skips.
 
 Historical policy-guard checkpoint: **536 passed, 2 skipped in 6.68s**.
 The subsequent prompt-only operation-polling correction passed 53 applicable

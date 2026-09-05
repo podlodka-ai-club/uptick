@@ -228,3 +228,20 @@ implementation work is delegated. All changes remain below `vadim/`.
 See `EXPERIMENTAL_MEMORY_GUIDE.md` for executable commands and operational
 limitations. The original Stage 0 balance protocol and normative evidence gates
 remain intact. No new module has been promoted to default.
+
+## 2026-09-05 environment and learning-loop continuation
+
+The neutral environment boundary, fixed external startup instructions, opaque
+runtime decisions and missing public log/metric queries are implemented.
+The controlled learning cycle was rerun on frozen `62bce25`: 8/8 training,
+4/8 evaluation recovery without memory and 8/8 with frozen hypotheses; all
+24 attempts and provenance/request checks were retained. See
+`LEARNING_CYCLE_RESULTS.md` for all three separate results and limitations.
+
+Live query/model tests exposed and corrected unsupported CIDR schema formats
+and nanosecond truncation at inclusive log bounds. Current source `c92e094`
+passed 583 offline tests with two opt-in live skips and separate real API/model
+checks. The 600-second diagnostic remains incomplete (42 decisions, 14.4836%
+of the horizon); intermediate uptime is not an SLO result. Full evidence and the
+next bounded diagnosis experiment are in `OBSERVABILITY_RESULTS.md`.
+The immutable identity, held-out utility and promotion gates above remain open.

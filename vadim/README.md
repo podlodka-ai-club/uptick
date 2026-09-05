@@ -83,10 +83,17 @@ uptime и не проверка обобщения на независимое �
 ответов описаны в [`LEARNING_CYCLE_PLAN.md`](docs/agent-memory-design/LEARNING_CYCLE_PLAN.md).
 
 В первом опыте с реальной моделью восстановлены 4/8 случаев без памяти и 6/8
-с гипотезами. Отдельный повтор после уточнения инструкции дал 4/8 и 8/8.
-Оба результата сохранены и независимо проверены; это небольшой опыт на одном
-семействе локальных задач, а не доказательство успеха в SRE-симуляторе.
+с гипотезами. Отдельный повтор после уточнения инструкции дал 4/8 и 8/8;
+третий опыт на зафиксированной версии `62bce25` после изменения архитектуры
+повторил 4/8 и 8/8. Все три результата сохранены и независимо проверены;
+это небольшие опыты на одном семействе локальных задач, а не доказательство успеха в SRE-симуляторе.
 Подробности: [`LEARNING_CYCLE_RESULTS.md`](docs/agent-memory-design/LEARNING_CYCLE_RESULTS.md).
+
+Адаптер v2 объявляет текущую схему `SimulatorV2Decision`, включая фильтрованные
+`query_logs` и исторические `query_metrics`. Старый `V2NextStep` остаётся схемой
+совместимости. Покрытие публичного API и результаты сетевых проверок:
+[`PUBLIC_TOOL_COVERAGE.md`](docs/agent-memory-design/PUBLIC_TOOL_COVERAGE.md),
+[`OBSERVABILITY_RESULTS.md`](docs/agent-memory-design/OBSERVABILITY_RESULTS.md).
 
 ## Быстрый старт
 
@@ -307,14 +314,17 @@ uv run uptick-agent benchmark \
 
 Не копируйте `AgentRunner`. Меняйте только компонент, который проверяете:
 
-- новый prompt/model policy — реализуйте `DecisionModel`;
+- описание мира и инструменты — верните фиксированный `EnvironmentDecisionSpec`
+  из запущенной среды;
+- новая стратегия принятия решений — реализуйте `DecisionModel`;
 - другой способ запоминания или recall — реализуйте legacy `Memory` и подключите его через
   `legacy_memory_runtime`;
 - другая симуляция — реализуйте `Environment`;
 - новые метрики/MLflow/Langfuse — реализуйте `RunObserver`;
 - новые команды v2 — добавьте тип в `src/uptick_agent/v2_actions.py` и dispatch в
-  `src/uptick_agent/simulator/v2_environment.py`; общие действия находятся в
-  `src/uptick_agent/models.py`, а v1 dispatch — в `simulator/environment.py`.
+  `src/uptick_agent/simulator/v2_environment.py`; схему инструментов публикует
+  `simulator/decisions.py`, общие действия принадлежат `simulator/actions.py`,
+  а v1 dispatch — `simulator/environment.py`.
 
 Так различие между ветками остаётся явным, а результаты можно воспроизводить на одном
 наборе seeds.

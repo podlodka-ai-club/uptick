@@ -6,7 +6,8 @@ The retained `openapi.yaml` has SHA-256
 It is an API identity, not a simulator world-content identity.
 
 The initial inventory described `c05864f`. The environment boundary was completed
-in `62bce25`; the current change closes the two query gaps below. Runtime
+in `62bce25`; queries were added in `373f6ee`, with live-discovered corrections
+in `2fc633b` (CIDR schema) and `c92e094` (exact timestamps). Runtime
 evidence is retained under ignored `artifacts/`.
 
 ## Existing coverage
@@ -45,13 +46,15 @@ through the incremental reader's seen-ID set. Explicit reads are repeatable and
 do not advance that reader's watermark. Returned traffic fields are observed
 data, never hidden ground truth about whether traffic is malicious.
 
-Twelve focused cases cover schema separation, action-to-HTTP forwarding, optional
-parameters including false, independent log bounds, repeated/different filters,
-returned data and invalid query validation. Full offline suite: **577 passed,
-2 opt-in live skips**; after the one-sided timezone correction, all **48**
-focused startup/query/v2 regressions passed. All **56** historical schemas and
-identities remain identical. This is contract evidence; real API and model observations
-are recorded separately after running the committed source.
+Sixteen focused cases cover schema separation, action-to-HTTP forwarding,
+optional parameters including false, independent log bounds, repeated/different
+filters, CIDR validation, exact fractional timestamps and invalid windows.
+Final full suite: **583 passed, 2 opt-in live skips**. All **56** historical
+schemas and identities remain identical. Real API calls verified nonempty
+repeat reads, cursor isolation, precise boundary-error retrieval and metric
+windows. The model selected both new queries in the bounded diagnostic, and a
+separate final schema-acceptance run exited 0. Exact attempts, discovered defects
+and limitations are recorded in `OBSERVABILITY_RESULTS.md`.
 
 ## External startup description
 
