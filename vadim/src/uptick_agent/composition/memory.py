@@ -253,6 +253,7 @@ def compose_experimental_runtime(
     legacy_memory: Memory | None = None,
     clock: Callable[[], datetime] | None = None,
     audit_sink: AuditTraceSink | None = None,
+    retrieval_strategy: RetrievalStrategy | None = None,
 ) -> ExperimentalMemoryRuntime:
     """Construct real enabled modules for one preset.
 
@@ -263,9 +264,11 @@ def compose_experimental_runtime(
 
     resolved = _resolve_preset(preset, condition_id=condition_id)
     configuration = resolved.configuration
-    if configuration.retrieval.semantic:
+    if configuration.retrieval.semantic and not bool(
+        getattr(retrieval_strategy, "semantic_capability", False)
+    ):
         raise MemoryValidationError(
-            "semantic retrieval is enabled but no semantic implementation is registered"
+            "semantic retrieval requires an injected semantic retrieval strategy"
         )
     if isinstance(run_declarations, (str, bytes)):
         raise MemoryValidationError("run_declarations must be a sequence")
@@ -365,7 +368,11 @@ def compose_experimental_runtime(
                     namespace=episodic_namespace,
                     module_version=module_config.version,
                 ),
-                retrieval_strategy=_strategy(configuration, maintenance_view=maintenance_view),
+                retrieval_strategy=_strategy(
+                    configuration,
+                    maintenance_view=maintenance_view,
+                    owner_strategy=retrieval_strategy,
+                ),
             )
         )
     if configuration.lessons.enabled:
@@ -384,7 +391,11 @@ def compose_experimental_runtime(
                     module_version=module_config.version,
                 ),
                 requires=("episodic",),
-                retrieval_strategy=_strategy(configuration, maintenance_view=maintenance_view),
+                retrieval_strategy=_strategy(
+                    configuration,
+                    maintenance_view=maintenance_view,
+                    owner_strategy=retrieval_strategy,
+                ),
             )
         )
     if configuration.world_model.enabled:
@@ -404,7 +415,11 @@ def compose_experimental_runtime(
                     module_version=module_config.version,
                 ),
                 requires=("episodic",),
-                retrieval_strategy=_strategy(configuration, maintenance_view=maintenance_view),
+                retrieval_strategy=_strategy(
+                    configuration,
+                    maintenance_view=maintenance_view,
+                    owner_strategy=retrieval_strategy,
+                ),
             )
         )
     if configuration.playbooks.enabled:
@@ -424,7 +439,11 @@ def compose_experimental_runtime(
                     module_version=module_config.version,
                 ),
                 requires=("episodic", "lessons"),
-                retrieval_strategy=_strategy(configuration, maintenance_view=maintenance_view),
+                retrieval_strategy=_strategy(
+                    configuration,
+                    maintenance_view=maintenance_view,
+                    owner_strategy=retrieval_strategy,
+                ),
             )
         )
     if configuration.tool_knowledge.enabled:
@@ -444,7 +463,11 @@ def compose_experimental_runtime(
                     module_version=module_config.version,
                 ),
                 requires=("episodic",),
-                retrieval_strategy=_strategy(configuration, maintenance_view=maintenance_view),
+                retrieval_strategy=_strategy(
+                    configuration,
+                    maintenance_view=maintenance_view,
+                    owner_strategy=retrieval_strategy,
+                ),
             )
         )
     if configuration.consolidation.enabled:
@@ -455,7 +478,11 @@ def compose_experimental_runtime(
                 "consolidation",
                 lambda _config, module=consolidation: module,
                 requires=("episodic",),
-                retrieval_strategy=_strategy(configuration, maintenance_view=maintenance_view),
+                retrieval_strategy=_strategy(
+                    configuration,
+                    maintenance_view=maintenance_view,
+                    owner_strategy=retrieval_strategy,
+                ),
             )
         )
     if configuration.forgetting.enabled:

@@ -17,6 +17,9 @@ uptick-agent = "uptick_agent.cli:main"
 codex = [
     "openai-codex==0.147.0",
 ]
+retrieval = [
+    "fastembed==0.8.0",
+]
 
 [dependency-groups]
 dev = [
