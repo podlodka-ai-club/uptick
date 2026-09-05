@@ -1,7 +1,7 @@
 # Learning-cycle results
 
-This record reports the first real controlled learning-cycle run from the
-retained artifacts in `artifacts/learning-cycle-2026-09-05/sol-low-01/`. It is
+This record reports three separately retained controlled learning-cycle runs
+under `artifacts/learning-cycle-2026-09-05/`. It is
 an evidence record for the mechanism experiment described in
 `LEARNING_CYCLE_PLAN.md`, not a production effectiveness result.
 
@@ -133,6 +133,46 @@ claim. Training memory was rebuilt from a fresh empty store for sol-low-02, so
 the result is not a pure prompt-only causal estimate. The variants share the
 same designed causal family as training; they are not an independent-family
 holdout.
+
+## Environment-boundary regression experiment
+
+The third separately sealed run, `sol-low-03`, executed a frozen copy of
+`62bce25` after the neutral environment/runtime refactor. It uses the same
+fixture specification, hidden mapping, case order, model, generation settings,
+fixed external fixture prompt and budgets as sol-low-02. The adapter now supplies
+an `IncidentDecision` schema containing only its own `apply_fix` capability.
+This is a regression experiment across a source/schema change, not a prompt-only
+or tool-only causal comparison. The later SRE observability tools are absent
+from this source capsule.
+
+| Binding | SHA-256 or revision |
+| --- | --- |
+| source revision | `62bce257b2df20a2a95ed2d40a82242dda9ca591` |
+| source tree hash | `a2caec5875452a861daee8413a5f736d3ad2cb31638215d9f3c84b36d8190e7c` |
+| source capsule hash | `de922b4bdc67efe2c4dd76881d1bcefcaea8092f4f65cdb97b06b7198eb67dbe` |
+| dependency lock hash | `02e9796facefb5f44da68fbd115a4db6958d1a72785e5ead2cc100f26a0c2191` |
+| fixture spec hash | `a015c1291563d7cef60e0ac7e4654824c2efb79a46762b1a4f3d4d36de044fce` |
+| adapter hash | `4225c01e337a02de9d12015e9f666652440f2160d3a68841f762e1481753f767` |
+| manifest hash | `7d9d3509589967ce317fb531ad91593e28622e688a480d847488b23d7998a691` |
+| report seal | `b8f7df8bc95dde3152e0a71a2b3a1cb48b3602456bd7b329d402e216802537f6` |
+| `manifest.json` file hash | `9551cbdb706c61c47e7882acf0fe61f993414c1185c606b3fc110a0a90121de0` |
+| `report.json` file hash | `ad984a5b44ccf3b8b01a9ae6167c183e134af08f2c742b96f54e4214be858bf7` |
+| `independent-verification.json` file hash | `3ce015818dc537e950961e3e42a06f94105eb0f61f962b4a88322b8061e2e114` |
+
+The independent verifier passed after reopening the retained SQLite store.
+Training recovered **8/8**; paired evaluation recovered **4/8 without memory**
+and **8/8 with frozen hypotheses**: **4 wins, 0 losses and 4 ties**. All **24
+attempts** and **28 logical decisions** remain recorded. The four failures are
+unrecovered no-memory fixture outcomes; there were no retained runtime failures,
+timeouts or cleanup errors, and the process exited 0. The frozen read side
+contains **44 members**, with the same **six selected hypothesis IDs** listed
+above. Actual requests, selected records, training ancestry, activation support,
+manifest/source seals and action outcomes passed independent checks.
+
+The result supports preservation of the observable learning cycle through the
+architecture refactor. Three development runs on one designed causal family
+still do not establish independent-family generalization or hosted SRE utility.
+The first run's two hypothesis losses remain part of the record.
 
 ## What the k2p failures show
 

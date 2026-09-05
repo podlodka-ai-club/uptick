@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
 from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
@@ -24,6 +26,114 @@ class GetLogs(StrictModel):
         default=500,
         description="Filter by HTTP status. Null returns all supported statuses.",
     )
+
+
+PageType = Literal["product_list", "product_page"]
+PageRequestStatus = Literal[200, 403, 500, 503]
+RequestFailureCode = Literal[
+    "SERVER_CAPACITY_EXCEEDED",
+    "DB_CONNECTION_LIMIT_EXCEEDED",
+    "DISK_FULL",
+    "SITE_UNAVAILABLE",
+    "DB_UNAVAILABLE",
+    "FIREWALL_DENIED",
+]
+MetricName = Literal[
+    "server_count",
+    "capacity_units",
+    "used_load_units",
+    "capacity_utilization",
+    "active_requests",
+    "database_active_connections",
+    "database_connection_limit",
+    "disk_total_bytes",
+    "disk_system_bytes",
+    "disk_database_bytes",
+    "disk_logs_bytes",
+    "disk_free_bytes",
+    "requests_total",
+    "responses_200",
+    "responses_500",
+    "responses_403",
+    "responses_503",
+    "error_rate",
+    "latency_p50_ms",
+    "latency_p95_ms",
+    "server_cost_minor",
+    "backup_storage_cost_minor",
+    "total_cost_minor",
+    "current_cost_per_hour_minor",
+    "observed_seconds",
+    "available_seconds",
+    "downtime_seconds",
+    "uptime_ratio",
+]
+IPAddress = IPv4Address | IPv6Address
+NetworkCIDR = IPv4Network | IPv6Network
+
+
+class QueryLogs(StrictModel):
+    """Read an explicit log window without touching incremental cursors."""
+
+    kind: Literal["query_logs"] = "query_logs"
+    from_time: datetime | None = Field(default=None, alias="from")
+    to_time: datetime | None = Field(default=None, alias="to")
+    page: PageType | None = None
+    status: PageRequestStatus | None = None
+    has_error: bool | None = None
+    error: RequestFailureCode | None = None
+    source_ip: IPAddress | None = None
+    source_cidr: NetworkCIDR | None = None
+    user_agent: str | None = Field(default=None, min_length=1, max_length=2048)
+    region_code: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
+    firewall_rule_id: str | None = Field(
+        default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    )
+    cursor: str | None = Field(default=None, max_length=512)
+    limit: int = Field(default=100, ge=1, le=1000)
+
+    model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def validate_window_and_filters(self) -> QueryLogs:
+        _validate_time_window(self.from_time, self.to_time, require_pair=False)
+        if self.has_error is False and self.error is not None:
+            raise ValueError("error is incompatible with has_error=false")
+        return self
+
+
+class QueryMetrics(StrictModel):
+    """Read an explicit metric window without changing snapshot state."""
+
+    kind: Literal["query_metrics"] = "query_metrics"
+    from_time: datetime | None = Field(default=None, alias="from")
+    to_time: datetime | None = Field(default=None, alias="to")
+    step_seconds: int = Field(default=60, ge=1)
+    names: list[MetricName] | None = Field(default=None, min_length=1, max_length=32)
+    page: PageType | None = None
+
+    model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def validate_window_and_names(self) -> QueryMetrics:
+        _validate_time_window(self.from_time, self.to_time, require_pair=True)
+        if self.names is not None and len(set(self.names)) != len(self.names):
+            raise ValueError("names must be unique")
+        return self
+
+
+def _validate_time_window(
+    from_time: datetime | None, to_time: datetime | None, *, require_pair: bool
+) -> None:
+    if require_pair and (from_time is None) != (to_time is None):
+        raise ValueError("from and to must be supplied together")
+    for bound in (from_time, to_time):
+        if bound is not None and (bound.tzinfo is None or bound.utcoffset() is None):
+            raise ValueError("from and to must be timezone-aware")
+    if from_time is None or to_time is None:
+        return
+    if from_time > to_time:
+        raise ValueError("from must not be later than to")
 
 
 class V1GetLogs(GetLogs):

@@ -15,7 +15,6 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from uptick_agent.decisions.contracts import V2NextStep
 from uptick_agent.decisions.runtime import ToolResult
 from uptick_agent.environment.contracts import EnvironmentDecisionSpec
 from uptick_agent.memory.contracts import ObjectiveMetric, OperationLink
@@ -23,16 +22,18 @@ from uptick_agent.redaction import sanitize_json
 from uptick_agent.runs.results import RunResult
 from uptick_agent.simulator.actions import (
     AdvanceTime,
-    AgentAction,
     FinishRun,
     GetLogs,
     GetMetrics,
     GetOperation,
     GetOverview,
     GetResources,
+    QueryLogs,
+    QueryMetrics,
     V2AdvanceTime,
     V2ProbePage,
 )
+from uptick_agent.simulator.decisions import SimulatorV2Action, SimulatorV2Decision
 from uptick_agent.simulator.v2_client import SimulatorV2ApiError, SimulatorV2Client
 from uptick_agent.v2_actions import ControlCommand, GetControlCommands, GetInbox
 
@@ -168,7 +169,7 @@ def _clock_terminal(data: Mapping[str, Any]) -> bool:
 def _objective_metrics(data: Mapping[str, Any], *, kind: str) -> list[ObjectiveMetric]:
     if kind == "get_overview":
         source = data
-    elif kind == "get_metrics":
+    elif kind in {"get_metrics", "query_metrics"}:
         current = data.get("current")
         source = current if isinstance(current, Mapping) else {}
     else:
@@ -378,7 +379,7 @@ class SimulatorV2Environment:
         else:
             # Freeze the actual public startup input before any decision request.
             self._decision_spec = EnvironmentDecisionSpec(
-                response_model=V2NextStep,
+                response_model=SimulatorV2Decision,
                 environment_briefing=startup_briefing,
             )
         return session, _result(
@@ -388,7 +389,7 @@ class SimulatorV2Environment:
             f"{simulation_time.isoformat() if simulation_time else 'an unknown time'}.",
         )
 
-    async def execute(self, session: SimulatorV2Session, action: AgentAction) -> ToolResult:
+    async def execute(self, session: SimulatorV2Session, action: SimulatorV2Action) -> ToolResult:
         try:
             result = await self._execute(session, action)
         except SimulatorV2ApiError as error:
@@ -412,7 +413,7 @@ class SimulatorV2Environment:
         self._update_public_state(session, result)
         return result
 
-    async def _execute(self, session: SimulatorV2Session, action: AgentAction) -> ToolResult:
+    async def _execute(self, session: SimulatorV2Session, action: SimulatorV2Action) -> ToolResult:
         if isinstance(action, FinishRun):
             value = _safe(await self.client.overview(session.run_id))
             self._observe(session, value, update_status=True)
@@ -472,8 +473,32 @@ class SimulatorV2Environment:
                 terminal=_terminal_for(value),
             )
 
+        if isinstance(action, QueryMetrics):
+            value = _safe(
+                await self.client.query_metrics(
+                    session.run_id,
+                    from_time=action.from_time,
+                    to_time=action.to_time,
+                    step_seconds=action.step_seconds,
+                    names=action.names,
+                    page=action.page,
+                )
+            )
+            self._observe(session, value)
+            current = _required_mapping(value, "current")
+            return _result(
+                action.kind,
+                value,
+                "Read metrics for the requested window; "
+                f"uptime={current.get('uptime_ratio', 'unknown')};",
+                terminal=_terminal_for(value),
+            )
+
         if isinstance(action, GetLogs):
             return await self._get_logs(session, action)
+
+        if isinstance(action, QueryLogs):
+            return await self._query_logs(session, action)
 
         if isinstance(action, GetResources):
             value = _safe(await self.client.resources(session.run_id))
@@ -711,7 +736,56 @@ class SimulatorV2Environment:
             terminal=bool(latest_clock and _clock_terminal({"clock": latest_clock})),
         )
 
-    async def _get_inbox(self, session: SimulatorV2Session, action: AgentAction) -> ToolResult:
+    async def _query_logs(self, session: SimulatorV2Session, action: QueryLogs) -> ToolResult:
+        page = _safe(
+            await self.client.query_logs(
+                session.run_id,
+                from_time=action.from_time,
+                to_time=action.to_time,
+                page=action.page,
+                status=action.status,
+                has_error=action.has_error,
+                error=action.error,
+                source_ip=action.source_ip,
+                source_cidr=action.source_cidr,
+                user_agent=action.user_agent,
+                region_code=action.region_code,
+                firewall_rule_id=action.firewall_rule_id,
+                cursor=action.cursor,
+                limit=action.limit,
+            )
+        )
+        clock = page.get("clock")
+        if not isinstance(clock, Mapping):
+            raise SimulatorV2ApiError(200, "INVALID_RESPONSE", "Logs response has invalid clock")
+        _required_clock(page)
+        raw_logs = page.get("logs")
+        if not isinstance(raw_logs, list) or any(not isinstance(item, dict) for item in raw_logs):
+            raise SimulatorV2ApiError(200, "INVALID_RESPONSE", "Logs response has invalid logs")
+        next_cursor = page.get("next_cursor")
+        if next_cursor is not None and not isinstance(next_cursor, str):
+            raise SimulatorV2ApiError(
+                200, "INVALID_RESPONSE", "Logs response has invalid next cursor"
+            )
+        observed = _datetime(clock.get("simulation_time"))
+        if observed is None:
+            raise SimulatorV2ApiError(200, "INVALID_RESPONSE", "Logs response has invalid clock")
+        # Explicit historical queries are independent of incremental polling:
+        # do not touch logs_from, cursors, or the deduplication set.
+        session.simulation_time = observed
+        return ToolResult(
+            action_kind=action.kind,
+            summary=(
+                f"Read {len(raw_logs)} logs from the requested window; "
+                f"next_cursor={next_cursor or 'none'}."
+            ),
+            data=page,
+            terminal=_clock_terminal({"clock": clock}),
+        )
+
+    async def _get_inbox(
+        self, session: SimulatorV2Session, action: SimulatorV2Action
+    ) -> ToolResult:
         cursor = session.inbox_cursor
         collected: list[dict[str, Any]] = []
         latest_clock: Mapping[str, Any] | None = None

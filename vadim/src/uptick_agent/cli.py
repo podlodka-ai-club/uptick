@@ -41,6 +41,7 @@ from uptick_agent.simulator.briefings import (
     V1_ENVIRONMENT_BRIEFING,
     V2_ENVIRONMENT_BRIEFING,
 )
+from uptick_agent.simulator.decisions import SimulatorV2Decision
 from uptick_agent.simulator.v2_client import SimulatorV2Client
 from uptick_agent.simulator.v2_environment import SimulatorV2Environment
 from uptick_agent.simulator.v2_policy import SimulatorV2TimeBudgetPolicy
@@ -445,7 +446,7 @@ def _v2_model_factory(
         != profile.provider.prompt_fingerprint
     ):
         raise ValueError("actual environment startup prompt differs from the preregistered prompt")
-    if decision_spec.response_model.model_json_schema() != V2NextStep.model_json_schema():
+    if decision_spec.response_model.model_json_schema() != SimulatorV2Decision.model_json_schema():
         raise ValueError("actual environment tool schema differs from the pinned v2 adapter")
     provider = profile.provider.provider
     if provider not in {"openai", "codex"}:

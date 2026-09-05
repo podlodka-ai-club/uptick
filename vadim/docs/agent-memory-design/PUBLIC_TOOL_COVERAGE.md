@@ -5,9 +5,9 @@ The retained `openapi.yaml` has SHA-256
 `452b622ebf8e1734cfd630ff2dfe4cb1c25350f0e9b67d5ff5cf3e64e9cd1dc0`.
 It is an API identity, not a simulator world-content identity.
 
-This inventory describes the implementation at `c05864f`, before the current
-environment-boundary and observability work. Runtime evidence is under ignored
-`artifacts/environment-boundary-2026-09-05/`.
+The initial inventory described `c05864f`. The environment boundary was completed
+in `62bce25`; the current change closes the two query gaps below. Runtime
+evidence is retained under ignored `artifacts/`.
 
 ## Existing coverage
 
@@ -25,27 +25,33 @@ need a credential-reading tool. The public API has no arbitrary shell endpoint.
 
 The existing log/inbox readers already paginate with a bounded number of pages
 and report remaining unread data. Their cursors are adapter-owned. This is not
-an absent pagination implementation, although the model cannot request an
-arbitrary historical page with the current action schema.
+an absent pagination implementation, and explicit queries now let the model request a historical page without
+changing those cursors.
 
-## Confirmed gaps and next implementation
+## Implemented observability queries
 
-| Capability | Public API | Existing model/adapter | Planned correction |
-| --- | --- | --- | --- |
-| Log diagnosis | Time window, page, status, infrastructure error, source IP/CIDR, user-agent, region, firewall rule, cursor, limit | Model chooses only HTTP status; client handles time/cursor/limit, adapter consumes new logs | Add a typed v2 query with public filters and explicit historical reads; preserve bounded incremental reading |
-| Metric history | Paired from/to, aggregation interval, selected metric names and page | Snapshot-only action and HTTP client | Add typed v2 metric query and exact HTTP forwarding |
+| Capability | Public API | Canonical adapter action |
+| --- | --- | --- |
+| Log diagnosis | Independent from/to, page, status, error flag/code, source IP/CIDR, user-agent, region, firewall rule, cursor, limit | `query_logs`: explicit single-page historical/filter query; returns the next cursor and preserves incremental-reader state |
+| Metric history | Paired from/to, aggregation interval, metric names and page | `query_metrics`: current snapshot plus returned historical series, with exact public HTTP parameters |
 
-For log queries, changing filters must not reuse another query's cursor or
-silently hide matching results through a global seen-ID set. Explicit historical
-reads must be repeatable and must not advance the default incremental reader's
-watermark. A query result is observed data, never hidden ground truth about
-whether traffic is malicious.
+`SimulatorV2Decision` belongs to `simulator/decisions.py` and is published by the
+started environment. The generic decision loop has no simulator tool list.
+Historical `V2NextStep` remains a compatibility schema; real v2 execution and
+evaluation use the canonical environment schema, pinned before model creation.
 
-Tests must cover the actual action-to-HTTP boundary, rejected invalid query
-combinations, omitted optional parameters, cursor/filter isolation and returned
-evidence in subsequent context. Adding parameter fields alone is insufficient.
-Implement these in the simulator owner after the neutral environment contract
-is stable. They do not belong in the generic agent action union or memory core.
+Changing filters does not reuse another query's cursor or hide matching results
+through the incremental reader's seen-ID set. Explicit reads are repeatable and
+do not advance that reader's watermark. Returned traffic fields are observed
+data, never hidden ground truth about whether traffic is malicious.
+
+Twelve focused cases cover schema separation, action-to-HTTP forwarding, optional
+parameters including false, independent log bounds, repeated/different filters,
+returned data and invalid query validation. Full offline suite: **577 passed,
+2 opt-in live skips**; after the one-sided timezone correction, all **48**
+focused startup/query/v2 regressions passed. All **56** historical schemas and
+identities remain identical. This is contract evidence; real API and model observations
+are recorded separately after running the committed source.
 
 ## External startup description
 

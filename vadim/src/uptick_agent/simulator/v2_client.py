@@ -11,6 +11,7 @@ import base64
 import contextlib
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 from urllib.parse import quote
 
@@ -63,6 +64,50 @@ _REF_PATTERN = re.compile(
     r"(?i)\b(credential[_ -]?id|server[_ -]?id|database[_ -]?id)\s*[:=]\s*"
     r"([A-Za-z0-9][A-Za-z0-9._:-]{0,127})"
 )
+
+
+def _parse_query_time(value: datetime | str) -> datetime:
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError as error:
+            raise SimulatorV2ApiError(
+                400, "INVALID_REQUEST", "from and to must be valid date-times"
+            ) from error
+    else:
+        raise SimulatorV2ApiError(400, "INVALID_REQUEST", "from and to must be date-times")
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise SimulatorV2ApiError(400, "INVALID_REQUEST", "from and to must be timezone-aware")
+    return parsed
+
+
+def _query_time(value: datetime | str | None) -> str | None:
+    if value is None:
+        return None
+    _parse_query_time(value)
+    return value.isoformat() if isinstance(value, datetime) else value
+
+
+def _validate_query_window(
+    from_time: datetime | str | None,
+    to_time: datetime | str | None,
+    *,
+    require_pair: bool,
+) -> None:
+    if require_pair and (from_time is None) != (to_time is None):
+        raise SimulatorV2ApiError(400, "INVALID_REQUEST", "from and to must be supplied together")
+    if from_time is None or to_time is None:
+        return
+    if _parse_query_time(from_time) > _parse_query_time(to_time):
+        raise SimulatorV2ApiError(400, "INVALID_REQUEST", "from must not be later than to")
+
+
+def _query_value(value: object) -> str | None:
+    if value is None:
+        return None
+    return value if isinstance(value, str) else str(value)
 
 
 class SimulatorV2ApiError(RuntimeError):
@@ -332,6 +377,43 @@ class SimulatorV2Client:
         )
         return self._public(body)
 
+    async def query_metrics(
+        self,
+        run_id: str,
+        *,
+        from_time: datetime | str | None = None,
+        to_time: datetime | str | None = None,
+        step_seconds: int = 60,
+        names: list[str] | None = None,
+        page: str | None = None,
+    ) -> dict[str, Any]:
+        _validate_query_window(from_time, to_time, require_pair=True)
+        if not isinstance(step_seconds, int) or isinstance(step_seconds, bool) or step_seconds < 1:
+            raise SimulatorV2ApiError(400, "INVALID_REQUEST", "step_seconds must be at least 1")
+        if names is not None and (
+            not names or any(not isinstance(name, str) or not name for name in names)
+        ):
+            raise SimulatorV2ApiError(400, "INVALID_REQUEST", "names must be non-empty strings")
+        query: dict[str, Any] = {
+            "step_seconds": step_seconds,
+        }
+        for key, value in (
+            ("from", _query_time(from_time)),
+            ("to", _query_time(to_time)),
+            ("page", page),
+        ):
+            if value is not None:
+                query[key] = value
+        if names is not None:
+            query["names"] = ",".join(names)
+        body, _ = await self._request_json(
+            "GET",
+            self._run_path(run_id, "/metrics"),
+            params=query,
+            required=("clock", "current", "series"),
+        )
+        return self._public(body)
+
     async def logs(
         self,
         run_id: str,
@@ -347,6 +429,56 @@ class SimulatorV2Client:
             ("from", from_time),
             ("to", to_time),
             ("status", status),
+            ("cursor", cursor),
+        ):
+            if value is not None:
+                query[key] = value
+        body, _ = await self._request_json(
+            "GET",
+            self._run_path(run_id, "/logs"),
+            params=query,
+            required=("clock", "logs", "next_cursor"),
+        )
+        return self._public(body)
+
+    async def query_logs(
+        self,
+        run_id: str,
+        *,
+        from_time: datetime | str | None = None,
+        to_time: datetime | str | None = None,
+        page: str | None = None,
+        status: int | None = None,
+        has_error: bool | None = None,
+        error: str | None = None,
+        source_ip: object | None = None,
+        source_cidr: object | None = None,
+        user_agent: str | None = None,
+        region_code: str | None = None,
+        firewall_rule_id: str | None = None,
+        cursor: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        _validate_query_window(from_time, to_time, require_pair=False)
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 1000:
+            raise SimulatorV2ApiError(400, "INVALID_REQUEST", "limit must be between 1 and 1000")
+        if has_error is False and error is not None:
+            raise SimulatorV2ApiError(
+                400, "INVALID_REQUEST", "error is incompatible with has_error=false"
+            )
+        query: dict[str, Any] = {"limit": limit}
+        for key, value in (
+            ("from", _query_time(from_time)),
+            ("to", _query_time(to_time)),
+            ("page", page),
+            ("status", status),
+            ("has_error", has_error),
+            ("error", error),
+            ("source_ip", _query_value(source_ip)),
+            ("source_cidr", _query_value(source_cidr)),
+            ("user_agent", user_agent),
+            ("region_code", region_code),
+            ("firewall_rule_id", firewall_rule_id),
             ("cursor", cursor),
         ):
             if value is not None:
