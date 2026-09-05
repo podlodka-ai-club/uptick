@@ -1,29 +1,6 @@
-"""Provider-neutral LLM contracts and the default OpenAI compatibility facade."""
+"""Lazy compatibility facade for provider-neutral LLM contracts."""
 
-from uptick_agent.llm.contracts import (
-    GenerationSettings,
-    LlmAuthenticationError,
-    LlmCallTelemetry,
-    LlmCapabilities,
-    LlmClient,
-    LlmConfigurationError,
-    LlmError,
-    LlmMessage,
-    LlmPermanentProviderError,
-    LlmProviderError,
-    LlmRateLimitError,
-    LlmStructuredOutputError,
-    LlmTransientError,
-    LlmUnsupportedCapabilityError,
-    ReasoningEffort,
-    StructuredGenerationRequest,
-    StructuredGenerationResult,
-    TextGenerationRequest,
-    TextGenerationResult,
-    serialize_structured_generation_request,
-)
-from uptick_agent.llm.openai import OpenAIProviderFactory, OpenAISGRModel
-from uptick_agent.llm.registry import LlmProviderConfig, LlmProviderFactory, LlmProviderRegistry
+from importlib import import_module
 
 __all__ = [
     "GenerationSettings",
@@ -52,3 +29,46 @@ __all__ = [
     "TextGenerationResult",
     "serialize_structured_generation_request",
 ]
+
+_EXPORTS = {
+    **{
+        name: ("contracts", name)
+        for name in (
+            "GenerationSettings",
+            "LlmCapabilities",
+            "LlmClient",
+            "LlmConfigurationError",
+            "LlmError",
+            "LlmAuthenticationError",
+            "LlmCallTelemetry",
+            "LlmMessage",
+            "LlmProviderError",
+            "LlmPermanentProviderError",
+            "LlmRateLimitError",
+            "ReasoningEffort",
+            "LlmStructuredOutputError",
+            "LlmUnsupportedCapabilityError",
+            "LlmTransientError",
+            "StructuredGenerationRequest",
+            "StructuredGenerationResult",
+            "TextGenerationRequest",
+            "TextGenerationResult",
+            "serialize_structured_generation_request",
+        )
+    },
+    "LlmProviderConfig": ("registry", "LlmProviderConfig"),
+    "LlmProviderFactory": ("registry", "LlmProviderFactory"),
+    "LlmProviderRegistry": ("registry", "LlmProviderRegistry"),
+    "OpenAIProviderFactory": ("openai", "OpenAIProviderFactory"),
+    "OpenAISGRModel": ("openai", "OpenAISGRModel"),
+}
+
+
+def __getattr__(name: str):
+    target = _EXPORTS.get(name)
+    if target is None:
+        raise AttributeError(name)
+    module_name, attribute_name = target
+    value = getattr(import_module(f"{__name__}.{module_name}"), attribute_name)
+    globals()[name] = value
+    return value

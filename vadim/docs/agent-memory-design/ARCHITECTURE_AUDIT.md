@@ -67,6 +67,7 @@ The source now exposes the principal use cases and their ownership directly:
 | `evaluation/provenance.py`, `evaluation/snapshots.py` | Training evidence validation and frozen reads with isolated writes |
 | `evaluation/telemetry.py`, `evaluation/runtime_adapters.py` | Measurement and runtime adaptation |
 | `composition/memory.py`, `composition/evaluation_memory.py` | Concrete module/store wiring |
+| `llm/decision_model.py` | Reusable structured decision generation without CLI/provider implementation imports |
 | `memory/audit_contracts.py` | Audit contracts without loading the concrete sink |
 
 The old `models`, `runner`, `evaluation_runtime` and `experimental_runtime`
@@ -89,6 +90,13 @@ sealed experiments verify unchanged. Independent comparison found all 56 prior
 Pydantic schemas and qualified identities unchanged. The moved `AgentRunner`
 class and extracted provenance validation body retain their prior AST behavior.
 The local quick review accepted no remaining defect.
+
+The subsequent learning-cycle mechanism has its fixture in `benchmarks/`,
+manifest and accounting in `evaluation/learning_cycle.py`, and concrete wiring
+in `composition/learning_cycle.py`. It reuses native memory and snapshot ports;
+it does not import the SRE objective into incident recovery or add simulator
+knowledge to memory core. Its source checkpoint passed 552 tests (2 opt-in
+skips), including the configuration-binding and failure-accounting fixes.
 
 ```mermaid
 flowchart LR

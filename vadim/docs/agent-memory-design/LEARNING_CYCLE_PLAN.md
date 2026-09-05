@@ -14,6 +14,23 @@ memory IDs, model decision and observed incident outcome for each condition.
 No-memory failures, training failures and timeouts remain in the denominator.
 A zero improvement is a result, not permission to rewrite or omit attempts.
 
+## Oracle and contamination checks
+
+For a fixed public incident, swapping the evaluator's hidden correct repair
+must leave the initial observation and first serialized model request unchanged.
+Only the observed result after an executed repair may reveal whether it worked.
+Neither the evaluator manifest nor the answer mapping is model context. Model
+calls use the existing decision-only provider with fresh ephemeral threads,
+an empty workspace and disabled tools.
+
+Inspect the actual retained requests in addition to regression tests. For every
+selected world hypothesis, recompute its support from recorded training actions
+and results, and verify that its source run IDs belong to the sealed training
+set. Evaluation output must not become a source for later paired decisions.
+Hash integrity proves unchanged evidence, not causal truth or absence of answer
+leakage; these are separate checks. No development fixture or previously tuned
+SRE seed may be relabelled as an unseen independent-family holdout.
+
 ## Controlled incident simulator
 
 Use a small local simulator fixture outside memory core. It exposes four opaque

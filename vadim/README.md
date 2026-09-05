@@ -53,11 +53,28 @@ schema-guided decision loop — и отделена от памяти, моде�
 `runner.py`, `evaluation_runtime.py` и `experimental_runtime.py` сохранены как
 совместимые точки импорта.
 
+`llm/decision_model.py` содержит общий сборщик структурированного решения:
+его можно использовать без загрузки CLI и конкретного провайдера.
+
 Отдельный адаптер исследовательской xMemory подключается через тот же порт:
 [`Подключение xMemory`](docs/XMEMORY_INTEGRATION.md). Аудит завершённости и
 границ находится в [`ARCHITECTURE_AUDIT.md`](docs/agent-memory-design/ARCHITECTURE_AUDIT.md),
 сравнение с соседним агентом — в
 [`AGENT_COMPARISON.md`](docs/agent-memory-design/AGENT_COMPARISON.md).
+
+Контролируемый опыт «опыт → гипотеза → новое решение» запускается отдельно:
+
+```bash
+env -u OPENAI_API_KEY -u CODEX_API_KEY uv run --extra codex --locked \
+  python scripts/run_learning_cycle.py --output artifacts/learning-cycle-new
+```
+
+Он фиксирует исходники и настройки, обучается на восьми локальных инцидентах,
+замораживает и повторно открывает SQLite, затем выполняет восемь парных проверок
+с памятью и без неё. Измеряется восстановление инцидента; это не результат SRE
+uptime и не проверка обобщения на независимое семейство сценариев. Повторное
+использование непустого каталога запрещено. Границы опыта и защита от утечки
+ответов описаны в [`LEARNING_CYCLE_PLAN.md`](docs/agent-memory-design/LEARNING_CYCLE_PLAN.md).
 
 ## Быстрый старт
 

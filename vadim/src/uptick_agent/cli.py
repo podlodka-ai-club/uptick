@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Protocol, cast
 
 from uptick_agent.composition.evaluation_memory import DefaultEvaluationMemoryFactory
-from uptick_agent.decisions.contracts import DecisionContext, NextStep, V1NextStep, V2NextStep
+from uptick_agent.decisions.contracts import V1NextStep, V2NextStep
 from uptick_agent.evaluation.artifacts import FilesystemEvaluationArtifactStore
 from uptick_agent.evaluation.contracts import V2EvaluationProfile, V2Manifest, resolved_manifest
 from uptick_agent.evaluation.execution import EvaluationRuntime
@@ -19,15 +19,12 @@ from uptick_agent.evaluation.lifecycle import EvaluationJournal
 from uptick_agent.experiments import ExperimentRunner
 from uptick_agent.llm import (
     GenerationSettings,
-    LlmClient,
-    LlmMessage,
     LlmProviderConfig,
     LlmProviderFactory,
     LlmProviderRegistry,
     OpenAIProviderFactory,
-    StructuredGenerationRequest,
-    serialize_structured_generation_request,
 )
+from uptick_agent.llm.decision_model import StructuredDecisionModel
 from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT, V2_OBJECTIVE, V2_SYSTEM_PROMPT
 from uptick_agent.memory import InMemoryMemory, JsonlMemory, legacy_memory_runtime
 from uptick_agent.memory.stores import SqliteStructuredStore
@@ -48,56 +45,6 @@ class CloseableDecisionModel(DecisionModel, Protocol):
 
 class CodexFactoryConstructor(Protocol):
     def __call__(self) -> LlmProviderFactory: ...
-
-
-class StructuredDecisionModel:
-    """Compatibility bridge from the neutral LLM boundary to the current runner."""
-
-    def __init__(
-        self,
-        client: LlmClient,
-        *,
-        response_model: type[NextStep] = NextStep,
-        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
-        settings: GenerationSettings | None = None,
-    ) -> None:
-        self._client = client
-        self.model = getattr(client, "model", None)
-        self.response_model = response_model
-        self.system_prompt = system_prompt
-        self.settings = settings or GenerationSettings()
-
-    @property
-    def last_telemetry(self):
-        return getattr(self._client, "last_telemetry", None)
-
-    async def decide(self, context: DecisionContext) -> NextStep:
-        result = await self._client.generate_structured(self._build_request(context))
-        return result.value
-
-    def prompt_trace(self, context: DecisionContext) -> dict[str, Any]:
-        """Serialize the exact neutral request submitted by ``decide``."""
-        return serialize_structured_generation_request(self._build_request(context))
-
-    def _build_request(self, context: DecisionContext) -> StructuredGenerationRequest[NextStep]:
-        return StructuredGenerationRequest(
-            model=self.model,
-            settings=self.settings,
-            response_model=self.response_model,
-            messages=(
-                LlmMessage(role="system", content=self.system_prompt),
-                LlmMessage(
-                    role="user",
-                    content=(
-                        "Choose the next action from this runtime context. JSON follows:\n"
-                        + context.model_dump_json(indent=2)
-                    ),
-                ),
-            ),
-        )
-
-    async def aclose(self) -> None:
-        await self._client.aclose()
 
 
 def _decision_provider_default() -> str:

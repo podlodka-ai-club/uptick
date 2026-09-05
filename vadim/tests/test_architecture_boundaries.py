@@ -124,3 +124,17 @@ def test_no_contract_owner_imports_compatibility_facades() -> None:
     assert "from uptick_agent.runner" not in runner
     assert "from uptick_agent.memory.audit import" not in ports
     assert "from uptick_agent.memory.audit_contracts import" in ports
+
+
+def test_structured_decision_bridge_has_a_provider_neutral_import_boundary() -> None:
+    _fresh_process(
+        """
+import sys
+from uptick_agent.llm.decision_model import StructuredDecisionModel
+
+assert StructuredDecisionModel.__module__ == 'uptick_agent.llm.decision_model'
+assert 'uptick_agent.cli' not in sys.modules
+assert 'uptick_agent.llm.openai' not in sys.modules
+assert 'uptick_agent.simulator' not in sys.modules
+"""
+    )

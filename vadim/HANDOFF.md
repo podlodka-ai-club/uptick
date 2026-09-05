@@ -20,6 +20,14 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
   all four sealed experiments still verify. Offline suite: 543 passed, 2 skipped.
   Next: execute `LEARNING_CYCLE_PLAN.md` with real model calls and retain the
   result even if measured benefit is zero. Do not weaken world activation gates.
+- Architecture checkpoint: `948cc36`. The subsequent controlled cycle is now
+  implemented under `benchmarks/incidents.py`, `evaluation/learning_cycle.py`,
+  `composition/learning_cycle.py` and `scripts/run_learning_cycle.py`.
+  `StructuredDecisionModel` moved out of CLI into the provider-neutral
+  `llm/decision_model.py`; lazy LLM exports prevent provider import side effects.
+  Full suite: 552 passed, 2 skipped. Root review repaired config-body binding,
+  timeout physical IDs and retained cleanup errors; cleanup cancellation was
+  independently checked. Real model execution is the next closeout step.
 - Stages 1–5 are complete. Stage 6 and the subsequent A0–A9 compositions are
   implemented experimentally. No module has been promoted to default.
 - The v2 evaluation harness, CLI, immutable lifecycle/bindings and reports are
