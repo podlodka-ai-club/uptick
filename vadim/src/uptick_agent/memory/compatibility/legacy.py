@@ -8,7 +8,8 @@ import json
 from collections.abc import Iterable
 from pathlib import Path
 
-from uptick_agent.memory.audit import AuditTraceEvent, AuditTraceSink, AuditTraceWrite
+from uptick_agent.memory.audit_contracts import AuditTraceEvent, AuditTraceSink, AuditTraceWrite
+from uptick_agent.memory.compatibility.contracts import MemoryEntry, MemoryMatch, MemoryQuery
 from uptick_agent.memory.config import MemoryConfiguration, ModuleConfig
 from uptick_agent.memory.contracts import (
     ContextItem,
@@ -27,7 +28,6 @@ from uptick_agent.memory.orchestrator import (
     MemoryOrchestrator,
 )
 from uptick_agent.memory.stores.contracts import StructuredMemoryStore
-from uptick_agent.models import MemoryEntry, MemoryMatch, MemoryQuery
 from uptick_agent.ports import Memory
 from uptick_agent.redaction import sanitize_json
 

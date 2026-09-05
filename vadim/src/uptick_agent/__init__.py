@@ -11,9 +11,9 @@ __all__ = ["AgentConfig", "AgentRunner", "RunResult"]
 
 
 _LAZY_EXPORTS = {
-    "AgentConfig": ("models", "AgentConfig"),
-    "RunResult": ("models", "RunResult"),
-    "AgentRunner": ("runner", "AgentRunner"),
+    "AgentConfig": ("runs.config", "AgentConfig"),
+    "RunResult": ("runs.results", "RunResult"),
+    "AgentRunner": ("runs.execute", "AgentRunner"),
 }
 
 

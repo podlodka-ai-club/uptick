@@ -16,6 +16,7 @@ from openai import (
     RateLimitError as OpenAIRateLimitError,
 )
 
+from uptick_agent.decisions.contracts import DecisionContext, V1NextStep
 from uptick_agent.llm.contracts import (
     LlmAuthenticationError,
     LlmCallTelemetry,
@@ -37,7 +38,6 @@ from uptick_agent.llm.contracts import (
 from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT
 from uptick_agent.llm.registry import LlmProviderConfig
 from uptick_agent.llm.structured_schema import normalize_output_schema
-from uptick_agent.models import DecisionContext, V1NextStep
 
 
 def _openai_provider_error(operation: str, error: Exception) -> LlmProviderError:

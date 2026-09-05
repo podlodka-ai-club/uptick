@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import Field
 
-from uptick_agent.models import StrictModel
+from uptick_agent._model_base import StrictModel
 
 
 class Clock(StrictModel):

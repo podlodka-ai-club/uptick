@@ -650,6 +650,39 @@ class V2Report(EvaluationModel):
         return self
 
 
+def _preserve_legacy_identity(*models: type[BaseModel]) -> None:
+    """Keep artifact model qualified names stable across the module split."""
+
+    for model in models:
+        model.__module__ = "uptick_agent.evaluation"
+
+
+_preserve_legacy_identity(
+    EvaluationModel,
+    V2EnvironmentPin,
+    V2ProviderPin,
+    V2SourcePin,
+    V2Budget,
+    V2FailurePolicy,
+    V2Condition,
+    V2RunMatrixBlock,
+    V2PlannedContrast,
+    V2EvaluationProfile,
+    V2Manifest,
+    V2SnapshotRef,
+    FrozenEvaluationBinding,
+    ProviderTelemetry,
+    MemoryTelemetry,
+    V2OutcomeMetrics,
+    V2AttemptRecord,
+    V2Coverage,
+    V2MetricDistribution,
+    V2ConditionReport,
+    V2PairwiseReport,
+    V2Report,
+)
+
+
 def profile_hash(profile: V2EvaluationProfile | Mapping[str, object]) -> str:
     payload = profile.model_dump(mode="json") if isinstance(profile, BaseModel) else dict(profile)
     return sha256_json(payload)

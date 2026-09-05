@@ -15,8 +15,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from uptick_agent.memory.contracts import ObjectiveMetric, OperationLink
-from uptick_agent.models import (
+from uptick_agent.decisions.actions import (
     AdvanceTime,
     AgentAction,
     FinishRun,
@@ -25,12 +24,13 @@ from uptick_agent.models import (
     GetOperation,
     GetOverview,
     GetResources,
-    RunResult,
-    ToolResult,
     V2AdvanceTime,
     V2ProbePage,
 )
+from uptick_agent.decisions.contracts import ToolResult
+from uptick_agent.memory.contracts import ObjectiveMetric, OperationLink
 from uptick_agent.redaction import sanitize_json
+from uptick_agent.runs.results import RunResult
 from uptick_agent.simulator.v2_client import SimulatorV2ApiError, SimulatorV2Client
 from uptick_agent.v2_actions import ControlCommand, GetControlCommands, GetInbox
 

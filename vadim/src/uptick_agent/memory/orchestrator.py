@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import Field, JsonValue
 
-from uptick_agent.memory.audit import (
+from uptick_agent.memory.audit_contracts import (
     AuditTraceEvent,
     AuditTraceSink,
     AuditTraceWrite,

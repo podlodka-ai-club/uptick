@@ -14,6 +14,12 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
   one reached the step limit, one the wall limit; 0/2 demonstrated SLO success.
   Resume with public-evidence incident diagnosis and capacity-target sufficiency,
   using `V2_POLICY_GUARD_RESULTS.md`; do not claim a successful baseline yet.
+- After `8ab2b46`, architecture owners are `decisions/`, `runs/`, `evaluation/`
+  and `composition/`; historical imports remain facades. The runner and extracted
+  provenance validator preserve behavior; 56 old schemas/identities match and
+  all four sealed experiments still verify. Offline suite: 543 passed, 2 skipped.
+  Next: execute `LEARNING_CYCLE_PLAN.md` with real model calls and retain the
+  result even if measured benefit is zero. Do not weaken world activation gates.
 - Stages 1–5 are complete. Stage 6 and the subsequent A0–A9 compositions are
   implemented experimentally. No module has been promoted to default.
 - The v2 evaluation harness, CLI, immutable lifecycle/bindings and reports are
@@ -41,12 +47,24 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
    A0–A9 integration identities, outcomes and verification.
 7. `docs/agent-memory-design/ARCHITECTURE_AUDIT.md`: current completeness,
    import-boundary correction and remaining evidence/implementation gaps.
-8. `docs/agent-memory-design/AGENT_COMPARISON.md`: comparison with `simple_agent`
-   (the identification as Alex's agent remains provisional).
+8. `docs/agent-memory-design/AGENT_COMPARISON.md`: comparison with inspected
+   `simple_agent`; its provisional identification as Alex's agent is withdrawn.
 9. `docs/XMEMORY_INTEGRATION.md`: optional research xMemory integration and its
    upstream verification limits.
 10. `docs/agent-memory-design/V2_POLICY_GUARD_RESULTS.md`: observed blind-wait
     failure, policy 1.1 correction and operation-polling diagnostics.
+11. `docs/agent-memory-design/LEARNING_CYCLE_PLAN.md`: controlled durable learning
+    experiment, paired decisions, evaluator separation and limits.
+
+## Shared Granola notes
+
+The supplied share token resolves to Hacker Sprint #2, containing four Team
+Uptick notes. Public summaries were saved under ignored
+`artifacts/granola-hacker-sprint-2026-09-05/`. These are not verbatim transcripts:
+the connected transcript tool returned not found for all four meeting IDs, and
+the shared pages expose notes/summary popovers. Never describe the extraction as
+full transcripts. Sync 3/4 distinguish a simple/oracle baseline from Alex's
+multi-step agent, but do not prove this repository's `simple_agent` is an oracle.
 
 ## Architecture audit and optional xMemory
 

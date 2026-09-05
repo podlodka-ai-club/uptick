@@ -1,6 +1,17 @@
 # Agent comparison: `vadim` and `simple_agent`
 
-**Status:** provisional comparison based on repository contents, tests, and existing local artifacts. The identity “Alex” for `simple_agent` is provisional because the user has not confirmed it.
+**Status:** comparison of two repository trees, not an identified comparison
+with Alex's current agent. The earlier provisional “Alex” label is withdrawn.
+Shared Team Uptick Sync 3 notes describe a simple/oracle baseline separately
+from Alex's multi-step agent, and Sync 4 describes additional memory/macros.
+Those meeting reports do not identify a matching source revision or prove that
+this repository's `simple_agent` is the oracle implementation. Its code/test
+observations below remain attached to the inspected tree only.
+
+Sources: [Sync 3](https://notes.granola.ai/d/6f474ea2-9ae9-4928-a4dc-f8dcb5f0fd5b?list_id=6353c08b-78c1-4bce-95a5-555a7d97076a),
+[Sync 4](https://notes.granola.ai/d/d02f95f9-15fb-407e-b32e-1727343ef805?list_id=6353c08b-78c1-4bce-95a5-555a7d97076a).
+These are shared meeting summaries, not verbatim transcripts or independent
+performance verification.
 
 ## Scope and revisions
 
@@ -9,7 +20,7 @@ This comparison covers the two agent trees as they exist in the shared repositor
 | Tree | Location | Revision used | Identity / notes |
 |---|---|---|---|
 | `vadim` | `/Users/mingazhev/Repos/podlodka/uptick/vadim` | `b3596cebb136bb2872c805dac527ca3f2407852b` | This agent’s tree; instructions in [`vadim/AGENTS.md`](</Users/mingazhev/Repos/podlodka/uptick/vadim/AGENTS.md>) |
-| `simple_agent` | `/Users/mingazhev/Repos/podlodka/uptick/simple_agent` | `dc7ac3e20022fb7cebb17e42ac4f00c49e9f5806` | Sibling tree; identity provisionally called Alex; no sibling `AGENTS.md` was found |
+| `simple_agent` | `/Users/mingazhev/Repos/podlodka/uptick/simple_agent` | `dc7ac3e20022fb7cebb17e42ac4f00c49e9f5806` | Sibling baseline tree; Alex identity withdrawn; no sibling `AGENTS.md` was found |
 
 The sibling revision is the latest commit touching that tree (`fix(cli): allow benchmark trace naming`). Its recent history also includes the extensible SGR baseline and the separation of working context from durable memory. The `vadim` revision includes the completed v2/memory integration work and the Codex cancellation boundary fix recorded by the parent task.
 
@@ -88,4 +99,7 @@ The minimum fair v1 protocol is:
 
 Until that protocol is executed, the defensible conclusion is architectural: `simple_agent` is a smaller v1 baseline with a useful but underpowered memory pilot; `vadim` supplies the versioned v2 and evaluation machinery. There is no evidence here that one agent performs better than the other.
 
-The “Alex” label remains provisional pending user confirmation. This report intentionally makes no ranking, no causal memory claim, no SLO claim for the sibling, and no claim that the current v2 outcomes are a successful evaluation.
+A comparison with Alex requires his actual implementation and revision; the
+shared meeting summaries cannot substitute for them. This report makes no
+ranking, causal memory claim, SLO claim for the sibling, or claim that current
+v2 outcomes are a successful evaluation.

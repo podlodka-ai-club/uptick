@@ -13,12 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
-from uptick_agent.models import (
-    AdvanceTimeStopCondition,
-    DecisionContext,
-    NextStep,
-    V2AdvanceTime,
-)
+from uptick_agent.decisions.actions import AdvanceTimeStopCondition, V2AdvanceTime
+from uptick_agent.decisions.contracts import DecisionContext, NextStep
 
 V2_TIME_BUDGET_POLICY_ID = "simulator-v2-time-budget"
 V2_TIME_BUDGET_POLICY_VERSION = "1.1"

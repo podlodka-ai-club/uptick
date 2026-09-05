@@ -4,8 +4,8 @@ import asyncio
 import json
 from pathlib import Path
 
-from uptick_agent.models import RunResult, StepRecord
 from uptick_agent.redaction import sanitize_json
+from uptick_agent.runs.results import RunResult, StepRecord
 
 
 class NullObserver:

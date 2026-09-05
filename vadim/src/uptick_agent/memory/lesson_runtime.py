@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from uptick_agent.memory.audit import AuditTraceEvent, AuditTraceSink, AuditTraceWrite
+from uptick_agent.memory.audit_contracts import AuditTraceEvent, AuditTraceSink, AuditTraceWrite
 from uptick_agent.memory.config import MemoryConfiguration
 from uptick_agent.memory.contracts import (
     DecisionMemoryContext,

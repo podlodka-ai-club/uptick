@@ -19,7 +19,8 @@ from typing import Any, Literal, Protocol, cast, runtime_checkable
 
 from pydantic_core import PydanticSerializationError
 
-from uptick_agent.memory.audit import AuditTraceEvent, AuditTraceSink, AuditTraceWrite
+from uptick_agent.memory.audit_contracts import AuditTraceEvent, AuditTraceSink, AuditTraceWrite
+from uptick_agent.memory.compatibility.contracts import MemoryEntry
 from uptick_agent.memory.config import MemoryConfiguration
 from uptick_agent.memory.contracts import (
     ContextItem,
@@ -46,7 +47,6 @@ from uptick_agent.memory.stores.contracts import (
     validate_identifier,
     validate_namespace,
 )
-from uptick_agent.models import MemoryEntry
 from uptick_agent.redaction import redact_text, sanitize_json
 
 XMEMORY_MODULE_ID = "xmemory"

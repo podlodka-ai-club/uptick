@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from uptick_agent.memory.compatibility.contracts import MemoryEntry, MemoryMatch, MemoryQuery
 from uptick_agent.memory.in_memory import InMemoryMemory
-from uptick_agent.models import MemoryEntry, MemoryMatch, MemoryQuery
 from uptick_agent.redaction import sanitize_json
 
 

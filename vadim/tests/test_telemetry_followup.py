@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import uptick_agent.evaluation_runtime as evaluation_runtime
+import uptick_agent.evaluation.execution as evaluation_execution
 from uptick_agent.evaluation_runtime import (
     EvaluationMemoryFacade,
     EvaluationRuntime,
@@ -235,7 +235,7 @@ def test_empty_and_partial_module_measurements_remain_truthful(monkeypatch) -> N
     assert merged is not None
     assert merged["episodic"]["read_events"] is None
 
-    monkeypatch.setattr(evaluation_runtime, "_STORED_ARTIFACT_COUNT_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(evaluation_execution, "_STORED_ARTIFACT_COUNT_TIMEOUT_SECONDS", 0.01)
 
     class HangingFactory:
         async def stored_artifact_count(self, condition, attempt, phase):

@@ -10,13 +10,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol, cast
 
-from uptick_agent.evaluation import V2EvaluationProfile, V2Manifest, resolved_manifest
-from uptick_agent.evaluation_runtime import (
-    DefaultEvaluationMemoryFactory,
-    EvaluationJournal,
-    EvaluationRuntime,
-    FilesystemEvaluationArtifactStore,
-)
+from uptick_agent.composition.evaluation_memory import DefaultEvaluationMemoryFactory
+from uptick_agent.decisions.contracts import DecisionContext, NextStep, V1NextStep, V2NextStep
+from uptick_agent.evaluation.artifacts import FilesystemEvaluationArtifactStore
+from uptick_agent.evaluation.contracts import V2EvaluationProfile, V2Manifest, resolved_manifest
+from uptick_agent.evaluation.execution import EvaluationRuntime
+from uptick_agent.evaluation.lifecycle import EvaluationJournal
 from uptick_agent.experiments import ExperimentRunner
 from uptick_agent.llm import (
     GenerationSettings,
@@ -32,10 +31,10 @@ from uptick_agent.llm import (
 from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT, V2_OBJECTIVE, V2_SYSTEM_PROMPT
 from uptick_agent.memory import InMemoryMemory, JsonlMemory, legacy_memory_runtime
 from uptick_agent.memory.stores import SqliteStructuredStore
-from uptick_agent.models import AgentConfig, DecisionContext, NextStep, V1NextStep, V2NextStep
 from uptick_agent.observers import CompositeObserver, ConsoleObserver, JsonlObserver
 from uptick_agent.ports import AgentMemory, DecisionModel, Environment
-from uptick_agent.runner import AgentRunner
+from uptick_agent.runs.config import AgentConfig
+from uptick_agent.runs.execute import AgentRunner
 from uptick_agent.simulator import SimulatorClient, SimulatorEnvironment
 from uptick_agent.simulator.v2_client import SimulatorV2Client
 from uptick_agent.simulator.v2_environment import SimulatorV2Environment

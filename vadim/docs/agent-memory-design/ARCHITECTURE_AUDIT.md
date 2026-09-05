@@ -54,23 +54,41 @@ evaluation injects its pinned attribution, refuses learning declarations for
 unverified world context, and validates evidence against immutable declarations.
 Do not infer an immutable world identity from a run ID or seed.
 
-## Is it a screaming architecture?
+## Architecture correction after `8ab2b46`
 
-Partly. `memory`, `simulator`, `evaluation`, world hypotheses, consolidation,
-playbooks and tool knowledge expose the application's concepts. The central
-loop depends on `AgentMemory`, `DecisionModel` and `Environment`; memory crosses
-its boundary as typed data with trust and provenance rather than provider
-responses or simulator transport objects.
+The source now exposes the principal use cases and their ownership directly:
 
-It is not a uniformly strict arrangement by use case. `models.py` combines
-shared and versioned action/result types, and `evaluation_runtime.py` combines
-lifecycle orchestration, durable artifacts, snapshot validation and default
-memory composition. Those are maintenance hotspots. Renaming folders alone
-would not improve their dependency boundaries or prove the agent works better.
-`memory/lesson_runtime.py` is an explicit compatibility composition facade that
-constructs episodic and lesson modules; `experimental_runtime.py` is the richer
-experimental composition root. This deliberate migration exception should not
-be copied into ordinary memory modules.
+| Owner | Responsibility |
+| --- | --- |
+| `decisions/actions.py`, `decisions/contracts.py` | Typed actions and decision context |
+| `runs/config.py`, `runs/results.py`, `runs/execute.py` | Run configuration, results and agent loop |
+| `evaluation/execution.py`, `evaluation/ports.py` | Ordered experiment execution through injected factories |
+| `evaluation/lifecycle.py`, `evaluation/artifacts.py` | Attempt lifecycle and artifact storage |
+| `evaluation/provenance.py`, `evaluation/snapshots.py` | Training evidence validation and frozen reads with isolated writes |
+| `evaluation/telemetry.py`, `evaluation/runtime_adapters.py` | Measurement and runtime adaptation |
+| `composition/memory.py`, `composition/evaluation_memory.py` | Concrete module/store wiring |
+| `memory/audit_contracts.py` | Audit contracts without loading the concrete sink |
+
+The old `models`, `runner`, `evaluation_runtime` and `experimental_runtime`
+imports remain compatibility facades. Canonical implementation imports use their
+owners. The evaluation execution use case no longer constructs a concrete memory
+factory; its legacy facade preserves the historical default constructor.
+`_model_base.py` is neutral, so legacy memory data does not depend on decision
+contracts. The central loop depends on `AgentMemory`, `DecisionModel` and
+`Environment`, not simulator/provider implementations.
+
+This is a responsibility split, not just a directory rename. The historical
+`memory/lesson_runtime.py` compatibility composition remains an explicit
+migration exception. Some pure contract files are still large; line count alone
+is not a reason for another abstraction. This architecture does not itself prove
+better decisions or close any effectiveness gate.
+
+Verification of this refactor: **543 passed, 2 skipped**, including seven new
+architecture checks; Ruff and `git diff --check` passed. All four historical
+sealed experiments verify unchanged. Independent comparison found all 56 prior
+Pydantic schemas and qualified identities unchanged. The moved `AgentRunner`
+class and extracted provenance validation body retain their prior AST behavior.
+The local quick review accepted no remaining defect.
 
 ```mermaid
 flowchart LR
@@ -124,7 +142,10 @@ Only source under `vadim/` was changed by this work. Sibling agent comparison
 is recorded in `AGENT_COMPARISON.md`; a winner on task performance has not
 been established.
 
-The next useful work is to establish a successful observable-only SRE policy,
+The next bounded mechanism experiment is specified in
+[`LEARNING_CYCLE_PLAN.md`](LEARNING_CYCLE_PLAN.md): learn from observed local
+incident outcomes, reopen and freeze memory, then measure actual model decisions
+with and without validated hypotheses. It does not replace establishing a successful observable-only SRE policy,
 obtain authoritative world identities and lock a causal-family holdout, then
 run a common-protocol comparison and memory-utility study. Semantic/graph
 retrieval alternatives and policy-governed physical deletion remain separate

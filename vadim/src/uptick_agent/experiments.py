@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from statistics import fmean, median
 
-from uptick_agent.models import ExperimentResult
-from uptick_agent.runner import AgentRunner
+from uptick_agent.runs.execute import AgentRunner
+from uptick_agent.runs.results import ExperimentResult
 
 
 class ExperimentRunner:

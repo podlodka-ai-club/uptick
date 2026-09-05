@@ -4,7 +4,7 @@ import math
 import re
 from collections.abc import Iterable
 
-from uptick_agent.models import MemoryEntry, MemoryMatch, MemoryQuery
+from uptick_agent.memory.compatibility.contracts import MemoryEntry, MemoryMatch, MemoryQuery
 from uptick_agent.redaction import sanitize_json
 
 _WORD = re.compile(r"[\w-]+", re.UNICODE)

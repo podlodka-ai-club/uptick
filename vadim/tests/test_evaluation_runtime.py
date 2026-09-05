@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import uptick_agent.evaluation_runtime as evaluation_runtime
+import uptick_agent.evaluation.execution as evaluation_execution
 from uptick_agent.evaluation import (
     V2AttemptRecord,
     V2Condition,
@@ -467,7 +467,7 @@ def test_cancellation_during_memory_finalization_propagates_without_next_cell() 
 def test_hanging_memory_artifact_measurement_does_not_change_completed_outcomes(
     monkeypatch,
 ) -> None:
-    monkeypatch.setattr(evaluation_runtime, "_STORED_ARTIFACT_COUNT_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(evaluation_execution, "_STORED_ARTIFACT_COUNT_TIMEOUT_SECONDS", 0.01)
     manifest = _manifest()
     events: list[tuple] = []
 

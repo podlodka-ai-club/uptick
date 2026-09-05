@@ -2,24 +2,17 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from uptick_agent.memory.audit import AuditTraceEvent, AuditTraceWrite
+from uptick_agent.decisions.actions import AgentAction
+from uptick_agent.decisions.contracts import DecisionContext, NextStep, ToolResult
+from uptick_agent.memory.audit_contracts import AuditTraceEvent, AuditTraceWrite
+from uptick_agent.memory.compatibility.contracts import MemoryEntry, MemoryMatch, MemoryQuery
 from uptick_agent.memory.contracts import (
     DecisionMemoryContext,
     ExperienceTransition,
     MemoryContextRequest,
     RunOutcome,
 )
-from uptick_agent.models import (
-    AgentAction,
-    DecisionContext,
-    MemoryEntry,
-    MemoryMatch,
-    MemoryQuery,
-    NextStep,
-    RunResult,
-    StepRecord,
-    ToolResult,
-)
+from uptick_agent.runs.results import RunResult, StepRecord
 
 
 class Memory(Protocol):

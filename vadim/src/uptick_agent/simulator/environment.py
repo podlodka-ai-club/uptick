@@ -4,8 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import uuid4
 
-from uptick_agent.memory.contracts import ObjectiveMetric, OperationLink
-from uptick_agent.models import (
+from uptick_agent.decisions.actions import (
     AdvanceTime,
     AgentAction,
     ApplyFix,
@@ -17,11 +16,12 @@ from uptick_agent.models import (
     GetOverview,
     GetResources,
     ProbePage,
-    RunResult,
     ScaleBackend,
     StartDeployment,
-    ToolResult,
 )
+from uptick_agent.decisions.contracts import ToolResult
+from uptick_agent.memory.contracts import ObjectiveMetric, OperationLink
+from uptick_agent.runs.results import RunResult
 from uptick_agent.simulator.client import SimulatorApiError, SimulatorClient
 from uptick_agent.simulator.models import (
     DeploymentsResponse,
