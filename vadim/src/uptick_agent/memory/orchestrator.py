@@ -94,6 +94,19 @@ class MemoryContextDiagnostics(ContractModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class MemoryModuleTelemetry(ContractModel):
+    """Observed lifecycle calls for one constructed memory module."""
+
+    module_id: str = Field(min_length=1, max_length=128)
+    module_version: str = Field(min_length=1, max_length=64)
+    construction_events: int = Field(default=0, ge=0)
+    read_events: int = Field(default=0, ge=0)
+    contribution_events: int = Field(default=0, ge=0)
+    write_events: int = Field(default=0, ge=0)
+    finalization_events: int = Field(default=0, ge=0)
+    consolidation_events: int = Field(default=0, ge=0)
+
+
 @dataclass(frozen=True)
 class _Candidate:
     module_id: str
@@ -139,6 +152,14 @@ class MemoryOrchestrator:
         self._validate_approvals(approval_verifier)
         self._audit_sink = self._validate_audit_sink(audit_sink)
         self._modules = self._construct_enabled_modules()
+        self._module_telemetry = {
+            module_id: MemoryModuleTelemetry(
+                module_id=module_id,
+                module_version=self._configuration.modules[module_id].version,
+                construction_events=1,
+            )
+            for module_id in self._modules
+        }
         self._last_context_diagnostics = MemoryContextDiagnostics(
             configuration_fingerprint=self._configuration.fingerprint,
             resolved_configuration=self._configuration.model_dump(mode="json"),
@@ -176,6 +197,18 @@ class MemoryOrchestrator:
     @property
     def last_context_diagnostics(self) -> MemoryContextDiagnostics:
         return self._last_context_diagnostics.model_copy(deep=True)
+
+    @property
+    def module_telemetry(self) -> dict[str, MemoryModuleTelemetry]:
+        return {
+            module_id: telemetry.model_copy(deep=True)
+            for module_id, telemetry in self._module_telemetry.items()
+        }
+
+    def _record_module_event(self, module_id: str, field_name: str) -> None:
+        telemetry = self._module_telemetry[module_id]
+        value = getattr(telemetry, field_name) + 1
+        self._module_telemetry[module_id] = telemetry.model_copy(update={field_name: value})
 
     @staticmethod
     def _registration_map(
@@ -287,6 +320,7 @@ class MemoryOrchestrator:
         for module_id, module in self._modules.items():
             if not isinstance(module, ContextContributor):
                 continue
+            self._record_module_event(module_id, "read_events")
             try:
                 contribution = await module.retrieve(request)
                 strategy = self._registrations[module_id].retrieval_strategy
@@ -352,6 +386,9 @@ class MemoryOrchestrator:
                     f"context contributor {module_id} failed unexpectedly"
                 ) from error
             contributions.append(contribution)
+            # Count only validated nonempty contributions entering the global merge.
+            if contribution.items:
+                self._record_module_event(module_id, "contribution_events")
             warnings.extend(f"{module_id}:{warning}" for warning in contribution.warnings)
 
         context, diagnostics = self._merge_contributions(
@@ -569,6 +606,7 @@ class MemoryOrchestrator:
             )
             for attempt in range(2):
                 try:
+                    self._record_module_event(module_id, "write_events")
                     receipts = await module.record(transition, idempotency_key=idempotency_key)
                     break
                 except MemoryTransientError:
@@ -664,6 +702,7 @@ class MemoryOrchestrator:
             )
             for attempt in range(2):
                 try:
+                    self._record_module_event(module_id, "finalization_events")
                     await module.finalize(outcome, idempotency_key=idempotency_key)
                     break
                 except MemoryTransientError:
@@ -690,6 +729,7 @@ class MemoryOrchestrator:
         for module_id, module in self._modules.items():
             if not isinstance(module, ConsolidationParticipant):
                 continue
+            self._record_module_event(module_id, "consolidation_events")
             result = await module.consolidate(request)
             if result.request_id != request.request_id or result.snapshot_id != request.snapshot_id:
                 raise MemoryPermanentError(

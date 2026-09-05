@@ -67,6 +67,7 @@ from uptick_agent.runner import AgentRunner
 
 T = TypeVar("T")
 _ID = re.compile(r"^[A-Za-z0-9._:-]{1,256}$")
+_STORED_ARTIFACT_COUNT_TIMEOUT_SECONDS = 1.0
 
 
 def _json_value(value: object) -> object:
@@ -431,6 +432,7 @@ class _MemoryAdapter:
         self._memory = memory
         self._context_items_total = 0
         self._context_tokens_total = 0
+        self.stored_artifacts: int | None = None
 
     async def build_context(self, request: MemoryContextRequest) -> DecisionMemoryContext:
         context = await self._memory.build_context(request)
@@ -456,6 +458,8 @@ class _MemoryAdapter:
     async def finalize_run(self, outcome: RunOutcome) -> None:
         try:
             await self._memory.finalize_run(outcome)
+        except asyncio.CancelledError:
+            raise
         except BaseException as error:
             raise _FinalizationError("memory finalization failed") from error
 
@@ -465,6 +469,11 @@ class _MemoryAdapter:
     @property
     def context_diagnostics(self) -> dict[str, object]:
         return self._memory.context_diagnostics
+
+    @property
+    def module_telemetry(self) -> Mapping[str, object] | None:
+        value = getattr(self._memory, "module_telemetry", None)
+        return value if isinstance(value, Mapping) else None
 
     @property
     def telemetry_totals(self) -> dict[str, int]:
@@ -624,6 +633,51 @@ class EvaluationMemoryFacade:
     def context_diagnostics(self) -> dict[str, object]:
         return self._read.context_diagnostics
 
+    @property
+    def module_telemetry(self) -> dict[str, dict[str, object]] | None:
+        """Merge observed module calls from the frozen reader and eval writer."""
+
+        counters = (
+            "construction_events",
+            "read_events",
+            "contribution_events",
+            "write_events",
+            "finalization_events",
+            "consolidation_events",
+        )
+        merged: dict[str, dict[str, object]] = {}
+        telemetry_sets = [
+            getattr(runtime, "module_telemetry", None) for runtime in (self._read, self._write)
+        ]
+        if not all(isinstance(telemetry, Mapping) for telemetry in telemetry_sets):
+            return None
+        for telemetry in telemetry_sets:
+            for module_id, value in telemetry.items():
+                if isinstance(value, BaseModel):
+                    value = value.model_dump(mode="json")
+                if not isinstance(module_id, str) or not isinstance(value, Mapping):
+                    return None
+                version = value.get("module_version")
+                if not isinstance(version, str):
+                    return None
+                current = merged.setdefault(
+                    module_id,
+                    {"module_id": module_id, "module_version": version},
+                )
+                if current["module_version"] != version:
+                    current["module_version"] = "mixed"
+                for field in counters:
+                    count = value.get(field)
+                    valid = isinstance(count, int) and not isinstance(count, bool) and count >= 0
+                    if field not in current:
+                        current[field] = count if valid else None
+                    elif current[field] is not None:
+                        if valid:
+                            current[field] = int(current[field]) + count
+                        else:
+                            current[field] = None
+        return merged
+
 
 class DefaultEvaluationMemoryFactory:
     """Compose canonical memory modules with immutable evaluation read views."""
@@ -690,6 +744,37 @@ class DefaultEvaluationMemoryFactory:
             "memory_namespace": memory_namespace,
             "audit_namespace": f"{memory_namespace}:audit",
         }
+
+    async def stored_artifact_count(
+        self,
+        condition: V2Condition,
+        attempt: V2AttemptRecord,
+        phase: Literal["training", "evaluation"],
+    ) -> int | None:
+        """Count records in namespaces owned by this factory.
+
+        Training counts are cumulative across the condition's training
+        namespace set.  Evaluation counts cover only the current attempt's
+        isolated namespace set; frozen input is reported separately as
+        ``snapshot_members``.  Store failures leave this optional measurement
+        unavailable and never change the run outcome.
+        """
+
+        try:
+            base = self.memory_metadata(condition, attempt, phase)["memory_namespace"]
+            namespaces = self._module_namespaces(
+                condition.condition_id,
+                condition.memory_configuration,
+                base,
+            )
+            records = [
+                record
+                for namespace in dict.fromkeys(namespaces)
+                for record in await self.store.list(namespace=namespace)
+            ]
+            return len(records)
+        except Exception:
+            return None
 
     @staticmethod
     def _module_namespaces(
@@ -1729,6 +1814,7 @@ class EvaluationRuntime:
         self.journal.append(running)
         model: DecisionModel | None = None
         telemetry_model: _TelemetryModelAdapter | None = None
+        memory_adapter: _MemoryAdapter | None = None
         try:
             model = await _maybe_await(self.model_factory(block, condition, running, run_id))
             telemetry_model = _TelemetryModelAdapter(model)
@@ -1762,6 +1848,7 @@ class EvaluationRuntime:
                 observer=observer,
             )
             result = await runner.run(block.world_seed)
+            await self._refresh_stored_artifact_count(memory_adapter, condition, running)
             result_hash = self.journal.artifacts.put(
                 "run_result", running.attempt_id, result.model_dump(mode="json")
             )
@@ -1809,6 +1896,9 @@ class EvaluationRuntime:
                 )
         except asyncio.CancelledError:
             trace_hash = _try_trace_artifact(self.journal, running.attempt_id, observer, model)
+            if memory_adapter is not None:
+                with suppress(asyncio.CancelledError):
+                    await self._refresh_stored_artifact_count(memory_adapter, condition, running)
             await self._terminal(
                 running,
                 status="interrupted",
@@ -1822,10 +1912,13 @@ class EvaluationRuntime:
                 ),
                 trace_hash=trace_hash,
                 provider_telemetry=_provider_telemetry(telemetry_model, model),
+                memory_telemetry=_memory_telemetry(memory_adapter, binding),
             )
             raise
         except _FinalizationError as error:
             trace_hash = _try_trace_artifact(self.journal, running.attempt_id, observer, model)
+            if memory_adapter is not None:
+                await self._refresh_stored_artifact_count(memory_adapter, condition, running)
             await self._terminal(
                 running,
                 status="failed",
@@ -1835,9 +1928,12 @@ class EvaluationRuntime:
                 failure_reason=_failure_reason("finalization", error),
                 trace_hash=trace_hash,
                 provider_telemetry=_provider_telemetry(telemetry_model, model),
+                memory_telemetry=_memory_telemetry(memory_adapter, binding),
             )
         except Exception as error:
             trace_hash = _try_trace_artifact(self.journal, running.attempt_id, observer, model)
+            if memory_adapter is not None:
+                await self._refresh_stored_artifact_count(memory_adapter, condition, running)
             await self._terminal(
                 running,
                 status="failed",
@@ -1847,10 +1943,28 @@ class EvaluationRuntime:
                 failure_reason=_failure_reason("execution", error),
                 trace_hash=trace_hash,
                 provider_telemetry=_provider_telemetry(telemetry_model, model),
+                memory_telemetry=_memory_telemetry(memory_adapter, binding),
             )
         finally:
             await _close_resource(model)
             await _close_resource(environment)
+
+    async def _refresh_stored_artifact_count(
+        self,
+        memory: _MemoryAdapter,
+        condition: V2Condition,
+        attempt: V2AttemptRecord,
+    ) -> None:
+        counter = getattr(self.memory_factory, "stored_artifact_count", None)
+        if not callable(counter):
+            return
+        try:
+            async with asyncio.timeout(_STORED_ARTIFACT_COUNT_TIMEOUT_SECONDS):
+                value = await _maybe_await(counter(condition, attempt, attempt.phase))
+        except Exception:
+            return
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            memory.stored_artifacts = value
 
     async def _terminal(self, base: V2AttemptRecord, **updates: object) -> None:
         status = updates.pop("status")
@@ -2067,7 +2181,7 @@ def _memory_telemetry(
 ) -> MemoryTelemetry:
     diagnostics = getattr(memory, "context_diagnostics", {}) if memory is not None else {}
     if not isinstance(diagnostics, Mapping):
-        return MemoryTelemetry()
+        diagnostics = {}
     values = {
         "context_items": diagnostics.get("used_items"),
         "context_tokens": diagnostics.get("used_estimated_tokens"),
@@ -2082,10 +2196,70 @@ def _memory_telemetry(
                 "context_tokens": totals.get("context_tokens"),
             }
         )
-    values = {key: value for key, value in values.items() if isinstance(value, (int, float))}
+    stored_artifacts = getattr(memory, "stored_artifacts", None)
+    if (
+        isinstance(stored_artifacts, int)
+        and not isinstance(stored_artifacts, bool)
+        and stored_artifacts >= 0
+    ):
+        values["stored_artifacts"] = stored_artifacts
     frozen_members = getattr(memory, "frozen_snapshot_members", None)
     if isinstance(frozen_members, int) and frozen_members >= 0:
         values["snapshot_members"] = frozen_members
+    module_telemetry = getattr(memory, "module_telemetry", None)
+    if isinstance(module_telemetry, Mapping):
+        counters = {
+            "module_construction_events": "construction_events",
+            "module_read_events": "read_events",
+            "module_write_events": "write_events",
+            "module_consolidation_events": "consolidation_events",
+            "module_contribution_events": "contribution_events",
+        }
+        module_ids: list[str] = []
+        module_versions: dict[str, str] = {}
+        module_values: dict[str, list[int | None]] = {field: [] for field in counters}
+        malformed = False
+        if not module_telemetry:
+            values.update({field: 0 for field in counters})
+        else:
+            for module_id, telemetry in module_telemetry.items():
+                if isinstance(telemetry, BaseModel):
+                    telemetry = telemetry.model_dump(mode="json")
+                if not isinstance(module_id, str) or not isinstance(telemetry, Mapping):
+                    malformed = True
+                    continue
+                module_ids.append(module_id)
+                version = telemetry.get("module_version")
+                if not isinstance(version, str):
+                    malformed = True
+                    continue
+                module_versions[module_id] = version
+                for output_field, input_field in counters.items():
+                    value = telemetry.get(input_field)
+                    module_values[output_field].append(
+                        value
+                        if isinstance(value, int) and not isinstance(value, bool) and value >= 0
+                        else None
+                    )
+            if module_ids and not malformed:
+                values.update(
+                    {
+                        field: sum(field_values)
+                        if field_values and all(value is not None for value in field_values)
+                        else None
+                        for field, field_values in module_values.items()
+                    }
+                )
+        if module_ids and not malformed:
+            values["module_ids"] = tuple(sorted(set(module_ids)))
+            values["module_versions"] = module_versions
+    numeric_values = {
+        key: value for key, value in values.items() if isinstance(value, (int, float))
+    }
+    structured_values = {
+        key: value for key, value in values.items() if key in {"module_ids", "module_versions"}
+    }
+    values = {**numeric_values, **structured_values}
     return MemoryTelemetry(status="available", **values) if values else MemoryTelemetry()
 
 

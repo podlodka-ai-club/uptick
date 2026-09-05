@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import uptick_agent.evaluation_runtime as evaluation_runtime
 from uptick_agent.evaluation import (
     V2AttemptRecord,
     V2Condition,
@@ -428,6 +429,69 @@ def test_user_cancellation_propagates_without_starting_following_cells() -> None
     assert attempts[0].trace_hash is not None
 
 
+def test_cancellation_during_memory_finalization_propagates_without_next_cell() -> None:
+    manifest = _manifest(max_wall_seconds=1.0)
+    events: list[tuple] = []
+    finalization_started = asyncio.Event()
+
+    class _BlockingFinalizationMemory(_Memory):
+        async def finalize_run(self, outcome: RunOutcome):
+            finalization_started.set()
+            await asyncio.Event().wait()
+
+    runtime = EvaluationRuntime(
+        manifest,
+        environment_factory=lambda *_: _Environment(events),
+        model_factory=lambda *_: _Model(events),
+        memory_factory=lambda *_: _BlockingFinalizationMemory(events, []),
+        binding_factory=_binding_factory(manifest, []),
+    )
+
+    async def scenario() -> None:
+        task = asyncio.create_task(runtime.run())
+        await finalization_started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(scenario())
+    assert [event for event in events if event[0] == "environment.start"] == [
+        ("environment.start", 1)
+    ]
+    attempts = runtime.journal.reduce_attempts()
+    assert len(attempts) == 1
+    assert attempts[0].status == "interrupted"
+    assert attempts[0].failure_reason == "evaluation task cancelled"
+
+
+def test_hanging_memory_artifact_measurement_does_not_change_completed_outcomes(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(evaluation_runtime, "_STORED_ARTIFACT_COUNT_TIMEOUT_SECONDS", 0.01)
+    manifest = _manifest()
+    events: list[tuple] = []
+
+    class _HangingMemoryFactory:
+        def __call__(self, *args):
+            return _Memory(events, [])
+
+        async def stored_artifact_count(self, condition, attempt, phase):
+            await asyncio.sleep(10)
+
+    report = _run(
+        EvaluationRuntime(
+            manifest,
+            environment_factory=lambda *_: _Environment(events),
+            model_factory=lambda *_: _Model(events),
+            memory_factory=_HangingMemoryFactory(),
+            binding_factory=_binding_factory(manifest, []),
+        )
+    )
+    assert report.retained_attempts
+    assert all(item.status == "completed" for item in report.retained_attempts)
+    assert all(item.memory_telemetry.stored_artifacts is None for item in report.retained_attempts)
+
+
 def test_evaluation_binding_is_frozen_before_any_evaluation_start() -> None:
     manifest = _manifest()
     events: list[tuple] = []
@@ -727,6 +791,23 @@ def test_default_memory_factory_reads_frozen_training_and_excludes_eval_writes()
     assert all(
         item.memory_telemetry.snapshot_members is not None
         and item.memory_telemetry.snapshot_members > 0
+        for item in evaluation_attempts
+    )
+    assert all(
+        item.memory_telemetry.stored_artifacts is not None
+        and item.memory_telemetry.stored_artifacts > 0
+        for item in evaluation_attempts
+    )
+    assert all(item.memory_telemetry.module_ids == ("episodic",) for item in evaluation_attempts)
+    assert all(
+        item.memory_telemetry.module_construction_events is not None
+        and item.memory_telemetry.module_construction_events >= 2
+        and item.memory_telemetry.module_read_events is not None
+        and item.memory_telemetry.module_read_events >= 1
+        and item.memory_telemetry.module_write_events is not None
+        and item.memory_telemetry.module_write_events >= 1
+        and item.memory_telemetry.module_contribution_events is not None
+        and item.memory_telemetry.module_contribution_events >= 1
         for item in evaluation_attempts
     )
 

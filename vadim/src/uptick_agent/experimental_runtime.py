@@ -39,7 +39,11 @@ from uptick_agent.memory.episodic import EpisodicMemory
 from uptick_agent.memory.lesson_contracts import LessonRunDeclaration
 from uptick_agent.memory.lesson_evidence import StoredEpisodicLessonSource
 from uptick_agent.memory.maintenance import MaintenanceRetrievalView, MemoryMaintenance
-from uptick_agent.memory.orchestrator import MemoryModuleRegistration, MemoryOrchestrator
+from uptick_agent.memory.orchestrator import (
+    MemoryModuleRegistration,
+    MemoryModuleTelemetry,
+    MemoryOrchestrator,
+)
 from uptick_agent.memory.playbooks import PlaybooksMemory
 from uptick_agent.memory.retrieval import (
     AdvancedRetrievalSettings,
@@ -123,6 +127,12 @@ class ExperimentalMemoryRuntime:
     @property
     def context_diagnostics(self) -> dict[str, object]:
         return self.orchestrator.last_context_diagnostics.model_dump(mode="json")
+
+    @property
+    def module_telemetry(self) -> dict[str, MemoryModuleTelemetry]:
+        """Return lifecycle calls observed by the constructed modules."""
+
+        return self.orchestrator.module_telemetry
 
     async def build_context(self, request: MemoryContextRequest) -> DecisionMemoryContext:
         return await self.orchestrator.build_context(request)
