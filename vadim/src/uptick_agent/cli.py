@@ -25,7 +25,6 @@ from uptick_agent.llm import (
     OpenAIProviderFactory,
 )
 from uptick_agent.llm.decision_model import StructuredDecisionModel
-from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT, V2_OBJECTIVE, V2_SYSTEM_PROMPT
 from uptick_agent.memory import InMemoryMemory, JsonlMemory, legacy_memory_runtime
 from uptick_agent.memory.stores import SqliteStructuredStore
 from uptick_agent.observers import CompositeObserver, ConsoleObserver, JsonlObserver
@@ -33,6 +32,12 @@ from uptick_agent.ports import AgentMemory, DecisionModel, Environment
 from uptick_agent.runs.config import AgentConfig
 from uptick_agent.runs.execute import AgentRunner
 from uptick_agent.simulator import SimulatorClient, SimulatorEnvironment
+from uptick_agent.simulator.briefings import (
+    V1_ENVIRONMENT_BRIEFING,
+    V2_ENVIRONMENT_BRIEFING,
+    V2_OBJECTIVE,
+    V2_SYSTEM_PROMPT,
+)
 from uptick_agent.simulator.v2_client import SimulatorV2Client
 from uptick_agent.simulator.v2_environment import SimulatorV2Environment
 from uptick_agent.simulator.v2_policy import SimulatorV2TimeBudgetPolicy
@@ -190,14 +195,14 @@ def _decision_model(args: argparse.Namespace) -> CloseableDecisionModel:
         return StructuredDecisionModel(
             client,
             response_model=V1NextStep,
-            system_prompt=DEFAULT_SYSTEM_PROMPT,
+            environment_briefing=V1_ENVIRONMENT_BRIEFING,
             settings=settings,
         )
     return SimulatorV2TimeBudgetPolicy(
         StructuredDecisionModel(
             client,
             response_model=V2NextStep,
-            system_prompt=V2_SYSTEM_PROMPT,
+            environment_briefing=V2_ENVIRONMENT_BRIEFING,
             settings=settings,
         )
     )
@@ -406,7 +411,7 @@ def _v2_model_factory(profile: V2EvaluationProfile, args: argparse.Namespace):
         StructuredDecisionModel(
             client,
             response_model=V2NextStep,
-            system_prompt=V2_SYSTEM_PROMPT,
+            environment_briefing=V2_ENVIRONMENT_BRIEFING,
             settings=_profile_generation_settings(profile),
         )
     )

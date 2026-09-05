@@ -25,8 +25,8 @@ from uptick_agent.evaluation import (
     resolved_manifest,
 )
 from uptick_agent.evaluation_presets import all_experimental_presets
-from uptick_agent.llm.prompts import V2_SYSTEM_PROMPT
 from uptick_agent.memory.config import AuditConfiguration
+from uptick_agent.simulator.briefings import V2_SYSTEM_PROMPT
 from uptick_agent.simulator.v2_policy import SimulatorV2TimeBudgetPolicy
 from uptick_agent.stage0 import sha256_file, sha256_json, sha256_tree
 

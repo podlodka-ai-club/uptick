@@ -17,6 +17,7 @@ from uptick_agent.models import (
     V2AdvanceTime,
 )
 from uptick_agent.runner import AgentRunner
+from uptick_agent.simulator.briefings import V1_SYSTEM_PROMPT
 from uptick_agent.simulator.v2_policy import (
     V2_TIME_BUDGET_POLICY_ID,
     V2_TIME_BUDGET_POLICY_VERSION,
@@ -392,8 +393,12 @@ def test_cli_wraps_only_v2_structured_models(monkeypatch) -> None:
     v1_args = cli._parser().parse_args(["run", "--seed", "1", "--simulator-api-version", "v1"])
     v2_args = cli._parser().parse_args(["run", "--seed", "1"])
 
-    assert isinstance(cli._decision_model(v1_args), cli.StructuredDecisionModel)
-    assert isinstance(cli._decision_model(v2_args), SimulatorV2TimeBudgetPolicy)
+    v1_model = cli._decision_model(v1_args)
+    v2_model = cli._decision_model(v2_args)
+    assert isinstance(v1_model, cli.StructuredDecisionModel)
+    assert isinstance(v2_model, SimulatorV2TimeBudgetPolicy)
+    assert v1_model.system_prompt == V1_SYSTEM_PROMPT
+    assert v2_model._delegate.system_prompt == cli.V2_SYSTEM_PROMPT
 
 
 def test_v2_policy_runner_reaches_horizon_with_scripted_short_waits() -> None:

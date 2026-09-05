@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from uptick_agent.decisions.contracts import DecisionContext, NextStep
+from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT, compose_system_prompt
 from uptick_agent.llm.contracts import (
     GenerationSettings,
     LlmClient,
@@ -12,7 +13,6 @@ from uptick_agent.llm.contracts import (
     StructuredGenerationRequest,
     serialize_structured_generation_request,
 )
-from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT
 
 
 class StructuredDecisionModel:
@@ -23,13 +23,17 @@ class StructuredDecisionModel:
         client: LlmClient,
         *,
         response_model: type[NextStep] = NextStep,
-        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
+        system_prompt: str | None = None,
+        environment_briefing: str | None = None,
         settings: GenerationSettings | None = None,
     ) -> None:
         self._client = client
         self.model = getattr(client, "model", None)
         self.response_model = response_model
-        self.system_prompt = system_prompt
+        self.system_prompt = compose_system_prompt(
+            CORE_SYSTEM_PROMPT if system_prompt is None else system_prompt,
+            environment_briefing,
+        )
         self.settings = settings or GenerationSettings()
 
     @property

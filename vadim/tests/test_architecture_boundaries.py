@@ -12,9 +12,7 @@ SRC = ROOT / "src"
 def _fresh_process(script: str) -> None:
     environment = os.environ.copy()
     existing = environment.get("PYTHONPATH")
-    environment["PYTHONPATH"] = os.pathsep.join(
-        item for item in (str(SRC), existing) if item
-    )
+    environment["PYTHONPATH"] = os.pathsep.join(item for item in (str(SRC), existing) if item)
     completed = subprocess.run(
         [sys.executable, "-c", script],
         cwd=ROOT,
@@ -130,11 +128,60 @@ def test_structured_decision_bridge_has_a_provider_neutral_import_boundary() -> 
     _fresh_process(
         """
 import sys
+from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT
 from uptick_agent.llm.decision_model import StructuredDecisionModel
 
 assert StructuredDecisionModel.__module__ == 'uptick_agent.llm.decision_model'
 assert 'uptick_agent.cli' not in sys.modules
 assert 'uptick_agent.llm.openai' not in sys.modules
 assert 'uptick_agent.simulator' not in sys.modules
+class Client:
+    model = 'test-model'
+assert StructuredDecisionModel(Client()).system_prompt == CORE_SYSTEM_PROMPT
 """
     )
+
+
+def test_prompt_composition_uses_one_neutral_core_and_legacy_exports() -> None:
+    import hashlib
+
+    from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT, compose_system_prompt
+    from uptick_agent.llm.decision_model import StructuredDecisionModel
+    from uptick_agent.llm.prompts import DEFAULT_SYSTEM_PROMPT
+    from uptick_agent.llm.prompts import V2_SYSTEM_PROMPT as LegacyV2
+    from uptick_agent.simulator.briefings import V2_ENVIRONMENT_BRIEFING, V2_SYSTEM_PROMPT
+
+    assert compose_system_prompt(CORE_SYSTEM_PROMPT) == CORE_SYSTEM_PROMPT
+    first = compose_system_prompt(CORE_SYSTEM_PROMPT, "first environment briefing")
+    second = compose_system_prompt(CORE_SYSTEM_PROMPT, "second environment briefing")
+    assert first != second
+    assert CORE_SYSTEM_PROMPT in first
+    assert CORE_SYSTEM_PROMPT in second
+    assert "SRE" not in CORE_SYSTEM_PROMPT
+    assert "e-commerce" not in CORE_SYSTEM_PROMPT
+    assert "API" not in CORE_SYSTEM_PROMPT
+
+    assert hashlib.sha256(DEFAULT_SYSTEM_PROMPT.encode()).hexdigest() == (
+        "b2812ef681ea17daf710178388bf8e585af6451505a6badc00ed9cb2517f4a93"
+    )
+
+    class Client:
+        model = "legacy-model"
+
+    assert (
+        StructuredDecisionModel(Client(), system_prompt=DEFAULT_SYSTEM_PROMPT).system_prompt
+        == DEFAULT_SYSTEM_PROMPT
+    )
+    assert LegacyV2 == V2_SYSTEM_PROMPT
+    assert compose_system_prompt(CORE_SYSTEM_PROMPT, V2_ENVIRONMENT_BRIEFING) == V2_SYSTEM_PROMPT
+
+
+def test_cli_and_manifest_builder_use_the_composed_v2_prompt() -> None:
+    import runpy
+
+    from uptick_agent import cli
+    from uptick_agent.simulator.briefings import V2_SYSTEM_PROMPT
+
+    assert cli.V2_SYSTEM_PROMPT is V2_SYSTEM_PROMPT
+    manifest_module = runpy.run_path(str(ROOT / "scripts/build_v2_integration_manifest.py"))
+    assert manifest_module["V2_SYSTEM_PROMPT"] is V2_SYSTEM_PROMPT
