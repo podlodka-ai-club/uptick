@@ -1,0 +1,16 @@
+[project]
+name = "ak-agent"
+version = "0.1.0"
+description = "Learning SRE agent with persistent memory and subscription-auth Codex brain"
+requires-python = ">=3.12"
+dependencies = [
+    "openai-codex==0.147.0",
+    "pydantic>=2.12,<3",
+]
+
+[project.scripts]
+ak-agent = "ak_agent.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"

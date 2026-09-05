@@ -1,0 +1,362 @@
+{
+  "captured_at_utc": "2026-09-04T22:29:53+00:00",
+  "note": "Real stored events. Reported use of memory is observable; causal SLO improvement is not established by this trace.",
+  "source_run_id": "A5j6AiFUGm9KCluCnmMZkKsf",
+  "simulator_final_overview": {
+    "costs": {
+      "currency": "RUB",
+      "server_cost_minor": 34412716902,
+      "backup_storage_cost_minor": 45300,
+      "total_cost_minor": 34412762202,
+      "current_cost_per_hour_minor": 308403078
+    },
+    "availability": {
+      "uptime_target": 0.99,
+      "observed_seconds": 604800,
+      "available_seconds": 602339.835738,
+      "downtime_seconds": 2460.164262,
+      "uptime_ratio": 0.9959322680853174,
+      "slo_passed": true
+    },
+    "clock": {
+      "simulation_time": "2030-01-20T21:00:00Z",
+      "simulation_ends_at": "2030-01-20T21:00:00Z",
+      "remaining_seconds": 0,
+      "real_elapsed_seconds": 2.2935624,
+      "applied_advance_seconds": 0
+    },
+    "run_id": "A5j6AiFUGm9KCluCnmMZkKsf",
+    "status": "completed",
+    "site_status": "unavailable",
+    "server_count": 12,
+    "capacity_utilization": 0.015,
+    "error_rate": 0.003549039050266313,
+    "http_status": 200
+  },
+  "reflection_and_accepted_lesson": {
+    "id": 1874,
+    "kind": "reflection",
+    "data": {
+      "mission": "Завершить run с uptime не ниже 99% при минимальной общей стоимости инфраструктуры.",
+      "assessment": "Run завершён успешно по SLO: uptime 99.5932%, downtime 2460.16 секунды. Масштабирование остановило последний capacity-инцидент, и до конца новых инфраструктурных ошибок не возникло. Однако стоимость 34.41 млрд minor RUB высока: run завершился с 12 серверами и utilization 1.5%. Длительное ожидание только до ошибки сохранило пиковую мощность после спада и ухудшило ценовую часть цели.",
+      "plan": "Run завершён. В будущих эпизодах после пика использовать не только stop_when по ошибкам, но и контрольную точку до конца мира для оценки спада и ступенчатого удаления временных backend.",
+      "tags": [
+        "sre",
+        "final",
+        "slo",
+        "capacity",
+        "cost"
+      ],
+      "used_memory_ids": [
+        "backend-scale-down-after-burst",
+        "capacity-scaling-threshold",
+        "excess-capacity-must-be-removed-before-run-end"
+      ],
+      "lessons": [
+        {
+          "key": "long-error-only-wait-can-miss-scale-down",
+          "title": "Ожидание только до новой ошибки может пропустить экономичный scale-down",
+          "body": "Если после восстановления до конца run остаётся значимый интервал, единый advance до завершения с остановкой только на ошибке не обнаруживает безопасный спад нагрузки. Нужна хотя бы одна контрольная точка до конца, чтобы оценить utilization и ступенчато удалить временные backend; ограничение не применяется, когда интервал короток или нагрузка остаётся высокой до финала.",
+          "tags": [
+            "backend",
+            "cost",
+            "scale-down",
+            "monitoring"
+          ],
+          "procedure": [
+            "После подтверждённого восстановления определить контрольную точку до конца run.",
+            "На контрольной точке сравнить спрос, capacity и запас под целый запрос.",
+            "При подтверждённом спаде удалить временную мощность ступенчато с проверкой ошибок."
+          ],
+          "importance": 0.78,
+          "evidence_ids": [
+            1862,
+            1864
+          ],
+          "verdict": "supports",
+          "outcome": "failure",
+          "explanation": "Последний advance прошёл 33767.93 секунды до завершения без инфраструктурных ошибок, но финальная utilization упала до 1.5% при 12 оставшихся серверах. Uptime прошёл SLO, однако отсутствие промежуточной точки не позволило снять ставшую избыточной пиковую мощность и снизить итоговую стоимость."
+        }
+      ],
+      "actions": [],
+      "accepted_lessons": [
+        "long-error-only-wait-can-miss-scale-down"
+      ]
+    }
+  },
+  "subsequent_run_id": "d0g3cvsrzu38TcFitC9R4QpJ",
+  "subsequent_decision": {
+    "id": 1906,
+    "kind": "decision",
+    "data": {
+      "mission": "Завершить run с uptime не ниже 99% при минимальной общей стоимости инфраструктуры.",
+      "assessment": "Восстановление подтверждено: оба probe вернули 200, за 300 секунд прошло 151 запрос без ошибок, downtime и responses_500/503 не выросли. Текущая utilization 6% низкая, но третий backend был добавлен из-за роста всего несколько минут назад, поэтому немедленное удаление преждевременно.",
+      "plan": "Сохранить capacity 300 на контрольный интервал 1800 секунд с остановкой на первой ошибке. Если интервал останется чистым и нагрузка будет низкой, удалить временный backend одной ступенью и проверить capacity 200; при новой capacity-ошибке масштабироваться по свежему спросу.",
+      "tags": [
+        "backend",
+        "stable",
+        "monitoring",
+        "cost"
+      ],
+      "used_memory_ids": [
+        "backend-scale-down-after-burst",
+        "capacity-scaling-threshold",
+        "long-error-only-wait-can-miss-scale-down"
+      ],
+      "lessons": [],
+      "actions": [
+        {
+          "kind": "advance",
+          "name": "time/advance",
+          "params_json": "{\"duration_seconds\":1800,\"stop_when\":{\"new_log_errors\":1}}",
+          "credential_id": null,
+          "wait_for_completion": true,
+          "repeat_count": 1
+        }
+      ],
+      "accepted_lessons": []
+    }
+  },
+  "batch_execution_example": {
+    "run_id": "7h0MvYMUCLEYnbVBLhRbpbQS",
+    "decision_event": {
+      "id": 2848,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run с uptime не ниже 99% при минимальной общей стоимости инфраструктуры.",
+        "assessment": "Начался резкий пик: спрос 1872 units при capacity 300, каждый backend несёт 624 units, сайт unavailable и появились свежие SERVER_CAPACITY_EXCEEDED. Для обслуживания целых запросов до 19 units средняя загрузка должна быть не выше 81 на экземпляр; требуется минимум 24 backend, то есть ещё 21.",
+        "plan": "Параллельно запустить создание 21 backend.standard. После расчётных 300 секунд проверить завершение всех операций и capacity 2400, затем probes и свежий трафик. До активации не использовать stop_when, поскольку capacity-ошибки ожидаемы.",
+        "tags": [
+          "incident",
+          "backend",
+          "capacity",
+          "scaling",
+          "slo"
+        ],
+        "used_memory_ids": [
+          "backend-capacity-request-granularity",
+          "backend-scale-up-must-cover-observed-load",
+          "pending-recovery-expected-errors-can-defeat-stop-when"
+        ],
+        "lessons": [
+          {
+            "key": "backend-scale-up-must-cover-observed-load",
+            "title": "Масштабирование backend должно покрывать текущий распределённый спрос",
+            "body": "При повторяющихся SERVER_CAPACITY_EXCEEDED масштабирование следует продолжать, пока суммарная активная capacity не превысит наблюдаемый used_load_units с запасом; промежуточное увеличение, оставляющее спрос существенно выше capacity, не восстанавливает сервис.",
+            "tags": [
+              "backend",
+              "capacity",
+              "scaling",
+              "incident"
+            ],
+            "procedure": [
+              "Сравнить активную backend capacity с текущим used_load_units.",
+              "Параллельно подготовить достаточное число экземпляров для покрытия дефицита и запаса целого запроса.",
+              "После завершения provisioning проверить свежие ошибки, downtime и probes."
+            ],
+            "importance": 0.82,
+            "evidence_ids": [
+              2841
+            ],
+            "verdict": "supports",
+            "outcome": "failure",
+            "explanation": "В новом пике при capacity 300 наблюдаемый спрос достиг 1872 units, все три backend были перегружены, сайт стал unavailable и появились свежие SERVER_CAPACITY_EXCEEDED. Это подтверждает необходимость покрывать фактический дефицит, но результат нового масштабирования ещё не известен."
+          }
+        ],
+        "actions": [
+          {
+            "kind": "command",
+            "name": "server.create",
+            "params_json": "{\"name\":\"peak-recovery-12\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}",
+            "credential_id": null,
+            "wait_for_completion": false,
+            "repeat_count": 21
+          }
+        ],
+        "accepted_lessons": [
+          "backend-scale-up-must-cover-observed-load"
+        ]
+      }
+    },
+    "accepted_requests": 21,
+    "unique_request_ids": 21,
+    "responses": [
+      {
+        "event_id": 2850,
+        "request_id": "ak-a59f8bf4c9894e89-205-0",
+        "http_status": 202,
+        "operation_id": "Ni8bEwrpcu4FnWGlGkp28bz3"
+      },
+      {
+        "event_id": 2851,
+        "request_id": "ak-a59f8bf4c9894e89-205-1",
+        "http_status": 202,
+        "operation_id": "wNwfcBwRAglWTTiCW2UTmBRF"
+      },
+      {
+        "event_id": 2852,
+        "request_id": "ak-a59f8bf4c9894e89-205-2",
+        "http_status": 202,
+        "operation_id": "DTKBqJZT0FEmNvBv6U2jULLM"
+      },
+      {
+        "event_id": 2853,
+        "request_id": "ak-a59f8bf4c9894e89-205-3",
+        "http_status": 202,
+        "operation_id": "2tpCxy7xOV2mzEVVLiAdrjbL"
+      },
+      {
+        "event_id": 2854,
+        "request_id": "ak-a59f8bf4c9894e89-205-4",
+        "http_status": 202,
+        "operation_id": "T7rkiTx9WquJRyKEb0n2fxKB"
+      },
+      {
+        "event_id": 2855,
+        "request_id": "ak-a59f8bf4c9894e89-205-5",
+        "http_status": 202,
+        "operation_id": "xfaYb5WsFLXQLuj5yWCRqJlP"
+      },
+      {
+        "event_id": 2856,
+        "request_id": "ak-a59f8bf4c9894e89-205-6",
+        "http_status": 202,
+        "operation_id": "5ODYpvLulL4LyJlZUrWBxilA"
+      },
+      {
+        "event_id": 2857,
+        "request_id": "ak-a59f8bf4c9894e89-205-7",
+        "http_status": 202,
+        "operation_id": "OQn3wl0TPjd6CUKlcO3ru7AB"
+      },
+      {
+        "event_id": 2858,
+        "request_id": "ak-a59f8bf4c9894e89-205-8",
+        "http_status": 202,
+        "operation_id": "SRX2ftvajLUFsghhwyqmnApu"
+      },
+      {
+        "event_id": 2859,
+        "request_id": "ak-a59f8bf4c9894e89-205-9",
+        "http_status": 202,
+        "operation_id": "0sf1RICBtDZHUooODYVEZFme"
+      },
+      {
+        "event_id": 2860,
+        "request_id": "ak-a59f8bf4c9894e89-205-10",
+        "http_status": 202,
+        "operation_id": "oXRApTz8rhkMEpwuKNzcbZbC"
+      },
+      {
+        "event_id": 2861,
+        "request_id": "ak-a59f8bf4c9894e89-205-11",
+        "http_status": 202,
+        "operation_id": "y8zNtNX9QlIao5bGyo45dAyC"
+      },
+      {
+        "event_id": 2862,
+        "request_id": "ak-a59f8bf4c9894e89-205-12",
+        "http_status": 202,
+        "operation_id": "VuFYeKu762Ncrk5Q2Fehwb8L"
+      },
+      {
+        "event_id": 2863,
+        "request_id": "ak-a59f8bf4c9894e89-205-13",
+        "http_status": 202,
+        "operation_id": "D6ONnL1nR93k7PeqoMiywl4l"
+      },
+      {
+        "event_id": 2864,
+        "request_id": "ak-a59f8bf4c9894e89-205-14",
+        "http_status": 202,
+        "operation_id": "FV8qFkukGkxQH59TNYscfcCA"
+      },
+      {
+        "event_id": 2865,
+        "request_id": "ak-a59f8bf4c9894e89-205-15",
+        "http_status": 202,
+        "operation_id": "xIzm03c4tRdATooxumUp5IgA"
+      },
+      {
+        "event_id": 2866,
+        "request_id": "ak-a59f8bf4c9894e89-205-16",
+        "http_status": 202,
+        "operation_id": "GhSHG4364YGUu5KwXhBYNx8U"
+      },
+      {
+        "event_id": 2867,
+        "request_id": "ak-a59f8bf4c9894e89-205-17",
+        "http_status": 202,
+        "operation_id": "Z1Rgc5wRbWVFqifKHIk5MH3j"
+      },
+      {
+        "event_id": 2868,
+        "request_id": "ak-a59f8bf4c9894e89-205-18",
+        "http_status": 202,
+        "operation_id": "FQO6VxHfbWaqKRMbsJwUUEpQ"
+      },
+      {
+        "event_id": 2869,
+        "request_id": "ak-a59f8bf4c9894e89-205-19",
+        "http_status": 202,
+        "operation_id": "zojQFJMnFdzocGpaGB0eDhy5"
+      },
+      {
+        "event_id": 2870,
+        "request_id": "ak-a59f8bf4c9894e89-205-20",
+        "http_status": 202,
+        "operation_id": "gokf5mc5PYt57JAIX3mUAoB0"
+      }
+    ]
+  },
+  "forgetting_events": [
+    {
+      "source_log": "sol23-finish.log",
+      "line": 186,
+      "event": "forgotten",
+      "lessons": [
+        "probe-empty-product-id"
+      ]
+    },
+    {
+      "source_log": "sol42-later-bounded.log",
+      "line": 185,
+      "event": "forgotten",
+      "lessons": [
+        "validate-required-command-field-names"
+      ]
+    },
+    {
+      "source_log": "sol42-later-bounded.log",
+      "line": 212,
+      "event": "forgotten",
+      "lessons": [
+        "disk-cleanup-restores-serving-after-log-induced-disk-full"
+      ]
+    },
+    {
+      "source_log": "sol42-later-bounded.log",
+      "line": 300,
+      "event": "forgotten",
+      "lessons": [
+        "excess-capacity-must-be-removed-before-run-end"
+      ]
+    },
+    {
+      "source_log": "sol42-later-bounded.log",
+      "line": 403,
+      "event": "forgotten",
+      "lessons": [
+        "fresh-probe-over-health-window"
+      ]
+    },
+    {
+      "source_log": "sol42-later-bounded.log",
+      "line": 414,
+      "event": "forgotten",
+      "lessons": [
+        "planned-downtime-can-miss-slo-after-incident"
+      ]
+    }
+  ]
+}

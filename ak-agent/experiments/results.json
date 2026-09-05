@@ -1,0 +1,519 @@
+{
+  "measured_at_utc": "2026-09-04T23:56:29+00:00",
+  "runs": [
+    {
+      "local_id": "ak-63aa67b1b715486b",
+      "run_id": "A5j6AiFUGm9KCluCnmMZkKsf",
+      "seed": 42,
+      "model": "gpt-5.6-sol",
+      "status": "completed",
+      "uptime": 0.9959322680853174,
+      "slo_passed": true,
+      "cost_minor": 34412762202,
+      "currency": "RUB",
+      "downtime_seconds": 2460.164262,
+      "decisions": 106,
+      "llm_seconds": 1393.81,
+      "memory_enabled": true,
+      "experiment": "",
+      "runtime_versions": [
+        "d6328f426f09",
+        "0b580726b0b6",
+        "ae1fbcb099d6",
+        "ffa9b4f4b130"
+      ],
+      "effort": "low",
+      "runner_status": "finished",
+      "blocked_reason": null,
+      "error": null,
+      "label": "Sol, разработка",
+      "simulation_time": "2030-01-20T21:00:00Z"
+    },
+    {
+      "local_id": "ak-a59f8bf4c9894e89",
+      "run_id": "7h0MvYMUCLEYnbVBLhRbpbQS",
+      "seed": 23,
+      "model": "gpt-5.6-sol",
+      "status": "completed",
+      "uptime": 0.9904787025921263,
+      "slo_passed": true,
+      "cost_minor": 38370549156,
+      "currency": "RUB",
+      "downtime_seconds": 5758.480672282,
+      "decisions": 210,
+      "llm_seconds": 3820.82,
+      "memory_enabled": true,
+      "experiment": "",
+      "runtime_versions": [
+        "05161506cc0a",
+        "d6328f426f09",
+        "0b580726b0b6",
+        "ae1fbcb099d6",
+        "ffa9b4f4b130"
+      ],
+      "effort": "high",
+      "runner_status": "finished",
+      "blocked_reason": null,
+      "error": null,
+      "label": "Sol, разработка",
+      "simulation_time": "2030-08-04T21:00:00Z"
+    },
+    {
+      "local_id": "ak-732078ffe63b4926",
+      "run_id": "52L9lbepmacjgzTgY7CRPJUv",
+      "seed": 23,
+      "model": "gpt-5.6-luna",
+      "status": "completed",
+      "uptime": 0.9862424953388972,
+      "slo_passed": false,
+      "cost_minor": 117603728665,
+      "currency": "RUB",
+      "downtime_seconds": 8320.538819035,
+      "decisions": 97,
+      "llm_seconds": 1155.41,
+      "memory_enabled": true,
+      "experiment": "train-1788556020965334000",
+      "runtime_versions": [
+        "05161506cc0a",
+        "d6328f426f09",
+        "0b580726b0b6"
+      ],
+      "effort": "low",
+      "runner_status": "finished",
+      "blocked_reason": null,
+      "error": null,
+      "label": "Luna, разработка",
+      "simulation_time": "2030-08-04T21:00:00Z"
+    },
+    {
+      "local_id": "ak-519c42c79dc64583",
+      "run_id": "mUEWuXGbNAnLaPE1Z1GNJUJU",
+      "seed": 23,
+      "model": "gpt-5.3-codex-spark",
+      "status": "running",
+      "uptime": 0.9995694989189902,
+      "slo_passed": null,
+      "cost_minor": 77101707,
+      "currency": "RUB",
+      "downtime_seconds": 3.938229205,
+      "decisions": 6,
+      "llm_seconds": 22.19,
+      "memory_enabled": true,
+      "experiment": "train-1788556020965334000",
+      "runtime_versions": [],
+      "effort": "low",
+      "runner_status": "error",
+      "blocked_reason": null,
+      "error": "Model-specific GPT-5.3-Codex-Spark usage limit; see original train report.",
+      "label": "Spark, проба",
+      "simulation_time": "2030-07-28T23:32:28.012348219Z"
+    },
+    {
+      "local_id": "ak-c7017ef6c4034e95",
+      "run_id": "d0g3cvsrzu38TcFitC9R4QpJ",
+      "seed": 42,
+      "model": "gpt-5.6-sol",
+      "status": "completed",
+      "uptime": 0.9948917701901951,
+      "slo_passed": true,
+      "cost_minor": 29041452211,
+      "currency": "RUB",
+      "downtime_seconds": 3089.45738897,
+      "decisions": 208,
+      "llm_seconds": 3489.2,
+      "memory_enabled": true,
+      "experiment": "",
+      "runtime_versions": [
+        "486ecf01c0af",
+        "ae1fbcb099d6",
+        "ffa9b4f4b130",
+        "4f54e0e13891",
+        "2464597a8c8c"
+      ],
+      "effort": "low",
+      "runner_status": "finished",
+      "blocked_reason": null,
+      "error": null,
+      "label": "Sol, последующий запуск",
+      "simulation_time": "2030-01-20T21:00:00Z"
+    },
+    {
+      "local_id": "ak-e6030eb9ac4f463b",
+      "run_id": "xMgiHuYqxqfHRBgnQIcgjSFO",
+      "seed": 101,
+      "model": "gpt-5.6-sol",
+      "status": "completed",
+      "uptime": 0.9911541956379233,
+      "slo_passed": true,
+      "cost_minor": 24621086040,
+      "currency": "RUB",
+      "downtime_seconds": 5349.942478184,
+      "decisions": 152,
+      "llm_seconds": 2469.21,
+      "memory_enabled": true,
+      "experiment": "evaluate-1788557404324431000",
+      "runtime_versions": [
+        "05161506cc0a",
+        "d6328f426f09",
+        "0b580726b0b6",
+        "ae1fbcb099d6",
+        "ffa9b4f4b130"
+      ],
+      "effort": "low",
+      "runner_status": "finished",
+      "blocked_reason": null,
+      "error": null,
+      "label": "Sol, проверка с памятью",
+      "simulation_time": "2030-06-09T21:00:00Z"
+    },
+    {
+      "local_id": "ak-6ab4f3efc24847be",
+      "run_id": "XNx69bpeM8Z2J8bkMIU7iWJU",
+      "seed": 101,
+      "model": "gpt-5.6-sol",
+      "status": "running",
+      "uptime": 0.9991915151375064,
+      "slo_passed": null,
+      "cost_minor": 1285018601,
+      "currency": "RUB",
+      "downtime_seconds": 61.830710119,
+      "decisions": 60,
+      "llm_seconds": 542.77,
+      "memory_enabled": false,
+      "experiment": "evaluate-1788557404324431000",
+      "runtime_versions": [
+        "05161506cc0a",
+        "d6328f426f09",
+        "ce2ccea04ef0",
+        "0b580726b0b6"
+      ],
+      "effort": "low",
+      "runner_status": "error",
+      "blocked_reason": null,
+      "error": "Observation failed: {\"error\":\"INTERNAL_ERROR\",\"message\":\"Internal simulator error\",\"http_status\":500}",
+      "label": "Sol, проверка без памяти",
+      "simulation_time": "2030-06-03T18:14:37.263814551Z"
+    }
+  ],
+  "memory": {
+    "lessons": [
+      {
+        "id": "capacity-scaling-threshold",
+        "title": "Пики нагрузки требуют запаса backend capacity",
+        "body": "При подтверждённом SERVER_CAPACITY_EXCEEDED увеличение активной backend-capacity до уровня, оставляющего на экземплярах место для целого тяжёлого запроса, восстанавливает обслуживание; сокращать этот запас следует только после подтверждённого спада.",
+        "tags": [
+          "capacity",
+          "backend",
+          "scaling",
+          "recovery"
+        ],
+        "procedure": [],
+        "support": 29,
+        "against": 0,
+        "importance": 0.7,
+        "touched": 625,
+        "uses": 360,
+        "confidence": 0.967741935483871,
+        "strength": 0.9668,
+        "level": "long_term",
+        "evidence": [
+          {
+            "event": 3265,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "После активации второго backend обе ключевые страницы ответили 200; затем 2305 секунд и 324 новых лога прошли без остановки по ошибке, downtime остался 3089.46 секунды, а финальная оценка дала uptime 99.4892% и slo_passed=true. Это подтверждает достаточность 200 units на финальном горизонте, но не универсальную достаточность такого уровня для иных пиков."
+          },
+          {
+            "event": 3229,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "После успешной активации дополнительного backend обе ключевые страницы ответили 200, а последующие 1800 секунд и 587 запросов прошли без новых инфраструктурных ошибок или роста downtime. Это подтверждает восстановление на 300 units в данном независимом эпизоде, но не гарантирует достаточность 200 units после сокращения."
+          },
+          {
+            "event": 3182,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "После активации дополнительной мощности обе ключевые страницы ответили 200, затем 1800 секунд и 1041 запрос прошли без новых инфраструктурных ошибок или роста downtime. Это подтверждает восстановление на 500 units в данном эпизоде, но не гарантирует достаточность будущего сниженного уровня."
+          },
+          {
+            "event": 2912,
+            "run": "ak-a59f8bf4c9894e89",
+            "verdict": "supports",
+            "explanation": "После увеличения capacity обе ключевые страницы ответили 200, затем 3600 секунд и 2697 новых запросов прошли без инфраструктурных ошибок; downtime и счётчики 500/503 не выросли. Это подтверждает восстановление на текущем уровне, но пик всё ещё продолжается."
+          }
+        ]
+      },
+      {
+        "id": "backend-scale-down-after-burst",
+        "title": "Снижение backend-мощности после пика должно быть ступенчатым",
+        "body": "После подтверждённого спада временную backend-мощность можно сокращать до уровня с запасом под целые запросы, если ключевые probes успешны и последующий интервал реального трафика не даёт новых capacity-ошибок; это не гарантирует достаточность уровня для будущего внезапного пика.",
+        "tags": [
+          "backend",
+          "scale-down",
+          "capacity",
+          "slo",
+          "cost"
+        ],
+        "procedure": [
+          "Подтвердить спад по успешным probes и чистому интервалу трафика.",
+          "Сохранить capacity выше свежего спроса с запасом под тяжёлый запрос.",
+          "После удаления проверить страницы и новый интервал трафика."
+        ],
+        "support": 36,
+        "against": 1,
+        "importance": 0.72,
+        "touched": 620,
+        "uses": 351,
+        "confidence": 0.9487179487179487,
+        "strength": 0.9439,
+        "level": "skill",
+        "evidence": [
+          {
+            "event": 3239,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "После успешного удаления одного временного backend почасовая стоимость снизилась примерно на треть; обе страницы вернули 200, а следующие 1800 секунд и 513 запросов прошли без новых ошибок или роста downtime. Это подтверждает достаточность 200 units для данного интервала, но не гарантирует достаточность следующей ступени или будущего пика."
+          },
+          {
+            "event": 3193,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "Два backend были успешно удалены, почасовая стоимость снизилась примерно на 40%; после этого обе страницы ответили 200, а 1800 секунд и 1078 запросов прошли без новых ошибок или роста downtime. Это подтверждает ступенчатое сокращение до 300 units для данного интервала, но не гарантирует будущую нагрузку."
+          },
+          {
+            "event": 3150,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "После успешного удаления восьми backend стоимость в час снизилась более чем вдвое; обе страницы ответили 200, а следующие 1800 секунд и 743 запроса прошли без новых ошибок или роста downtime. Это подтверждает достаточность 500 units для данного интервала, но не для будущего пика."
+          },
+          {
+            "event": 3133,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "После увеличения capacity обе страницы вернули 200, а следующие 1800 секунд и 810 запросов прошли без ошибок и роста downtime. К концу интервала спрос снизился примерно до 276–294 units при 1300 units capacity, что даёт новое основание для проверяемого сокращения; результат самих удалений ещё предстоит оценить."
+          }
+        ]
+      },
+      {
+        "id": "backend-capacity-request-granularity",
+        "title": "Суммарного backend-запаса недостаточно без места для целого запроса",
+        "body": "При распределённой нагрузке backend-capacity должна не только превышать суммарный спрос, но и оставлять на экземплярах место для целого наиболее тяжёлого запроса; достаточность подтверждается чистым интервалом реального трафика, а не одним snapshot.",
+        "tags": [
+          "backend",
+          "capacity",
+          "load-balancing",
+          "request-granularity"
+        ],
+        "procedure": [
+          "Определить load_units наиболее тяжёлого свежего запроса.",
+          "Рассчитать число экземпляров с учётом требуемого свободного места на каждом.",
+          "После активации проверить ключевые страницы и наблюдать свежий трафик с остановкой на новой capacity-ошибке."
+        ],
+        "support": 5,
+        "against": 0,
+        "importance": 0.82,
+        "touched": 622,
+        "uses": 293,
+        "confidence": 0.8571428571428571,
+        "strength": 0.846,
+        "level": "skill",
+        "evidence": [
+          {
+            "event": 3250,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "После сокращения до одного backend первоначальные probes были успешны, но через 891 секунду экземпляр был загружен до 83/100. Новый запрос на 18 units получил SERVER_CAPACITY_EXCEEDED при available=13, responses_500 и downtime выросли, а сайт стал degraded. Это подтверждает необходимость запаса под целый запрос и наблюдения после моментального snapshot."
+          },
+          {
+            "event": 3167,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "После сокращения до двух backend probes сначала были успешны, но через 821 секунду нагрузка распределилась до 76–83 units на экземпляр. Запросы на 11 и 18 units начали получать SERVER_CAPACITY_EXCEEDED при доступных 6–17 units, сайт стал unavailable и downtime вырос. Это новый эпизод, подтверждающий необходимость запаса под целый запрос и наблюдения после snapshot."
+          },
+          {
+            "event": 2975,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "При суммарной capacity 200 и текущей нагрузке 177 один экземпляр был занят на 94/100; новый запрос на 18 units получил SERVER_CAPACITY_EXCEEDED с available=6. Это новый независимый эпизод, подтверждающий важность запаса под целый запрос."
+          },
+          {
+            "event": 1139,
+            "run": "ak-63aa67b1b715486b",
+            "verdict": "supports",
+            "explanation": "После активации capacity 4700 при спросе около 3872 оба probe вернули 200; последующие 300 секунд дали 135 новых логов без ошибок, а downtime и responses_500 не выросли. Это подтверждает достаточность рассчитанного по гранулярности уровня в данном эпизоде, но не момент безопасного сокращения."
+          }
+        ]
+      },
+      {
+        "id": "backend-scale-up-must-cover-observed-load",
+        "title": "Масштабирование backend должно покрывать текущий распределённый спрос",
+        "body": "При повторяющихся SERVER_CAPACITY_EXCEEDED масштабирование следует продолжать, пока суммарная активная capacity не превысит наблюдаемый used_load_units с запасом; промежуточное увеличение, оставляющее на каждом экземпляре меньше места, чем требует целый запрос, не восстанавливает сервис.",
+        "tags": [
+          "backend",
+          "capacity",
+          "scaling",
+          "incident"
+        ],
+        "procedure": [
+          "Сравнить активную backend capacity с текущим used_load_units.",
+          "Учесть свободное место для целого тяжёлого запроса на экземплярах.",
+          "Параллельно подготовить достаточную дополнительную мощность и проверить результат после активации."
+        ],
+        "support": 5,
+        "against": 0,
+        "importance": 0.82,
+        "touched": 598,
+        "uses": 131,
+        "confidence": 0.8571428571428571,
+        "strength": 0.7822,
+        "level": "skill",
+        "evidence": [
+          {
+            "event": 3122,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "После длительного успешного периода новый независимый пик довёл спрос до 1045 при capacity 1100, то есть до 95/100 на каждом backend. Свежие запросы по 11 units получили SERVER_CAPACITY_EXCEEDED с available=5, downtime вырос примерно с 2605 до 2735 секунд, а сайт стал unavailable. Это подтверждает, что небольшого суммарного остатка без места для целого запроса недостаточно."
+          },
+          {
+            "event": 2993,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "Новый эпизод показал спрос 783–801 units при 300 units capacity; сайт стал unavailable, появились свежие SERVER_CAPACITY_EXCEEDED и downtime снова начал расти. Это подтверждает, что прежняя ступень, хотя ранее выдержала чистый интервал, не покрывает новый пик."
+          },
+          {
+            "event": 2841,
+            "run": "ak-a59f8bf4c9894e89",
+            "verdict": "supports",
+            "explanation": "В новом пике при capacity 300 наблюдаемый спрос достиг 1872 units, все три backend были перегружены, сайт стал unavailable и появились свежие SERVER_CAPACITY_EXCEEDED. Это подтверждает необходимость покрывать фактический дефицит, но результат нового масштабирования ещё не известен."
+          },
+          {
+            "event": 1069,
+            "run": "ak-a59f8bf4c9894e89",
+            "verdict": "supports",
+            "explanation": "При трёх backend суммарная capacity 300 оказалась значительно ниже свежей нагрузки 1452–1481. Сайт стал unavailable, появились восемь свежих SERVER_CAPACITY_EXCEEDED, responses_500 и downtime начали расти. Эпизод подтверждает необходимость масштабироваться по фактическому дефициту, а не одной малой ступенью."
+          }
+        ]
+      },
+      {
+        "id": "long-error-only-wait-can-miss-scale-down",
+        "title": "Ожидание только до новой ошибки может пропустить экономичный scale-down",
+        "body": "Если после восстановления до конца run остаётся значимый интервал, единый advance до завершения с остановкой только на ошибке не обнаруживает безопасный спад нагрузки. Нужна хотя бы одна контрольная точка до конца, чтобы оценить utilization и ступенчато удалить временные backend; ограничение не применяется, когда интервал короток или нагрузка остаётся высокой до финала.",
+        "tags": [
+          "backend",
+          "cost",
+          "scale-down",
+          "monitoring"
+        ],
+        "procedure": [
+          "После подтверждённого восстановления определить контрольную точку до конца run.",
+          "На контрольной точке сравнить спрос, capacity и запас под целый запрос.",
+          "При подтверждённом спаде удалить временную мощность ступенчато с проверкой ошибок."
+        ],
+        "support": 2,
+        "against": 0,
+        "importance": 0.78,
+        "touched": 569,
+        "uses": 74,
+        "confidence": 0.75,
+        "strength": 0.5743,
+        "level": "candidate",
+        "evidence": [
+          {
+            "event": 2949,
+            "run": "ak-a59f8bf4c9894e89",
+            "verdict": "supports",
+            "explanation": "Единый advance прошёл около 98 732 секунд до завершения без ошибок, сохранив все 24 сервера. SLO выполнен и downtime не вырос, но итоговая стоимость достигла 38 370 549 156 minor RUB; отсутствие промежуточной проверки исключило возможность экономичного сокращения после спада."
+          },
+          {
+            "event": 1864,
+            "run": "ak-63aa67b1b715486b",
+            "verdict": "supports",
+            "explanation": "Последний advance прошёл 33767.93 секунды до завершения без инфраструктурных ошибок, но финальная utilization упала до 1.5% при 12 оставшихся серверах. Uptime прошёл SLO, однако отсутствие промежуточной точки не позволило снять ставшую избыточной пиковую мощность и снизить итоговую стоимость."
+          }
+        ]
+      },
+      {
+        "id": "pending-recovery-expected-errors-can-defeat-stop-when",
+        "title": "Ожидаемые ошибки могут мешать дождаться уже запущенного восстановления",
+        "body": "Если восстановительная операция уже выполняется, а до её завершения ожидаются новые ошибки того же инцидента, следует продвинуть время до расчётного завершения без stop_when, затем проверить итог операции и только после этого возобновить ожидание новых ошибок.",
+        "tags": [
+          "operations",
+          "advance",
+          "incident",
+          "recovery"
+        ],
+        "procedure": [
+          "Убедиться, что восстановительная операция имеет status=running и известное ожидаемое время завершения.",
+          "Продвинуть время до завершения без stop_when, если текущие ошибки ожидаемы до активации.",
+          "Проверить status=succeeded перед зависимой верификацией."
+        ],
+        "support": 6,
+        "against": 0,
+        "importance": 0.62,
+        "touched": 624,
+        "uses": 43,
+        "confidence": 0.875,
+        "strength": 0.8693,
+        "level": "skill",
+        "evidence": [
+          {
+            "event": 3259,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "Продвижение на 300 секунд без stop_when довело выполнявшееся создание backend до status=succeeded. Capacity выросла со 100 до 200, сайт стал healthy, 56 новых логов прошли без ошибок и downtime не увеличился; устойчивость до конца ещё проверяется."
+          },
+          {
+            "event": 3056,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "Продвижение на 300 секунд без stop_when позволило всем девяти параллельным операциям завершиться succeeded и увеличило capacity с 200 до 1100. Ошибки до момента активации продолжались ожидаемо; устойчивое восстановление ещё требует probes и чистого интервала."
+          },
+          {
+            "event": 2882,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "Продвижение на 300 секунд без stop_when довело выполнявшееся создание backend до status=succeeded; сервер стал active, capacity выросла до 300, а сайт стал healthy без новых ошибок за обработанный интервал. Устойчивость целевой доступности ещё проверяется отдельно."
+          },
+          {
+            "event": 2711,
+            "run": "ak-c7017ef6c4034e95",
+            "verdict": "supports",
+            "explanation": "Продвижение на 300 секунд без stop_when довело пять уже выполнявшихся операций server.create до status=succeeded и активировало все серверы. Это подтверждает тактику ожидания операций; устойчивое восстановление сервиса ещё проверяется отдельно."
+          }
+        ]
+      }
+    ],
+    "tags": {
+      "capacity": 75,
+      "backend": 77,
+      "scaling": 34,
+      "recovery": 35,
+      "scale-down": 38,
+      "slo": 36,
+      "cost": 38,
+      "load-balancing": 5,
+      "request-granularity": 5,
+      "incident": 11,
+      "monitoring": 2,
+      "operations": 6,
+      "advance": 6
+    },
+    "forgetting": {
+      "epoch": 626,
+      "last_forgotten": [],
+      "total": 6
+    },
+    "limits": {
+      "lessons": 80,
+      "episodes_per_run": 150,
+      "completed_runs": 100
+    }
+  },
+  "limitations": [
+    "Development runs had runtime fixes and restarts; they are not a controlled model benchmark.",
+    "Shared training memory changes during parallel learning.",
+    "Seed 101 baseline is interrupted by simulator INTERNAL_ERROR; the paired memory comparison is inconclusive.",
+    "Game infrastructure cost is simulated, not subscription spending.",
+    "No global cost optimum or general SLO guarantee is claimed."
+  ]
+}
