@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import shutil
 import subprocess
 import tempfile
+from contextlib import suppress
 from pathlib import Path
 from time import monotonic
 from typing import Any
@@ -275,12 +277,28 @@ class CodexLlmClient:
                 retry_count = attempt
                 thread = await self._client.thread_start(**self._thread_start_kwargs(request))
                 request_count += 1
-                result = await thread.run(
-                    self._structured_prompt(
-                        request.messages, validation_feedback=validation_feedback
-                    ),
-                    **self._run_kwargs(request),
+                prompt = self._structured_prompt(
+                    request.messages, validation_feedback=validation_feedback
                 )
+                run_kwargs = self._run_kwargs(request)
+                if not self._owns_client:
+                    # Borrowed SDK clients retain their caller-owned lifecycle
+                    # and the original cancellation behavior.
+                    result = await thread.run(prompt, **run_kwargs)
+                else:
+                    turn_task = asyncio.create_task(thread.run(prompt, **run_kwargs))
+                    try:
+                        # AsyncTurnHandle.stream unregisters its router queue in
+                        # a finally block. Shield the SDK task so cancellation
+                        # does not detach the queue before the owned transport
+                        # is closed and can wake its blocked reader.
+                        result = await asyncio.shield(turn_task)
+                    except asyncio.CancelledError:
+                        with suppress(Exception):
+                            await self._client.close()
+                        with suppress(BaseException):
+                            await turn_task
+                        raise
                 usage.add(_codex_usage(result))
 
                 self._reject_tool_events(result)
