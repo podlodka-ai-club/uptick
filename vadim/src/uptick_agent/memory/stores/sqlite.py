@@ -6,6 +6,7 @@ import asyncio
 import json
 import sqlite3
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypeVar
 
@@ -15,6 +16,23 @@ from uptick_agent.memory.contracts import (
     MemoryConflictError,
     MemoryPermanentError,
     MemoryTransientError,
+)
+from uptick_agent.memory.deletion import (
+    validate_deletion_plan,
+    validate_plan_against_inventory,
+)
+from uptick_agent.memory.deletion_contracts import (
+    DELETION_OPERATION,
+    DELETION_TOMBSTONE_RECORD_TYPE,
+    DeletedReceipt,
+    DeletedSnapshotReceipt,
+    PhysicalDeletionPlan,
+    PhysicalDeletionReceipt,
+    RecordRef,
+    SnapshotRef,
+    StoreInventory,
+    make_inventory,
+    receipt_entry,
 )
 from uptick_agent.memory.stores.contracts import (
     MemorySnapshot,
@@ -26,6 +44,7 @@ from uptick_agent.memory.stores.contracts import (
     canonical_json,
     sha256_json,
     validate_append_call,
+    validate_identifier,
     validate_namespace,
     validate_record_lookup,
     validate_snapshot_call,
@@ -106,18 +125,36 @@ class SqliteStructuredStore:
             if connection is not None:
                 connection.close()
 
-    def _read(self, work: Callable[[sqlite3.Connection], DatabaseResult]) -> DatabaseResult:
+    def _read(
+        self,
+        work: Callable[[sqlite3.Connection], DatabaseResult],
+        *,
+        consistent: bool = False,
+    ) -> DatabaseResult:
         connection: sqlite3.Connection | None = None
         try:
             connection = self._connect()
-            return work(connection)
+            if consistent:
+                connection.execute("BEGIN")
+            result = work(connection)
+            if consistent:
+                connection.commit()
+            return result
         except (MemoryConflictError, MemoryTransientError, MemoryPermanentError):
+            if connection is not None and consistent:
+                connection.rollback()
             raise
         except sqlite3.Error as error:
+            if connection is not None and consistent:
+                connection.rollback()
             raise self._map_database_error(error) from error
         except OSError as error:
+            if connection is not None and consistent:
+                connection.rollback()
             raise MemoryPermanentError("SQLite filesystem failure") from error
         except (json.JSONDecodeError, ValidationError, ValueError, TypeError) as error:
+            if connection is not None and consistent:
+                connection.rollback()
             raise MemoryPermanentError("SQLite stored data is invalid") from error
         finally:
             if connection is not None:
@@ -165,8 +202,37 @@ class SqliteStructuredStore:
                     PRIMARY KEY (snapshot_id, ordinal),
                     FOREIGN KEY (snapshot_id) REFERENCES memory_snapshots(snapshot_id)
                 );
+                CREATE TABLE IF NOT EXISTS memory_deletion_receipts (
+                    idempotency_key TEXT PRIMARY KEY,
+                    input_hash TEXT NOT NULL,
+                    plan_id TEXT NOT NULL,
+                    receipt_json TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS memory_deletion_tombstones (
+                    namespace TEXT NOT NULL,
+                    record_id TEXT NOT NULL,
+                    content_hash TEXT NOT NULL,
+                    tombstone_id TEXT NOT NULL UNIQUE,
+                    PRIMARY KEY (namespace, record_id)
+                );
+                CREATE TABLE IF NOT EXISTS memory_deletion_snapshot_tombstones (
+                    namespace TEXT NOT NULL,
+                    snapshot_id TEXT NOT NULL,
+                    content_hash TEXT NOT NULL,
+                    tombstone_id TEXT NOT NULL UNIQUE,
+                    snapshot_json TEXT NOT NULL,
+                    PRIMARY KEY (namespace, snapshot_id)
+                );
                 """
             )
+            columns = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(memory_deletion_receipts)"
+                ).fetchall()
+            }
+            if "plan_id" not in columns:
+                connection.execute("ALTER TABLE memory_deletion_receipts ADD COLUMN plan_id TEXT")
 
         # executescript() commits before its script. Run DDL in a separate
         # autocommit phase, then serialize version-row creation below.
@@ -190,11 +256,22 @@ class SqliteStructuredStore:
         self._transaction(initialize_version)
 
     @staticmethod
-    def _receipt_from_row(row: sqlite3.Row) -> WriteReceipt | SnapshotReceipt:
+    def _receipt_from_row(
+        row: sqlite3.Row,
+    ) -> WriteReceipt | SnapshotReceipt | DeletedReceipt | DeletedSnapshotReceipt:
         if row["receipt_kind"] == "write":
+            # Replay remains authoritative to the row in memory_records.  A
+            # caller may have corrupted the receipt payload; append() must
+            # still derive the stored record rather than treating the receipt
+            # copy as the source of truth.  Deletion inventory validates this
+            # duplicate before using it for a purge plan.
             return WriteReceipt.model_validate_json(row["receipt_json"])
         if row["receipt_kind"] == "snapshot":
             return SnapshotReceipt.model_validate_json(row["receipt_json"])
+        if row["receipt_kind"] == "deleted":
+            return DeletedReceipt.model_validate_json(row["receipt_json"])
+        if row["receipt_kind"] == "deleted_snapshot":
+            return DeletedSnapshotReceipt.model_validate_json(row["receipt_json"])
         raise MemoryPermanentError("stored receipt has an unknown kind")
 
     @staticmethod
@@ -245,6 +322,15 @@ class SqliteStructuredStore:
                     )
                 return receipt
             record = StoredRecord.from_write(write)
+            deleted = connection.execute(
+                """
+                SELECT 1 FROM memory_deletion_tombstones
+                WHERE namespace = ? AND record_id = ?
+                """,
+                (record.namespace, record.record_id),
+            ).fetchone()
+            if deleted is not None:
+                raise MemoryConflictError("record was physically deleted and cannot be recreated")
             duplicate = connection.execute(
                 "SELECT 1 FROM memory_records WHERE namespace = ? AND record_id = ?",
                 (record.namespace, record.record_id),
@@ -377,6 +463,12 @@ class SqliteStructuredStore:
                         "idempotency key was reused for another operation type"
                     )
                 return receipt
+            retired = connection.execute(
+                "SELECT 1 FROM memory_deletion_snapshot_tombstones WHERE snapshot_id = ?",
+                (snapshot_id,),
+            ).fetchone()
+            if retired is not None:
+                raise MemoryConflictError("snapshot was retired and cannot be recreated")
             duplicate = connection.execute(
                 "SELECT 1 FROM memory_snapshots WHERE snapshot_id = ?", (snapshot_id,)
             ).fetchone()
@@ -481,3 +573,356 @@ class SqliteStructuredStore:
             )
 
         return self._read(get_snapshot)
+
+    def _deletion_inventory(self, connection: sqlite3.Connection) -> StoreInventory:
+        record_rows = connection.execute(
+            "SELECT * FROM memory_records ORDER BY namespace, created_at, record_id"
+        ).fetchall()
+        records = [self._record_from_row(row) for row in record_rows]
+        snapshots: list[MemorySnapshot] = []
+        snapshot_rows = connection.execute(
+            "SELECT * FROM memory_snapshots ORDER BY snapshot_id"
+        ).fetchall()
+        for row in snapshot_rows:
+            member_rows = connection.execute(
+                """
+                SELECT record_id, content_hash FROM memory_snapshot_members
+                WHERE snapshot_id = ? ORDER BY ordinal ASC
+                """,
+                (row["snapshot_id"],),
+            ).fetchall()
+            snapshots.append(
+                MemorySnapshot.validate_integrity(
+                    MemorySnapshot(
+                        snapshot_id=row["snapshot_id"],
+                        namespace=row["namespace"],
+                        created_at=row["created_at"],
+                        content_hash=row["content_hash"],
+                        schema_version=row["schema_version"],
+                        members=[
+                            SnapshotMember(
+                                record_id=member["record_id"],
+                                content_hash=member["content_hash"],
+                            )
+                            for member in member_rows
+                        ],
+                    )
+                )
+            )
+        receipts = []
+        for row in connection.execute(
+            """
+            SELECT namespace, operation, idempotency_key, receipt_json, receipt_kind
+            FROM memory_operation_receipts
+            ORDER BY namespace, operation, idempotency_key
+            """
+        ).fetchall():
+            receipts.append(
+                receipt_entry(
+                    namespace=row["namespace"],
+                    operation=row["operation"],
+                    idempotency_key=row["idempotency_key"],
+                    receipt=self._receipt_from_row(row),
+                )
+            )
+        deleted = [
+            RecordRef(
+                namespace=row["namespace"],
+                record_id=row["record_id"],
+                content_hash=row["content_hash"],
+            )
+            for row in connection.execute(
+                """
+                SELECT namespace, record_id, content_hash
+                FROM memory_deletion_tombstones ORDER BY namespace, record_id
+                """
+            ).fetchall()
+        ]
+        deleted_snapshots = [
+            SnapshotRef.model_validate_json(row["snapshot_json"])
+            for row in connection.execute(
+                """
+                SELECT snapshot_json FROM memory_deletion_snapshot_tombstones
+                ORDER BY namespace, snapshot_id
+                """
+            ).fetchall()
+        ]
+        return make_inventory(records, snapshots, receipts, deleted, deleted_snapshots)
+
+    async def deletion_inventory(self) -> StoreInventory:
+        """Return every record, snapshot and receipt identity for planning."""
+
+        await self._ensure_initialized()
+        async with self._lock:
+            return await asyncio.to_thread(self._read_deletion_inventory)
+
+    def _read_deletion_inventory(self) -> StoreInventory:
+        return self._read(self._deletion_inventory, consistent=True)
+
+    async def apply_deletion(
+        self, plan: PhysicalDeletionPlan, *, idempotency_key: str
+    ) -> PhysicalDeletionReceipt:
+        if not isinstance(plan, PhysicalDeletionPlan):
+            raise MemoryConflictError("physical deletion requires a deletion plan")
+        plan = validate_deletion_plan(plan)
+        idempotency_key = validate_identifier(
+            idempotency_key, name="idempotency_key", max_length=256
+        )
+        await self._ensure_initialized()
+        async with self._lock:
+            return await asyncio.to_thread(self._apply_deletion, plan, idempotency_key)
+
+    def _apply_deletion(
+        self, plan: PhysicalDeletionPlan, idempotency_key: str
+    ) -> PhysicalDeletionReceipt:
+        input_hash = sha256_json({"operation": DELETION_OPERATION, "plan_id": plan.plan_id})
+
+        def apply(connection: sqlite3.Connection) -> PhysicalDeletionReceipt:
+            previous = connection.execute(
+                "SELECT input_hash, receipt_json "
+                "FROM memory_deletion_receipts WHERE idempotency_key = ?",
+                (idempotency_key,),
+            ).fetchone()
+            if previous is not None:
+                if previous["input_hash"] != input_hash:
+                    raise MemoryConflictError(
+                        "deletion idempotency key was reused with different input"
+                    )
+                return PhysicalDeletionReceipt.model_validate_json(
+                    previous["receipt_json"]
+                ).model_copy(update={"already_applied": True})
+            previous_plan = connection.execute(
+                "SELECT idempotency_key, receipt_json "
+                "FROM memory_deletion_receipts WHERE plan_id = ?",
+                (plan.plan_id,),
+            ).fetchone()
+            if previous_plan is not None:
+                raise MemoryConflictError(
+                    "deletion plan was already applied with another idempotency key"
+                )
+
+            inventory = self._deletion_inventory(connection)
+            _records, receipt_entries = validate_plan_against_inventory(plan, inventory)
+            applied_at = datetime.now(UTC)
+            tombstones: list[str] = []
+            snapshot_tombstones: list[str] = []
+            tombstone_records: list[StoredRecord] = []
+            for candidate in plan.candidates:
+                tombstone_id = "tombstone-" + sha256_json(
+                    {"plan_id": plan.plan_id, "record": candidate.ref.model_dump(mode="json")}
+                )
+                duplicate = connection.execute(
+                    "SELECT 1 FROM memory_records WHERE namespace = ? AND record_id = ?",
+                    (plan.tombstone_namespace, tombstone_id),
+                ).fetchone()
+                if duplicate is not None:
+                    raise MemoryConflictError("deletion tombstone ID already exists")
+                tombstones.append(tombstone_id)
+                tombstone_records.append(
+                    StoredRecord.from_write(
+                        RecordWrite(
+                            namespace=plan.tombstone_namespace,
+                            record_id=tombstone_id,
+                            record_type=DELETION_TOMBSTONE_RECORD_TYPE,
+                            payload={
+                                "target": candidate.ref.model_dump(mode="json"),
+                                "deleted_at": applied_at.isoformat(),
+                                "plan_id": plan.plan_id,
+                                "reason": candidate.reason,
+                            },
+                            created_at=applied_at,
+                        )
+                    )
+                )
+            for retirement in plan.retired_snapshots:
+                tombstone_id = "snapshot-tombstone-" + sha256_json(
+                    {
+                        "plan_id": plan.plan_id,
+                        "snapshot": retirement.snapshot.model_dump(mode="json"),
+                    }
+                )
+                duplicate = connection.execute(
+                    "SELECT 1 FROM memory_records WHERE namespace = ? AND record_id = ?",
+                    (plan.tombstone_namespace, tombstone_id),
+                ).fetchone()
+                if duplicate is not None:
+                    raise MemoryConflictError("deletion snapshot tombstone ID already exists")
+                snapshot_duplicate = connection.execute(
+                    "SELECT 1 FROM memory_deletion_snapshot_tombstones WHERE snapshot_id = ?",
+                    (retirement.snapshot.snapshot_id,),
+                ).fetchone()
+                if snapshot_duplicate is not None:
+                    raise MemoryConflictError("snapshot tombstone already exists")
+                snapshot_tombstones.append(tombstone_id)
+                tombstone_records.append(
+                    StoredRecord.from_write(
+                        RecordWrite(
+                            namespace=plan.tombstone_namespace,
+                            record_id=tombstone_id,
+                            record_type=DELETION_TOMBSTONE_RECORD_TYPE,
+                            payload={
+                                "snapshot": retirement.snapshot.model_dump(mode="json"),
+                                "deleted_at": applied_at.isoformat(),
+                                "plan_id": plan.plan_id,
+                                "reason": retirement.reason,
+                            },
+                            created_at=applied_at,
+                        )
+                    )
+                )
+            for receipt in receipt_entries:
+                row = connection.execute(
+                    """
+                    SELECT receipt_json, receipt_kind FROM memory_operation_receipts
+                    WHERE namespace = ? AND operation = ? AND idempotency_key = ?
+                    """,
+                    (receipt.namespace, receipt.operation, receipt.idempotency_key),
+                ).fetchone()
+                expected_kind = "snapshot" if receipt.snapshot_ref is not None else "write"
+                if row is None or row["receipt_kind"] != expected_kind:
+                    raise MemoryConflictError(
+                        "deletion receipt purge target is not the expected receipt kind"
+                    )
+                expected_type = (
+                    SnapshotReceipt if receipt.snapshot_ref is not None else WriteReceipt
+                )
+                if not isinstance(self._receipt_from_row(row), expected_type):
+                    raise MemoryConflictError(
+                        "deletion receipt purge target is not the expected receipt kind"
+                    )
+
+            for index, candidate in enumerate(plan.candidates):
+                deleted = connection.execute(
+                    "DELETE FROM memory_records WHERE namespace = ? AND record_id = ?",
+                    (candidate.ref.namespace, candidate.ref.record_id),
+                ).rowcount
+                if deleted != 1:
+                    raise MemoryConflictError(
+                        f"deletion candidate {candidate.ref.record_id} vanished"
+                    )
+                connection.execute(
+                    """
+                    INSERT INTO memory_deletion_tombstones
+                    (namespace, record_id, content_hash, tombstone_id)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        candidate.ref.namespace,
+                        candidate.ref.record_id,
+                        candidate.ref.content_hash,
+                        tombstones[index],
+                    ),
+                )
+            for index, retirement in enumerate(plan.retired_snapshots):
+                connection.execute(
+                    "DELETE FROM memory_snapshot_members WHERE snapshot_id = ?",
+                    (retirement.snapshot.snapshot_id,),
+                )
+                deleted_snapshot = connection.execute(
+                    "DELETE FROM memory_snapshots WHERE snapshot_id = ? AND namespace = ?",
+                    (retirement.snapshot.snapshot_id, retirement.snapshot.namespace),
+                ).rowcount
+                if deleted_snapshot != 1:
+                    raise MemoryConflictError(
+                        f"deletion snapshot {retirement.snapshot.snapshot_id} vanished"
+                    )
+                connection.execute(
+                    """
+                    INSERT INTO memory_deletion_snapshot_tombstones
+                    (namespace, snapshot_id, content_hash, tombstone_id, snapshot_json)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        retirement.snapshot.namespace,
+                        retirement.snapshot.snapshot_id,
+                        retirement.snapshot.content_hash,
+                        snapshot_tombstones[index],
+                        retirement.snapshot.model_dump_json(),
+                    ),
+                )
+            for receipt in receipt_entries:
+                if receipt.snapshot_ref is not None:
+                    marker = DeletedSnapshotReceipt(
+                        operation=receipt.operation,
+                        idempotency_key=receipt.idempotency_key,
+                        input_hash=receipt.input_hash,
+                        deleted_snapshot=receipt.snapshot_ref,
+                        deleted_at=applied_at,
+                        plan_id=plan.plan_id,
+                    )
+                    marker_kind = "deleted_snapshot"
+                else:
+                    marker = DeletedReceipt(
+                        operation=receipt.operation,
+                        idempotency_key=receipt.idempotency_key,
+                        input_hash=receipt.input_hash,
+                        deleted_record=receipt.record_ref,
+                        deleted_at=applied_at,
+                        plan_id=plan.plan_id,
+                    )
+                    marker_kind = "deleted"
+                connection.execute(
+                    """
+                    UPDATE memory_operation_receipts
+                    SET receipt_kind = ?, receipt_json = ?
+                    WHERE namespace = ? AND operation = ? AND idempotency_key = ?
+                    """,
+                    (
+                        marker_kind,
+                        marker.model_dump_json(),
+                        receipt.namespace,
+                        receipt.operation,
+                        receipt.idempotency_key,
+                    ),
+                )
+            for tombstone in tombstone_records:
+                connection.execute(
+                    """
+                    INSERT INTO memory_records
+                    (
+                        namespace, record_id, record_type, schema_version,
+                        payload_json, created_at, content_hash
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        tombstone.namespace,
+                        tombstone.record_id,
+                        tombstone.record_type,
+                        tombstone.schema_version,
+                        canonical_json(tombstone.payload),
+                        tombstone.created_at.isoformat(),
+                        tombstone.content_hash,
+                    ),
+                )
+            result = PhysicalDeletionReceipt(
+                plan_id=plan.plan_id,
+                idempotency_key=idempotency_key,
+                applied=True,
+                already_applied=False,
+                deleted_records=[candidate.ref for candidate in plan.candidates],
+                tombstone_ids=tombstones,
+                purged_receipts=[
+                    entry.model_copy(
+                        update={
+                            "receipt_kind": (
+                                "deleted_snapshot" if entry.snapshot_ref is not None else "deleted"
+                            )
+                        }
+                    )
+                    for entry in receipt_entries
+                ],
+                retired_snapshots=[item.snapshot for item in plan.retired_snapshots],
+                snapshot_tombstone_ids=snapshot_tombstones,
+            )
+            connection.execute(
+                """
+                INSERT INTO memory_deletion_receipts
+                (idempotency_key, input_hash, plan_id, receipt_json)
+                VALUES (?, ?, ?, ?)
+                """,
+                (idempotency_key, input_hash, plan.plan_id, result.model_dump_json()),
+            )
+            return result
+
+        return self._transaction(apply)
