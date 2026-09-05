@@ -8,8 +8,11 @@ is needed by a run.
 
 from __future__ import annotations
 
+import copy
+import json
 from collections import Counter
 from collections.abc import Mapping
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -34,6 +37,7 @@ from uptick_agent.simulator.actions import (
     V2ProbePage,
 )
 from uptick_agent.simulator.decisions import SimulatorV2Action, SimulatorV2Decision
+from uptick_agent.simulator.timestamps import TimestampOrder, parse_rfc3339
 from uptick_agent.simulator.v2_client import SimulatorV2ApiError, SimulatorV2Client
 from uptick_agent.v2_actions import ControlCommand, GetControlCommands, GetInbox
 
@@ -65,6 +69,9 @@ class SimulatorV2Session:
     inbox_cursor: str | None = None
     seen_inbox_ids: set[str] = field(default_factory=set)
     operation_statuses: dict[str, str] = field(default_factory=dict)
+    last_observed_views: dict[str, dict[str, Any]] = field(default_factory=dict)
+    last_observed_at: dict[str, TimestampOrder] = field(default_factory=dict)
+    latest_server_clock: TimestampOrder | None = None
 
     def next_request_id(self, kind: str) -> str:
         self.request_number += 1
@@ -74,6 +81,84 @@ class SimulatorV2Session:
 # One API page per runner step keeps the result bounded at the v2 default limit
 # while retaining the cursor for the next observation.
 _MAX_PAGES_PER_READ = 1
+_MAX_LAST_OBSERVED_BYTES = 12_000
+# Reserve a small amount of the per-view share for the public map key.
+_MAX_LAST_OBSERVED_VIEW_BYTES = (_MAX_LAST_OBSERVED_BYTES // 3) - 100
+_LAST_OBSERVED_ACTIONS = frozenset({"get_metrics", "get_resources", "get_overview"})
+_MUTATING_CONTROL_COMMANDS = frozenset(
+    {
+        "firewall.rules.upsert",
+        "firewall.rules.delete",
+        "server.create",
+        "server.delete",
+        "database.create",
+        "database.backup",
+        "database.restore",
+        "site.stop",
+        "site.start",
+        "site.database.set",
+        "disk.cleanup",
+    }
+)
+_METRIC_VIEW_FIELDS = (
+    "uptime_ratio",
+    "downtime_seconds",
+    "observed_seconds",
+    "available_seconds",
+    "server_count",
+    "capacity_units",
+    "used_load_units",
+    "capacity_utilization",
+    "active_requests",
+    "database_active_connections",
+    "database_connection_limit",
+    "disk_total_bytes",
+    "disk_system_bytes",
+    "disk_database_bytes",
+    "disk_logs_bytes",
+    "disk_free_bytes",
+    "requests_total",
+    "responses_200",
+    "responses_500",
+    "responses_403",
+    "responses_503",
+    "error_rate",
+    "latency_p50_ms",
+    "latency_p95_ms",
+    "server_cost_minor",
+    "backup_storage_cost_minor",
+    "total_cost_minor",
+    "current_cost_per_hour_minor",
+)
+_RESOURCE_VIEW_FIELDS = (
+    "active_instances",
+    "total_capacity_units",
+    "used_load_units",
+    "total_cost_per_hour_minor",
+)
+_RESOURCE_ROW_FIELDS = ("server_id", "role", "status", "instance_type")
+_OVERVIEW_VIEW_FIELDS = (
+    "status",
+    "site_status",
+    "server_count",
+    "capacity_utilization",
+    "error_rate",
+)
+_AVAILABILITY_VIEW_FIELDS = (
+    "uptime_target",
+    "observed_seconds",
+    "available_seconds",
+    "downtime_seconds",
+    "uptime_ratio",
+    "slo_passed",
+)
+_COST_VIEW_FIELDS = (
+    "currency",
+    "server_cost_minor",
+    "backup_storage_cost_minor",
+    "total_cost_minor",
+    "current_cost_per_hour_minor",
+)
 
 
 def _safe(value: object) -> dict[str, Any]:
@@ -292,6 +377,148 @@ def _error_result(action_kind: str, error: BaseException, *, terminal: bool = Fa
     )
 
 
+def _server_clock(value: object) -> tuple[str, TimestampOrder] | None:
+    if not isinstance(value, Mapping):
+        return None
+    clock = value.get("clock")
+    if not isinstance(clock, Mapping):
+        return None
+    raw = clock.get("simulation_time")
+    if not isinstance(raw, str):
+        return None
+    try:
+        parsed = parse_rfc3339(raw)
+    except ValueError:
+        return None
+    return raw, parsed
+
+
+def _json_size(value: object) -> int:
+    return len(
+        json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode(
+            "utf-8"
+        )
+    )
+
+
+def _selected_fields(value: object, fields: tuple[str, ...]) -> tuple[dict[str, Any], int]:
+    if not isinstance(value, Mapping):
+        return {}, 1 if value is not None else 0
+    selected = {key: copy.deepcopy(value[key]) for key in fields if key in value}
+    return selected, len(set(value).difference(selected))
+
+
+def _bounded_view_payload(
+    action_kind: str,
+    value: object,
+    *,
+    max_bytes: int = _MAX_LAST_OBSERVED_VIEW_BYTES,
+) -> dict[str, Any] | None:
+    """Project one observed response without retaining query history or secrets."""
+
+    if max_bytes < 0 or action_kind not in _LAST_OBSERVED_ACTIONS or not isinstance(value, Mapping):
+        return None
+    clock = value.get("clock")
+    clock_info = _server_clock(value)
+    if not isinstance(clock, Mapping) or clock_info is None:
+        return None
+    clock_view = {
+        key: copy.deepcopy(clock[key])
+        for key in ("simulation_time", "remaining_seconds")
+        if key in clock
+    }
+    omitted_fields = len(set(clock).difference(clock_view))
+    payload: dict[str, Any] = {"clock": clock_view}
+    list_key: str | None = None
+    rows: list[dict[str, Any]] = []
+
+    if action_kind == "get_metrics":
+        current, omitted = _selected_fields(value.get("current"), _METRIC_VIEW_FIELDS)
+        payload["current"] = current
+        omitted_fields += omitted
+        omitted_fields += len(set(value).difference({"clock", "current"}))
+    elif action_kind == "get_resources":
+        resources, _ = _selected_fields(value, _RESOURCE_VIEW_FIELDS)
+        payload.update(resources)
+        omitted_fields += len(
+            set(value).difference({"clock", "servers", *resources, *_RESOURCE_VIEW_FIELDS})
+        )
+        list_key = "servers"
+        raw_rows = value.get("servers")
+        if isinstance(raw_rows, list):
+            for raw_row in raw_rows:
+                row, row_omitted = _selected_fields(raw_row, _RESOURCE_ROW_FIELDS)
+                if row:
+                    rows.append(row)
+                omitted_fields += row_omitted
+        elif raw_rows is not None:
+            omitted_fields += 1
+        payload[list_key] = rows
+    else:
+        overview, _ = _selected_fields(value, _OVERVIEW_VIEW_FIELDS)
+        payload.update(overview)
+        availability, omitted_availability = _selected_fields(
+            value.get("availability"), _AVAILABILITY_VIEW_FIELDS
+        )
+        costs, omitted_costs = _selected_fields(value.get("costs"), _COST_VIEW_FIELDS)
+        payload["availability"] = availability
+        payload["costs"] = costs
+        omitted_fields += omitted_availability + omitted_costs
+        omitted_fields += len(
+            set(value).difference(
+                {"clock", "availability", "costs", *overview, *_OVERVIEW_VIEW_FIELDS}
+            )
+        )
+
+    base = copy.deepcopy(payload)
+    if list_key is None:
+        candidate = {
+            **base,
+            "truncation": {"omitted_fields": omitted_fields, "omitted_items": 0},
+        }
+        if _json_size(candidate) <= max_bytes:
+            return candidate
+        fallback = {
+            "clock": clock_view,
+            "truncation": {
+                "omitted_fields": omitted_fields + len(candidate) - 1,
+                "omitted_items": 0,
+                "bounded_fallback": True,
+            },
+        }
+        return fallback if _json_size(fallback) <= max_bytes else None
+
+    base[list_key] = []
+    selected: list[dict[str, Any]] = []
+    for row in rows:
+        remaining = len(rows) - len(selected) - 1
+        candidate = {
+            **base,
+            list_key: [*selected, row],
+            "truncation": {"omitted_fields": omitted_fields, "omitted_items": remaining},
+        }
+        if _json_size(candidate) > max_bytes:
+            break
+        selected.append(row)
+    omitted_items = len(rows) - len(selected)
+    candidate = {
+        **base,
+        list_key: selected,
+        "truncation": {"omitted_fields": omitted_fields, "omitted_items": omitted_items},
+    }
+    if _json_size(candidate) <= max_bytes:
+        return candidate
+    fallback = {
+        "clock": clock_view,
+        "truncation": {
+            "omitted_fields": omitted_fields + len(base) - 1,
+            "omitted_items": len(rows),
+            "bounded_fallback": True,
+        },
+    }
+    return fallback if _json_size(fallback) <= max_bytes else None
+
+
 class SimulatorV2Environment:
     """Translate simulator v2 actions and responses to generic agent ports."""
 
@@ -323,8 +550,86 @@ class SimulatorV2Environment:
                 if isinstance(status, str):
                     session.operation_statuses[link.operation_id] = status
 
+    @staticmethod
+    def _mark_stale(session: SimulatorV2Session, observed_at: TimestampOrder) -> None:
+        for action_kind, cached_at in session.last_observed_at.items():
+            if observed_at > cached_at:
+                session.last_observed_views[action_kind]["stale"] = True
+                session.last_observed_views[action_kind]["freshness"] = "stale"
+
+    @staticmethod
+    def _is_mutating_control(action: object) -> bool:
+        request = getattr(action, "request", None)
+        command = getattr(request, "command", None)
+        return isinstance(command, str) and command in _MUTATING_CONTROL_COMMANDS
+
+    def _update_last_observed(
+        self,
+        session: SimulatorV2Session,
+        result: ToolResult,
+        action: object,
+    ) -> None:
+        if result.ok and self._is_mutating_control(action):
+            for view in session.last_observed_views.values():
+                view["stale"] = True
+                view["freshness"] = "stale"
+        clock_info = _server_clock(result.data)
+        if clock_info is None:
+            return
+        raw_clock, observed_at = clock_info
+        if session.latest_server_clock is None or observed_at > session.latest_server_clock:
+            session.latest_server_clock = observed_at
+        watermark = session.latest_server_clock
+        self._mark_stale(session, watermark)
+        if not result.ok:
+            return
+        if result.action_kind not in _LAST_OBSERVED_ACTIONS:
+            return
+        previous_at = session.last_observed_at.get(result.action_kind)
+        out_of_order = observed_at < watermark
+        if previous_at is not None and out_of_order:
+            return
+        objective_metrics = [
+            {"name": metric.name, "value": metric.value, "unit": metric.unit}
+            for metric in result.objective_metrics
+        ]
+        entry = {
+            "action_kind": result.action_kind,
+            "observed_at": raw_clock,
+            "freshness": "stale" if out_of_order else "observed",
+            "stale": out_of_order,
+            "objective_metrics": objective_metrics,
+            "data": {},
+        }
+        payload_budget = max(0, _MAX_LAST_OBSERVED_VIEW_BYTES - _json_size(entry) - 8)
+        payload = _bounded_view_payload(
+            result.action_kind,
+            result.data,
+            max_bytes=payload_budget,
+        )
+        if payload is None:
+            return
+        entry["data"] = payload
+        if _json_size(entry) > _MAX_LAST_OBSERVED_VIEW_BYTES:
+            return
+        session.last_observed_at[result.action_kind] = observed_at
+        session.last_observed_views[result.action_kind] = entry
+
     def public_state(self, session: SimulatorV2Session) -> dict[str, object]:
-        return {"operation_statuses": dict(session.operation_statuses)}
+        session_clock: TimestampOrder | None = None
+        if session.simulation_time is not None:
+            with suppress(ValueError):
+                session_clock = parse_rfc3339(session.simulation_time)
+        if session_clock is not None and (
+            session.latest_server_clock is None or session_clock > session.latest_server_clock
+        ):
+            session.latest_server_clock = session_clock
+        if session.latest_server_clock is not None:
+            self._mark_stale(session, session.latest_server_clock)
+        return {
+            "operation_statuses": copy.deepcopy(session.operation_statuses),
+            "last_observed": copy.deepcopy(session.last_observed_views),
+        }
 
     async def start(
         self,
@@ -355,6 +660,7 @@ class SimulatorV2Environment:
             raise SimulatorV2ApiError(
                 200, "INVALID_RESPONSE", "Start response has invalid simulation time"
             )
+        start_clock = _server_clock(data)
         session = SimulatorV2Session(
             run_id=run_id,
             seed=seed,
@@ -365,6 +671,7 @@ class SimulatorV2Environment:
             logs_from=simulation_time,
             logs_initial_from=simulation_time,
             request_prefix=prefix,
+            latest_server_clock=start_clock[1] if start_clock is not None else None,
         )
         startup_briefing = data.get("commands_markdown")
         if not isinstance(startup_briefing, str) or not startup_briefing.strip():
@@ -411,6 +718,7 @@ class SimulatorV2Environment:
                 )
             result = _error_result(action.kind, error)
         self._update_public_state(session, result)
+        self._update_last_observed(session, result, action)
         return result
 
     async def _execute(self, session: SimulatorV2Session, action: SimulatorV2Action) -> ToolResult:

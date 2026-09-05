@@ -4,6 +4,8 @@ from typing import Any
 import pytest
 
 from uptick_agent import cli
+from uptick_agent.decisions.runtime import RuntimeDecisionContext
+from uptick_agent.decisions.runtime import ToolResult as RuntimeToolResult
 from uptick_agent.memory.contracts import DecisionMemoryContext, ObjectiveMetric
 from uptick_agent.models import (
     AdvanceTimeStopCondition,
@@ -293,6 +295,273 @@ def test_v2_policy_keeps_stop_for_recoverable_low_current_uptime() -> None:
     async def scenario() -> None:
         decision = await policy.decide(context)
         assert decision.action.stop_when == AdvanceTimeStopCondition()
+
+    asyncio.run(scenario())
+
+
+def _pending_context(
+    *,
+    current_at: str = "2033-03-01T00:00:00Z",
+    remaining: float = 100_000,
+    downtime: float = 1_400,
+    observed: float = 100_000,
+) -> DecisionContext:
+    return _context(
+        remaining,
+        operation_statuses={"op-1": "running"},
+        objective_metrics=[
+            ObjectiveMetric(name="downtime_seconds", value=downtime, unit="seconds"),
+            ObjectiveMetric(name="observed_seconds", value=observed, unit="seconds"),
+        ],
+    ).model_copy(
+        update={
+            "latest_result": ToolResult(
+                action_kind="get_metrics",
+                summary="metrics observed",
+                data={"clock": {"simulation_time": current_at, "remaining_seconds": remaining}},
+                objective_metrics=[
+                    ObjectiveMetric(
+                        name="downtime_seconds", value=downtime, unit="seconds"
+                    ),
+                    ObjectiveMetric(name="observed_seconds", value=observed, unit="seconds"),
+                ],
+            )
+        }
+    )
+
+
+def _cached_pending_context(
+    *,
+    current_at: str = "2033-03-01T00:00:01Z",
+    current_remaining: float = 99_999,
+    observed_at: str = "2033-03-01T00:00:00Z",
+    data_at: str | None = None,
+    downtime: float = 1_400,
+    observed: float = 100_000,
+    extra_view: dict[str, Any] | None = None,
+) -> RuntimeDecisionContext:
+    observation_time = data_at or observed_at
+    view = {
+        "action_kind": "get_metrics",
+        "observed_at": observed_at,
+        "freshness": "stale",
+        "stale": True,
+        "data": {
+            "clock": {"simulation_time": observation_time, "remaining_seconds": 100_000}
+        },
+        "objective_metrics": [
+            {"name": "downtime_seconds", "value": downtime, "unit": "seconds"},
+            {"name": "observed_seconds", "value": observed, "unit": "seconds"},
+        ],
+    }
+    state: dict[str, Any] = {
+        "operation_statuses": {"op-1": "running"},
+        "last_observed": {"get_metrics": view},
+    }
+    if extra_view is not None:
+        state["last_observed"]["get_overview"] = extra_view
+    return RuntimeDecisionContext(
+        objective="uptime",
+        run_id="run-1",
+        seed=42,
+        iteration=1,
+        max_steps=5,
+        latest_result=RuntimeToolResult(
+            action_kind="get_operation",
+            summary="operation running",
+            data={
+                "clock": {
+                    "simulation_time": current_at,
+                    "remaining_seconds": current_remaining,
+                }
+            },
+        ),
+        run_state=state,
+    )
+
+
+def test_v2_policy_allows_only_a_bounded_pending_wait_with_verified_headroom() -> None:
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+    context = _pending_context()
+
+    async def scenario() -> None:
+        trace = policy.prompt_trace(context)
+        decision = await policy.decide(context)
+        evidence = delegate.contexts[0].latest_result.data["runtime_policy"][
+            "pending_no_stop_eligibility"
+        ]
+        traced_evidence = trace["delegate_context"]["latest_result"]["data"][
+            "runtime_policy"
+        ]["pending_no_stop_eligibility"]
+        assert decision.action.stop_when is None
+        assert evidence["eligible"] is True
+        assert evidence["reason"] == "pending_slo_headroom_verified"
+        assert evidence["reserved_headroom_seconds"] == 600
+        assert evidence["required_reserved_headroom_seconds"] == 600
+        assert evidence["source"] == "latest_typed_metrics"
+        assert evidence == traced_evidence
+
+    asyncio.run(scenario())
+
+
+def test_v2_policy_charges_elapsed_time_against_stale_pending_evidence() -> None:
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+
+    async def scenario() -> None:
+        decision = await policy.decide(_cached_pending_context())
+        evidence = delegate.contexts[0].latest_result.data["runtime_policy"][
+            "pending_no_stop_eligibility"
+        ]
+        assert decision.action.stop_when == AdvanceTimeStopCondition()
+        assert evidence["elapsed_seconds"] == 1
+        assert evidence["downtime_upper_bound_seconds"] == 1_401
+        assert evidence["reserved_headroom_seconds"] == 599
+        assert evidence["stale"] is True
+
+    asyncio.run(scenario())
+
+
+def test_v2_policy_rejects_cached_horizon_drop_that_does_not_match_elapsed_clock() -> None:
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+
+    async def scenario() -> None:
+        decision = await policy.decide(
+            _cached_pending_context(current_remaining=60_000)
+        )
+        assert decision.action.stop_when == AdvanceTimeStopCondition()
+        evidence = delegate.contexts[0].latest_result.data["runtime_policy"][
+            "pending_no_stop_eligibility"
+        ]
+        assert evidence["reason"] == "clock_horizon_mismatch"
+
+    asyncio.run(scenario())
+
+
+def test_v2_policy_rejects_failed_latest_observation_without_using_cached_proof() -> None:
+    context = _cached_pending_context().model_copy(
+        update={
+            "latest_result": RuntimeToolResult(
+                action_kind="get_metrics",
+                ok=False,
+                summary="metrics request failed",
+                data={
+                    "clock": {
+                        "simulation_time": "2033-03-01T00:00:01Z",
+                        "remaining_seconds": 99_999,
+                    }
+                },
+                objective_metrics=[
+                    {"name": "downtime_seconds", "value": 1_400, "unit": "seconds"},
+                    {"name": "observed_seconds", "value": 100_000, "unit": "seconds"},
+                ],
+            )
+        }
+    )
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+
+    async def scenario() -> None:
+        decision = await policy.decide(context)
+        assert decision.action.stop_when == AdvanceTimeStopCondition()
+        evidence = delegate.contexts[0].latest_result.data["runtime_policy"][
+            "pending_no_stop_eligibility"
+        ]
+        assert evidence["reason"] == "failed_latest_observation"
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "context",
+    [
+        _pending_context().model_copy(
+            update={
+                "latest_result": ToolResult(
+                    action_kind="get_metrics",
+                    summary="metrics missing",
+                    data={
+                        "clock": {
+                            "simulation_time": "2033-03-01T00:00:00Z",
+                            "remaining_seconds": 100_000,
+                        }
+                    },
+                )
+            }
+        ),
+        _cached_pending_context(current_remaining=299),
+        _cached_pending_context(data_at="2033-03-01T00:00:00.000000001Z"),
+        _cached_pending_context(
+            observed_at="2033-03-01T00:00:02Z", data_at="2033-03-01T00:00:02Z"
+        ),
+    ],
+)
+def test_v2_policy_rejects_pending_wait_without_clock_or_timestamp_proof(context) -> None:
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+
+    async def scenario() -> None:
+        decision = await policy.decide(context)
+        assert decision.action.stop_when == AdvanceTimeStopCondition()
+
+    asyncio.run(scenario())
+
+
+def test_v2_policy_rejects_ambiguous_same_time_cached_observations() -> None:
+    second_view = {
+        "action_kind": "get_overview",
+        "observed_at": "2033-03-01T00:00:00Z",
+        "freshness": "stale",
+        "stale": True,
+        "data": {
+            "clock": {
+                "simulation_time": "2033-03-01T00:00:00Z",
+                "remaining_seconds": 100_000,
+            }
+        },
+        "objective_metrics": [
+            {"name": "downtime_seconds", "value": 1_399, "unit": "seconds"},
+            {"name": "observed_seconds", "value": 100_000, "unit": "seconds"},
+        ],
+    }
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+
+    async def scenario() -> None:
+        decision = await policy.decide(_cached_pending_context(extra_view=second_view))
+        assert decision.action.stop_when == AdvanceTimeStopCondition()
+        evidence = delegate.contexts[0].latest_result.data["runtime_policy"][
+            "pending_no_stop_eligibility"
+        ]
+        assert evidence["reason"] == "ambiguous_observations"
+
+    asyncio.run(scenario())
+
+
+def test_v2_policy_rejects_pending_wait_longer_than_bound() -> None:
+    delegate = FakeDelegate(_advance_decision(duration=301, stop_when=None))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+
+    async def scenario() -> None:
+        decision = await policy.decide(_pending_context())
+        assert decision.action.stop_when == AdvanceTimeStopCondition()
+        assert "proposed_stop_when=None" in decision.current_situation
+        assert "effective_stop_when=default" in decision.current_situation
+
+    asyncio.run(scenario())
+
+
+def test_v2_policy_preserves_explicit_pending_stop_condition() -> None:
+    stop = AdvanceTimeStopCondition(error_codes=["DISK_FULL"])
+    delegate = FakeDelegate(_advance_decision(duration=300, stop_when=stop))
+    policy = SimulatorV2TimeBudgetPolicy(delegate)
+
+    async def scenario() -> None:
+        decision = await policy.decide(_pending_context())
+        assert decision.action.stop_when == stop
+        assert "runtime-policy" not in decision.current_situation
 
     asyncio.run(scenario())
 
