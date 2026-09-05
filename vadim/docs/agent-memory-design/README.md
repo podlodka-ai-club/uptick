@@ -41,8 +41,10 @@ The current completeness and dependency audit is in
 with the sibling baseline is in [`AGENT_COMPARISON.md`](AGENT_COMPARISON.md).
 The optional research xMemory adapter is documented separately in
 [`../XMEMORY_INTEGRATION.md`](../XMEMORY_INTEGRATION.md).
-The bounded next learning-cycle experiment and its oracle-isolation checks are
-specified in [`LEARNING_CYCLE_PLAN.md`](LEARNING_CYCLE_PLAN.md).
+The controlled learning-cycle protocol and its oracle-isolation checks are
+specified in [`LEARNING_CYCLE_PLAN.md`](LEARNING_CYCLE_PLAN.md). The real-model
+results, frozen source identities and limitations are recorded in
+[`LEARNING_CYCLE_RESULTS.md`](LEARNING_CYCLE_RESULTS.md).
 
 The initial simulator policy profile is now owner-approved:
 

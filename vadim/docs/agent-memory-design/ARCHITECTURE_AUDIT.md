@@ -150,11 +150,19 @@ Only source under `vadim/` was changed by this work. Sibling agent comparison
 is recorded in `AGENT_COMPARISON.md`; a winner on task performance has not
 been established.
 
-The next bounded mechanism experiment is specified in
-[`LEARNING_CYCLE_PLAN.md`](LEARNING_CYCLE_PLAN.md): learn from observed local
-incident outcomes, reopen and freeze memory, then measure actual model decisions
-with and without validated hypotheses. It does not replace establishing a successful observable-only SRE policy,
-obtain authoritative world identities and lock a causal-family holdout, then
-run a common-protocol comparison and memory-utility study. Semantic/graph
-retrieval alternatives and policy-governed physical deletion remain separate
-implementation work; adding them cannot substitute for those measurements.
+The bounded mechanism experiment in
+[`LEARNING_CYCLE_PLAN.md`](LEARNING_CYCLE_PLAN.md) has now run with the real
+decision model. After observed training, frozen storage and reopening SQLite,
+the first experiment recovered 4/8 evaluation cases without memory and 6/8
+with hypotheses. A separately frozen clarification of the fixture prompt
+recovered 4/8 versus 8/8. Both retain all 24 attempts and pass independent
+request, ancestry, snapshot and outcome checks. Details and limitations are in
+[`LEARNING_CYCLE_RESULTS.md`](LEARNING_CYCLE_RESULTS.md).
+
+This closes the requested controlled mechanism loop. It does not establish a
+successful public-observation SRE policy, independent-family transfer or
+xMemory effectiveness. The effectiveness study still needs authoritative world
+identities, a locked causal-family holdout and a common-protocol comparison.
+Semantic/graph retrieval alternatives and policy-governed physical deletion
+remain separate implementation work; adding them cannot substitute for those
+measurements.

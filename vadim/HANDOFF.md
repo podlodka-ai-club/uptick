@@ -4,30 +4,44 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
 
 ## Resume point
 
-- Branch: `codex/vadim-agent-memory`. This continuation started from
-  `0fb3e03182f8ec90f736bb329f2c62d7cdd7ee5d`; resolve the latest implementation
-  checkpoint and remote SHA from Git history. Implementation checkpoint:
-  `dc3154d`; live-discovered snapshot telemetry fix: `2e0b411`.
-- Latest continuation starts at `dbfe6c8`: policy 1.1 restores first-error stops
-  for unproved no-stop waits, and a prompt follow-up avoids tight operation polls.
-  Both new 80-decision/900-second diagnostics failed to complete the horizon:
-  one reached the step limit, one the wall limit; 0/2 demonstrated SLO success.
-  Resume with public-evidence incident diagnosis and capacity-target sufficiency,
-  using `V2_POLICY_GUARD_RESULTS.md`; do not claim a successful baseline yet.
-- After `8ab2b46`, architecture owners are `decisions/`, `runs/`, `evaluation/`
-  and `composition/`; historical imports remain facades. The runner and extracted
-  provenance validator preserve behavior; 56 old schemas/identities match and
-  all four sealed experiments still verify. Offline suite: 543 passed, 2 skipped.
-  Next: execute `LEARNING_CYCLE_PLAN.md` with real model calls and retain the
-  result even if measured benefit is zero. Do not weaken world activation gates.
-- Architecture checkpoint: `948cc36`. The subsequent controlled cycle is now
-  implemented under `benchmarks/incidents.py`, `evaluation/learning_cycle.py`,
-  `composition/learning_cycle.py` and `scripts/run_learning_cycle.py`.
-  `StructuredDecisionModel` moved out of CLI into the provider-neutral
-  `llm/decision_model.py`; lazy LLM exports prevent provider import side effects.
-  Full suite: 552 passed, 2 skipped. Root review repaired config-body binding,
-  timeout physical IDs and retained cleanup errors; cleanup cancellation was
-  independently checked. Real model execution is the next closeout step.
+- Branch: `codex/vadim-agent-memory`. Latest implementation checkpoint:
+  `17ef1a6` (controlled decision prompt); `c8c16df` implements the learning cycle,
+  and `948cc36` separates architecture owners. Resolve the latest documentation
+  checkpoint and remote SHA from Git history.
+- The requested architecture correction and controlled learning-cycle mechanism
+  are complete. Owners are `decisions/`, `runs/`, `evaluation/`, `composition/`
+  and native `memory/`; old imports remain compatibility facades. The runner and
+  extracted provenance validator preserve behavior; 56 old schemas/identities
+  match, and all four historical sealed experiments still verify.
+- The controlled fixture lives in `benchmarks/incidents.py`, accounting in
+  `evaluation/learning_cycle.py`, and wiring in `composition/learning_cycle.py`.
+  `scripts/run_learning_cycle.py` is the explicit entry point.
+  `StructuredDecisionModel` belongs to provider-neutral `llm/decision_model.py`;
+  lazy exports prevent provider import side effects.
+- Two real-model experiments completed and passed independent verification.
+  Each retained 8 training and 16 paired evaluation attempts. Initial
+  `sol-low-01`: training 8/8; no memory 4/8 versus hypotheses 6/8; 4 wins,
+  2 losses, 2 ties. The separately frozen prompt clarification `sol-low-02`:
+  training 8/8; no memory 4/8 versus hypotheses 8/8; 4 wins, 0 losses, 4 ties.
+  Each used 28 logical decisions, reopened SQLite, 44 frozen members and six
+  selected hypothesis IDs. Neither had timeouts or retained runtime failure
+  rows; both exited 0. Keep the first result, do not pool the experiments.
+  Exact pins and limitations: `LEARNING_CYCLE_RESULTS.md`.
+- These are development variants of one designed causal family, not a held-out
+  SRE or xMemory utility result. Evaluator answers stay outside model requests;
+  observed training transitions supply hypothesis evidence. Frozen evaluation
+  writes remain isolated. Provider tool restrictions are practical safeguards,
+  not a formal security-isolation proof. No activation threshold was weakened.
+- Verification: architecture checkpoint 543 passed, 2 skipped; learning-cycle
+  source checkpoint 552 passed, 2 skipped; subsequent focused suite 9/9 after
+  adding cleanup-cancellation coverage. Root review repaired config-body binding,
+  timeout physical IDs and cleanup diagnostics before the real experiments.
+- Next effectiveness priority remains public-evidence SRE diagnosis and
+  sufficient capacity targets. Policy checkpoint `8ab2b46` and its two
+  80-decision/900-second diagnostics did not complete the horizon (0/2
+  demonstrated SLO success). Use `V2_POLICY_GUARD_RESULTS.md`; obtain authoritative
+  world/context identity and a locked causal-family split before claiming live
+  learned world knowledge or held-out benefit. Seed 42 remains development data.
 - Stages 1–5 are complete. Stage 6 and the subsequent A0–A9 compositions are
   implemented experimentally. No module has been promoted to default.
 - The v2 evaluation harness, CLI, immutable lifecycle/bindings and reports are
@@ -63,6 +77,8 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
     failure, policy 1.1 correction and operation-polling diagnostics.
 11. `docs/agent-memory-design/LEARNING_CYCLE_PLAN.md`: controlled durable learning
     experiment, paired decisions, evaluator separation and limits.
+12. `docs/agent-memory-design/LEARNING_CYCLE_RESULTS.md`: both real-model results,
+    independent request/provenance verification and exact source/manifest seals.
 
 ## Shared Granola notes
 
@@ -225,7 +241,12 @@ Raw sanitized artifacts remain ignored under `artifacts/`.
 
 ## Verification
 
-Current policy-guard checkpoint: **536 passed, 2 skipped in 6.68s**.
+Current controlled-cycle source checkpoint: **552 passed, 2 skipped**;
+the subsequent cleanup-cancellation regression and prompt correction passed
+the focused **9/9** suite. Both real-model experiments passed independent
+manifest, snapshot, evidence ancestry, request and outcome verification.
+
+Historical policy-guard checkpoint: **536 passed, 2 skipped in 6.68s**.
 The subsequent prompt-only operation-polling correction passed 53 applicable
 policy, provider-boundary and CLI tests. Earlier architecture/xmemory checkpoint:
 524 passed, 2 skipped in 6.37s.
