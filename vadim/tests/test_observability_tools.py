@@ -8,9 +8,10 @@ import pytest
 from pydantic import ValidationError
 
 from uptick_agent.decisions.contracts import V2NextStep
+from uptick_agent.environment.contracts import EnvironmentDecisionSpec, validate_decision
 from uptick_agent.simulator.actions import QueryLogs, QueryMetrics
 from uptick_agent.simulator.decisions import SimulatorV2Decision
-from uptick_agent.simulator.v2_client import SimulatorV2Client
+from uptick_agent.simulator.v2_client import SimulatorV2ApiError, SimulatorV2Client
 from uptick_agent.simulator.v2_environment import SimulatorV2Environment, SimulatorV2Session
 
 RUN_ID = "run-observability"
@@ -109,6 +110,93 @@ def test_query_logs_accepts_canonical_ipv4_and_ipv6_cidrs() -> None:
         QueryLogs(source_cidr="203.0.113.1/24")
     with pytest.raises(ValidationError):
         QueryLogs(source_cidr="not-a-network")
+
+
+def test_query_timestamps_preserve_nanoseconds_from_decision_to_http() -> None:
+    requests: list[httpx.Request] = []
+    raw_from = "2030-01-14T04:13:50.524467912Z"
+    raw_to = "2030-01-14T04:13:50.524467913Z"
+
+    async def scenario() -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            if request.url.path.endswith("/logs"):
+                return httpx.Response(200, json=_logs_response())
+            return httpx.Response(200, json=_metrics_response())
+
+        client, http_client = _client(handler)
+        try:
+            spec = EnvironmentDecisionSpec(
+                response_model=SimulatorV2Decision,
+                environment_briefing="public startup instructions",
+            )
+            environment = SimulatorV2Environment(client)
+            session = _session()
+            for kind in ("query_logs", "query_metrics"):
+                decision = SimulatorV2Decision.model_validate(
+                    {
+                        "current_situation": "inspect an exact public time window",
+                        "hypothesis": "the boundary may contain one event",
+                        "remaining_steps": [],
+                        "task_completed": False,
+                        "action": {
+                            "kind": kind,
+                            "from": raw_from,
+                            "to": raw_to,
+                        },
+                    }
+                )
+                validated = validate_decision(spec, decision)
+                action = validated.action
+                assert action.from_time == raw_from
+                assert action.to_time == raw_to
+                assert action.model_dump(mode="json", by_alias=True)["from"] == raw_from
+                await environment.execute(session, action)
+
+            assert dict(requests[0].url.params)["from"] == raw_from
+            assert dict(requests[0].url.params)["to"] == raw_to
+            assert dict(requests[1].url.params)["from"] == raw_from
+            assert dict(requests[1].url.params)["to"] == raw_to
+        finally:
+            await http_client.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_query_timestamps_reject_one_nanosecond_reversed_windows() -> None:
+    later = "2030-01-14T04:13:50.524467913Z"
+    earlier = "2030-01-14T04:13:50.524467912Z"
+    for action_type in (QueryLogs, QueryMetrics):
+        with pytest.raises(ValidationError, match="from must not be later"):
+            action_type.model_validate({"from": later, "to": earlier})
+
+    offset_equivalent = "2030-01-14T05:13:50.524467912+01:00"
+    with pytest.raises(ValidationError, match="from must not be later"):
+        QueryLogs.model_validate({"from": later, "to": offset_equivalent})
+
+
+def test_client_rejects_one_nanosecond_reversed_windows_before_http() -> None:
+    async def scenario() -> None:
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200, json=_metrics_response())
+
+        client, http_client = _client(handler)
+        try:
+            for method in (client.query_logs, client.query_metrics):
+                with pytest.raises(SimulatorV2ApiError, match="from must not be later"):
+                    await method(
+                        RUN_ID,
+                        from_time="2030-01-14T04:13:50.524467913Z",
+                        to_time="2030-01-14T04:13:50.524467912Z",
+                    )
+            assert requests == []
+        finally:
+            await http_client.aclose()
+
+    asyncio.run(scenario())
 
 
 def test_v2_environment_publishes_canonical_decision_schema_after_start() -> None:

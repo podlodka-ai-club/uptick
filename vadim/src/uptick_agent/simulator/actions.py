@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from ipaddress import IPv4Address, IPv6Address, ip_network
 from typing import Annotated, Literal
 
-from pydantic import Field, model_validator
+from pydantic import AfterValidator, BeforeValidator, Field, model_validator
 
 from uptick_agent._model_base import StrictModel, preserve_legacy_identity
+from uptick_agent.simulator.timestamps import (
+    RFC3339_PATTERN,
+    coerce_query_timestamp,
+    parse_rfc3339,
+    validate_query_timestamp,
+)
 from uptick_agent.v2_actions import ControlCommand, GetControlCommands, GetInbox
 
 
@@ -69,14 +74,24 @@ MetricName = Literal[
     "uptime_ratio",
 ]
 IPAddress = IPv4Address | IPv6Address
+QueryTime = Annotated[
+    str,
+    Field(
+        max_length=128,
+        pattern=RFC3339_PATTERN,
+        json_schema_extra={"format": "date-time"},
+    ),
+    BeforeValidator(coerce_query_timestamp),
+    AfterValidator(validate_query_timestamp),
+]
 
 
 class QueryLogs(StrictModel):
     """Read an explicit log window without touching incremental cursors."""
 
     kind: Literal["query_logs"] = "query_logs"
-    from_time: datetime | None = Field(default=None, alias="from")
-    to_time: datetime | None = Field(default=None, alias="to")
+    from_time: QueryTime | None = Field(default=None, alias="from")
+    to_time: QueryTime | None = Field(default=None, alias="to")
     page: PageType | None = None
     status: PageRequestStatus | None = None
     has_error: bool | None = None
@@ -115,8 +130,8 @@ class QueryMetrics(StrictModel):
     """Read an explicit metric window without changing snapshot state."""
 
     kind: Literal["query_metrics"] = "query_metrics"
-    from_time: datetime | None = Field(default=None, alias="from")
-    to_time: datetime | None = Field(default=None, alias="to")
+    from_time: QueryTime | None = Field(default=None, alias="from")
+    to_time: QueryTime | None = Field(default=None, alias="to")
     step_seconds: int = Field(default=60, ge=1)
     names: list[MetricName] | None = Field(default=None, min_length=1, max_length=32)
     page: PageType | None = None
@@ -132,16 +147,13 @@ class QueryMetrics(StrictModel):
 
 
 def _validate_time_window(
-    from_time: datetime | None, to_time: datetime | None, *, require_pair: bool
+    from_time: QueryTime | None, to_time: QueryTime | None, *, require_pair: bool
 ) -> None:
     if require_pair and (from_time is None) != (to_time is None):
         raise ValueError("from and to must be supplied together")
-    for bound in (from_time, to_time):
-        if bound is not None and (bound.tzinfo is None or bound.utcoffset() is None):
-            raise ValueError("from and to must be timezone-aware")
     if from_time is None or to_time is None:
         return
-    if from_time > to_time:
+    if parse_rfc3339(from_time) > parse_rfc3339(to_time):
         raise ValueError("from must not be later than to")
 
 

@@ -18,6 +18,7 @@ from urllib.parse import quote
 import httpx
 
 from uptick_agent.redaction import sanitize_json
+from uptick_agent.simulator.timestamps import TimestampOrder, parse_rfc3339, query_timestamp
 
 _DEFAULT_BASE_URL = "http://81.176.229.58:8080"
 _COMMANDS = frozenset(
@@ -66,28 +67,24 @@ _REF_PATTERN = re.compile(
 )
 
 
-def _parse_query_time(value: datetime | str) -> datetime:
-    if isinstance(value, datetime):
-        parsed = value
-    elif isinstance(value, str):
-        try:
-            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        except ValueError as error:
-            raise SimulatorV2ApiError(
-                400, "INVALID_REQUEST", "from and to must be valid date-times"
-            ) from error
-    else:
-        raise SimulatorV2ApiError(400, "INVALID_REQUEST", "from and to must be date-times")
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        raise SimulatorV2ApiError(400, "INVALID_REQUEST", "from and to must be timezone-aware")
-    return parsed
+def _parse_query_time(value: datetime | str) -> TimestampOrder:
+    try:
+        return parse_rfc3339(value)
+    except ValueError as error:
+        raise SimulatorV2ApiError(
+            400, "INVALID_REQUEST", "from and to must be valid timezone-aware RFC3339 date-times"
+        ) from error
 
 
 def _query_time(value: datetime | str | None) -> str | None:
     if value is None:
         return None
-    _parse_query_time(value)
-    return value.isoformat() if isinstance(value, datetime) else value
+    try:
+        return query_timestamp(value)
+    except ValueError as error:
+        raise SimulatorV2ApiError(
+            400, "INVALID_REQUEST", "from and to must be valid timezone-aware RFC3339 date-times"
+        ) from error
 
 
 def _validate_query_window(
