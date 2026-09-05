@@ -13,7 +13,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import Field, JsonValue, field_validator, model_validator
+from pydantic import Field, JsonValue, model_validator
 
 from uptick_agent.memory.candidate_validation import validate_evidence
 from uptick_agent.memory.contracts import (
@@ -33,6 +33,7 @@ from uptick_agent.memory.lesson_contracts import (
     declaration_hash,
     snapshot_input_hash,
 )
+from uptick_agent.memory.settings import PatternQuerySettings
 from uptick_agent.memory.stores.contracts import StoredRecord, StructuredMemoryStore, sha256_json
 from uptick_agent.redaction import sanitize_json
 
@@ -46,53 +47,6 @@ _TRANSITION_RECORD_TYPE = "experience-transition"
 _OUTCOME_RECORD_TYPE = "run-outcome"
 PATTERN_MISSING = object()
 REQUEST_SCOPE_MISSING = PATTERN_MISSING
-
-
-class PatternQuerySettings(ContractModel):
-    """Explicit, non-leaking projections used by derived-memory queries.
-
-    Scope paths are rooted at ``observation`` or ``pre_state``.  Action and
-    result paths are rooted at their corresponding transition fields, so a
-    result cannot accidentally become part of the scope that predicts it.
-    """
-
-    query_ref: Literal[PATTERN_QUERY_CONTRACT] = PATTERN_QUERY_CONTRACT
-    scope_paths: tuple[str, ...] = Field(min_length=1, max_length=32)
-    action_path: str = Field(min_length=1, max_length=128)
-    result_path: str = Field(min_length=1, max_length=128)
-
-    @field_validator("scope_paths")
-    @classmethod
-    def _validate_scope_paths(cls, value: tuple[str, ...]) -> tuple[str, ...]:
-        if len(set(value)) != len(value):
-            raise ValueError("scope_paths must be unique")
-        for path in value:
-            _validate_dotted_path(path)
-        return value
-
-    @field_validator("action_path", "result_path")
-    @classmethod
-    def _validate_paths(cls, value: str) -> str:
-        return _validate_dotted_path(value)
-
-    @model_validator(mode="after")
-    def _require_transition_roots(self) -> PatternQuerySettings:
-        if any(not path.startswith(("observation.", "pre_state.")) for path in self.scope_paths):
-            raise ValueError("scope paths must be rooted at observation or pre_state")
-        if not self.action_path.startswith("action."):
-            raise ValueError("action_path must be rooted at action")
-        if not self.result_path.startswith("result."):
-            raise ValueError("result_path must be rooted at result")
-        return self
-
-
-def _validate_dotted_path(value: str) -> str:
-    if not isinstance(value, str) or not value or value != value.strip():
-        raise ValueError("projection paths must be non-empty dotted names")
-    pieces = value.split(".")
-    if any(not piece or not piece.replace("_", "").isalnum() for piece in pieces):
-        raise ValueError("projection paths must contain only dotted field names")
-    return value
 
 
 def project_dotted(value: object, path: str) -> JsonValue | object:

@@ -33,6 +33,36 @@ Updated: 2026-09-05 (Asia/Yekaterinburg).
 5. `docs/SIMULATOR_V2_ADAPTER.md`: API details and all nine development pilots.
 6. `docs/agent-memory-design/V2_LIVE_INTEGRATION_RESULTS.md`: sealed smoke and
    A0–A9 integration identities, outcomes and verification.
+7. `docs/agent-memory-design/ARCHITECTURE_AUDIT.md`: current completeness,
+   import-boundary correction and remaining evidence/implementation gaps.
+8. `docs/agent-memory-design/AGENT_COMPARISON.md`: comparison with `simple_agent`
+   (the identification as Alex's agent remains provisional).
+9. `docs/XMEMORY_INTEGRATION.md`: optional research xMemory integration and its
+   upstream verification limits.
+
+## Architecture audit and optional xMemory
+
+- A focused contract import previously loaded concrete memory modules through
+  eager package exports and settings imports. Lazy public exports and neutral
+  settings now isolate contracts; recursive architecture checks enforce memory
+  independence from simulator, provider and xmemory implementations.
+- Existing public imports and all four historical sealed experiment hashes are
+  compatible. The optional `xmemory` field is absent from old serialization;
+  enabling it requires configuration schema 1.3.
+- The assumed target is HU-xiaobai/xMemory, upstream revision
+  `375ae1495095aa14a39eb169f83737f4779391c6`. This is distinct from hosted
+  xmemory.ai; the user has not yet answered the disambiguation question.
+  The adapter is outside the memory core, injected through a small protocol,
+  and composes through the native orchestrator and runner-facing port.
+- xMemory does not support immutable snapshot export through its public facade.
+  Enabled xmemory configurations are rejected by `evaluate-v2` before artifact
+  or client creation. It is not a new A0–A9 effectiveness result.
+- Upstream facade forwarding was exercised with an injected fake memory system
+  and stubbed heavy imports. A full upstream embedding/LLM pipeline was not
+  installed or run; do not describe that smoke as end-to-end xMemory validation.
+- Sibling `simple_agent` locked tests passed 40/40 with one live test skipped.
+  Our richer architecture does not establish better incident handling. No fair
+  shared-protocol agent comparison has been executed.
 
 ## Delivered runtime
 
@@ -152,9 +182,13 @@ Raw sanitized artifacts remain ignored under `artifacts/`.
 
 ## Verification
 
-Implementation checkpoint: **504 passed, 2 skipped in 6.12s**. Ruff, formatting
-checks for changed Python files and `git diff --check` passed. The separate live
-v2 adapter integration check also passed during this continuation.
+Current architecture/xmemory checkpoint: **524 passed, 2 skipped in 6.37s**.
+The subsequent focused xmemory/architecture/CLI verification passed 31/31,
+including 256-character journal keys and reopened-SQLite finalization replay.
+Ruff, changed-file formatting and `git diff --check` passed. The separate live
+v2 adapter integration check passed **1/1 in 3.14s**. The real pinned xMemory
+facade plus our adapter and SQLite also passed a smoke with an injected fake
+memory system; full upstream generation/embedding remains untested.
 
 Run from `vadim/`:
 

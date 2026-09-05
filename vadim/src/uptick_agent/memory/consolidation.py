@@ -39,17 +39,16 @@ from uptick_agent.memory.lesson_contracts import (
     LESSON_VALIDATION_POLICY,
     LessonEvidence,
     LessonRunDeclaration,
-    LessonSettings,
     snapshot_input_hash,
 )
 from uptick_agent.memory.patterns import (
     REQUEST_SCOPE_MISSING,
-    PatternQuerySettings,
     generate_pattern_candidates,
     request_scope_value,
     validate_pattern_candidate,
     verify_evidence_against_store,
 )
+from uptick_agent.memory.settings import ConsolidationSettings
 from uptick_agent.memory.stores.contracts import (
     MemorySnapshot,
     RecordWrite,
@@ -192,21 +191,6 @@ class StoredSnapshotEvidenceSource:
             key=lambda item: (item.logical_run_id, item.attempt_index, item.run_id),
         )
         return LessonEvidence(snapshot=snapshot, records=records, runs=declarations)
-
-
-class ConsolidationSettings(ContractModel):
-    """Resolved validator settings and deterministic planning bounds."""
-
-    lesson_settings: LessonSettings | None = None
-    pattern_settings: PatternQuerySettings | None = None
-    max_replay_records: int = Field(default=200, ge=1, le=10_000)
-    max_contrast_pairs: int = Field(default=100, ge=0, le=10_000)
-
-    @model_validator(mode="after")
-    def _require_knowledge_settings(self) -> ConsolidationSettings:
-        if self.lesson_settings is None and self.pattern_settings is None:
-            raise ValueError("consolidation requires lesson or pattern settings")
-        return self
 
 
 class ConsolidationPlan(ContractModel):

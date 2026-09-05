@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from uptick_agent import cli
 from uptick_agent.llm import StructuredGenerationRequest, serialize_structured_generation_request
+from uptick_agent.memory.config import MemoryConfiguration, ModuleConfig
 from uptick_agent.models import DecisionContext, NextStep, ToolResult
 
 
@@ -187,3 +188,71 @@ def test_cli_rejects_invalid_benchmark_seeds_before_constructing_clients(monkeyp
         asyncio.run(cli._main(args))
 
     assert constructed is False
+
+
+@pytest.mark.parametrize(
+    "memory_configuration",
+    [
+        MemoryConfiguration.legacy_baseline(),
+        MemoryConfiguration(xmemory=None),
+        MemoryConfiguration(
+            schema_version="1.3",
+            xmemory=ModuleConfig(enabled=False),
+        ),
+    ],
+)
+def test_old_or_disabled_memory_profiles_pass_xmemory_preflight(memory_configuration) -> None:
+    profile = SimpleNamespace(
+        conditions=(
+            SimpleNamespace(condition_id="legacy", memory_configuration=memory_configuration),
+        )
+    )
+
+    cli._reject_unsupported_xmemory(profile)
+
+
+def test_evaluate_v2_rejects_enabled_xmemory_before_clients_or_artifacts(
+    monkeypatch, tmp_path
+) -> None:
+    memory_configuration = MemoryConfiguration(
+        schema_version="1.3",
+        xmemory=ModuleConfig(enabled=True, version="xmemory-1.0"),
+    )
+    profile = SimpleNamespace(
+        simulator_api_version="v2",
+        conditions=(
+            SimpleNamespace(
+                condition_id="external-memory",
+                memory_configuration=memory_configuration,
+            ),
+        ),
+    )
+    manifest = SimpleNamespace(profile=profile)
+    monkeypatch.setattr(cli, "_load_v2_manifest", lambda path: manifest)
+
+    def unexpected_call(*args, **kwargs):
+        raise AssertionError("evaluate-v2 preflight must run before this dependency")
+
+    for name in (
+        "_verify_v2_pins",
+        "FilesystemEvaluationArtifactStore",
+        "SqliteStructuredStore",
+        "DefaultEvaluationMemoryFactory",
+        "EvaluationRuntime",
+        "SimulatorV2Client",
+        "_v2_model_factory",
+    ):
+        monkeypatch.setattr(cli, name, unexpected_call)
+
+    args = cli._parser().parse_args(
+        [
+            "evaluate-v2",
+            "--profile",
+            str(tmp_path / "profile.json"),
+            "--artifacts",
+            str(tmp_path / "artifacts"),
+        ]
+    )
+
+    with pytest.raises(ValueError, match="immutable snapshot export is unsupported"):
+        asyncio.run(cli._evaluate_v2(args))

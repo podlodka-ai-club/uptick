@@ -1,18 +1,12 @@
-from uptick_agent.memory.audit import (
-    AuditTraceEvent,
-    AuditTraceSink,
-    AuditTraceWrite,
-    RawBodyCapture,
-    StructuredAuditTraceSink,
-    audit_event_id,
-)
-from uptick_agent.memory.config import (
-    AuditConfiguration,
-    AuditRetentionConfiguration,
-    LessonSettings,
-    MemoryConfiguration,
-    RawContentConfiguration,
-)
+"""Public memory contracts with lazy compatibility and module exports.
+
+Importing a stable submodule such as ``memory.contracts`` must not construct
+or import concrete memory implementations.  The public names remain
+available through ``__getattr__`` and are loaded only when requested.
+"""
+
+from importlib import import_module
+
 from uptick_agent.memory.contracts import (
     ConsolidationDelta,
     ConsolidationParticipant,
@@ -40,35 +34,6 @@ from uptick_agent.memory.contracts import (
     RunOutcome,
     TransitionAssemblyRequest,
     UntrustedMemoryEnvelope,
-)
-from uptick_agent.memory.lesson_contracts import (
-    LESSON_QUERY_CONTRACT,
-    LESSON_RETENTION_POLICY,
-    LESSON_VALIDATION_AUTHORITY,
-    LESSON_VALIDATION_POLICY,
-    LessonCandidate,
-    LessonEvidence,
-    LessonRunDeclaration,
-    LessonValidationManifest,
-    ValidatedLesson,
-    context_id,
-    declaration_hash,
-    snapshot_input_hash,
-)
-from uptick_agent.memory.lesson_evidence import StoredEpisodicLessonSource
-from uptick_agent.memory.lesson_runtime import LessonsMemoryRuntime, lessons_memory_runtime
-from uptick_agent.memory.lessons import (
-    LESSON_BATCH_RECORD_TYPE,
-    LESSONS_MODULE_ID,
-    LESSONS_MODULE_VERSION,
-    LessonBatch,
-    LessonEvidenceSource,
-    LessonsMemory,
-)
-from uptick_agent.memory.orchestrator import (
-    MemoryContextDiagnostics,
-    MemoryModuleRegistration,
-    MemoryOrchestrator,
 )
 
 __all__ = [
@@ -146,27 +111,62 @@ __all__ = [
 ]
 
 
+_LAZY_EXPORTS: dict[str, tuple[str, str]] = {
+    "AuditConfiguration": ("config", "AuditConfiguration"),
+    "AuditRetentionConfiguration": ("config", "AuditRetentionConfiguration"),
+    "MemoryConfiguration": ("config", "MemoryConfiguration"),
+    "RawContentConfiguration": ("config", "RawContentConfiguration"),
+    "AuditTraceEvent": ("audit", "AuditTraceEvent"),
+    "AuditTraceSink": ("audit", "AuditTraceSink"),
+    "AuditTraceWrite": ("audit", "AuditTraceWrite"),
+    "RawBodyCapture": ("audit", "RawBodyCapture"),
+    "StructuredAuditTraceSink": ("audit", "StructuredAuditTraceSink"),
+    "audit_event_id": ("audit", "audit_event_id"),
+    "LESSON_BATCH_RECORD_TYPE": ("lessons", "LESSON_BATCH_RECORD_TYPE"),
+    "LESSONS_MODULE_ID": ("lessons", "LESSONS_MODULE_ID"),
+    "LESSONS_MODULE_VERSION": ("lessons", "LESSONS_MODULE_VERSION"),
+    "LessonBatch": ("lessons", "LessonBatch"),
+    "LessonEvidenceSource": ("lessons", "LessonEvidenceSource"),
+    "LessonsMemory": ("lessons", "LessonsMemory"),
+    "LESSON_QUERY_CONTRACT": ("lesson_contracts", "LESSON_QUERY_CONTRACT"),
+    "LESSON_RETENTION_POLICY": ("lesson_contracts", "LESSON_RETENTION_POLICY"),
+    "LESSON_VALIDATION_AUTHORITY": ("lesson_contracts", "LESSON_VALIDATION_AUTHORITY"),
+    "LESSON_VALIDATION_POLICY": ("lesson_contracts", "LESSON_VALIDATION_POLICY"),
+    "LessonCandidate": ("lesson_contracts", "LessonCandidate"),
+    "LessonEvidence": ("lesson_contracts", "LessonEvidence"),
+    "LessonRunDeclaration": ("lesson_contracts", "LessonRunDeclaration"),
+    "LessonSettings": ("lesson_contracts", "LessonSettings"),
+    "LessonValidationManifest": ("lesson_contracts", "LessonValidationManifest"),
+    "ValidatedLesson": ("lesson_contracts", "ValidatedLesson"),
+    "context_id": ("lesson_contracts", "context_id"),
+    "declaration_hash": ("lesson_contracts", "declaration_hash"),
+    "snapshot_input_hash": ("lesson_contracts", "snapshot_input_hash"),
+    "StoredEpisodicLessonSource": ("lesson_evidence", "StoredEpisodicLessonSource"),
+    "LessonsMemoryRuntime": ("lesson_runtime", "LessonsMemoryRuntime"),
+    "lessons_memory_runtime": ("lesson_runtime", "lessons_memory_runtime"),
+    "MemoryContextDiagnostics": ("orchestrator", "MemoryContextDiagnostics"),
+    "MemoryModuleRegistration": ("orchestrator", "MemoryModuleRegistration"),
+    "MemoryOrchestrator": ("orchestrator", "MemoryOrchestrator"),
+    "InMemoryMemory": ("in_memory", "InMemoryMemory"),
+    "NullMemory": ("in_memory", "NullMemory"),
+    "JsonlMemory": ("jsonl", "JsonlMemory"),
+    "LegacyMemoryAdapter": ("compatibility.legacy", "LegacyMemoryAdapter"),
+    "LegacyMemoryRuntime": ("compatibility.legacy", "LegacyMemoryRuntime"),
+    "legacy_memory_runtime": ("compatibility.legacy", "legacy_memory_runtime"),
+    "EpisodicMemory": ("episodic", "EpisodicMemory"),
+    "EPISODIC_MODULE_ID": ("episodic", "EPISODIC_MODULE_ID"),
+    "EPISODIC_MODULE_VERSION": ("episodic", "EPISODIC_MODULE_VERSION"),
+    "episodic_memory_runtime": ("compatibility.legacy", "episodic_memory_runtime"),
+}
+
+
 def __getattr__(name: str):
-    """Load model-dependent compatibility implementations without import cycles."""
+    """Load a public implementation only when its export is requested."""
 
-    if name in {"InMemoryMemory", "NullMemory"}:
-        from uptick_agent.memory import in_memory
-
-        return getattr(in_memory, name)
-    if name == "JsonlMemory":
-        from uptick_agent.memory.jsonl import JsonlMemory
-
-        return JsonlMemory
-    if name in {"LegacyMemoryAdapter", "LegacyMemoryRuntime", "legacy_memory_runtime"}:
-        from uptick_agent.memory.compatibility import legacy
-
-        return getattr(legacy, name)
-    if name in {"EpisodicMemory", "EPISODIC_MODULE_ID", "EPISODIC_MODULE_VERSION"}:
-        from uptick_agent.memory import episodic
-
-        return getattr(episodic, name)
-    if name == "episodic_memory_runtime":
-        from uptick_agent.memory.compatibility.legacy import episodic_memory_runtime
-
-        return episodic_memory_runtime
-    raise AttributeError(name)
+    target = _LAZY_EXPORTS.get(name)
+    if target is None:
+        raise AttributeError(name)
+    module_name, attribute_name = target
+    value = getattr(import_module(f"{__name__}.{module_name}"), attribute_name)
+    globals()[name] = value
+    return value

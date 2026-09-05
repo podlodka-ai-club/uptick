@@ -269,6 +269,30 @@ def _load_v2_manifest(path: Path) -> V2Manifest:
     return resolved_manifest(V2EvaluationProfile.model_validate(payload))
 
 
+def _reject_unsupported_xmemory(profile: V2EvaluationProfile) -> None:
+    """Reject mutable external memory before an evaluation can start.
+
+    ``xmemory`` is intentionally not part of the frozen-memory contract yet.
+    Use ``getattr`` so profiles created before that field existed retain their
+    current behavior.
+    """
+
+    enabled_conditions = tuple(
+        condition.condition_id
+        for condition in profile.conditions
+        if (
+            (module := getattr(condition.memory_configuration, "xmemory", None)) is not None
+            and bool(getattr(module, "enabled", False))
+        )
+    )
+    if enabled_conditions:
+        condition_ids = ", ".join(enabled_conditions)
+        raise ValueError(
+            "evaluate-v2 cannot run with enabled xmemory: immutable snapshot export is "
+            f"unsupported for condition(s) {condition_ids}; disable xmemory before evaluation"
+        )
+
+
 def _profile_generation_settings(profile: V2EvaluationProfile) -> GenerationSettings:
     allowed = {"temperature", "max_output_tokens", "reasoning_effort"}
     unknown = set(profile.provider.settings) - allowed
@@ -446,6 +470,7 @@ async def _evaluate_v2(args: argparse.Namespace) -> int:
     manifest = _load_v2_manifest(args.profile)
     if manifest.profile.simulator_api_version != "v2":
         raise ValueError("evaluate-v2 accepts only a v2 profile")
+    _reject_unsupported_xmemory(manifest.profile)
     _verify_v2_pins(manifest.profile, args)
     artifact_store = FilesystemEvaluationArtifactStore(args.artifacts)
     journal = EvaluationJournal(manifest, artifacts=artifact_store)

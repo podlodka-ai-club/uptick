@@ -47,6 +47,12 @@ schema-guided decision loop — и отделена от памяти, моде�
 Основной цикл в `AgentRunner` не знает ни про OpenAI, ни про HTTP, ни про JSONL. Поэтому
 эксперимент с памятью не требует копии агента или изменения симулятора.
 
+Отдельный адаптер исследовательской xMemory подключается через тот же порт:
+[`Подключение xMemory`](docs/XMEMORY_INTEGRATION.md). Аудит завершённости и
+границ находится в [`ARCHITECTURE_AUDIT.md`](docs/agent-memory-design/ARCHITECTURE_AUDIT.md),
+сравнение с соседним агентом — в
+[`AGENT_COMPARISON.md`](docs/agent-memory-design/AGENT_COMPARISON.md).
+
 ## Быстрый старт
 
 Требуются Python 3.12+ и `uv`.

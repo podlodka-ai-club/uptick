@@ -168,6 +168,16 @@ checks durable result/trace/binding references, and verifies frozen snapshot
 members against SQLite. Null historical telemetry is preserved; a reported
 snapshot count that disagrees with the actual binding is rejected.
 
+## Optional xMemory integration
+
+The optional injected HU-xiaobai/xMemory integration is outside the A0–A9
+presets. See [`../XMEMORY_INTEGRATION.md`](../XMEMORY_INTEGRATION.md) for Python
+composition, storage ownership and verification limits. An enabled schema-1.3
+`xmemory` declaration is fingerprinted, but `evaluate-v2` rejects it before
+creating artifacts or clients because upstream immutable snapshot export is
+unsupported. Existing configurations omit this optional field and preserve
+their historical manifest hashes.
+
 ## Explicit maintenance
 
 Maintenance is independent of the decision loop and finalizers. The standalone

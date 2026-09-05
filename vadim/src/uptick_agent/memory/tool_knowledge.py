@@ -12,7 +12,7 @@ import re
 from datetime import UTC, datetime
 from typing import Literal, Protocol, runtime_checkable
 
-from pydantic import Field, JsonValue, ValidationError, field_validator, model_validator
+from pydantic import Field, JsonValue, ValidationError, model_validator
 
 from uptick_agent.memory.contracts import (
     ContextItem,
@@ -43,6 +43,7 @@ from uptick_agent.memory.patterns import (
     validated_evidence_parts,
     verify_evidence_against_store,
 )
+from uptick_agent.memory.settings import ToolKnowledgeQuerySettings
 from uptick_agent.memory.stores.contracts import (
     RecordWrite,
     StoredRecord,
@@ -62,52 +63,6 @@ TOOL_KNOWLEDGE_BATCH_RECORD_TYPE = "tool-knowledge-batch"
 TOOL_KNOWLEDGE_BATCH_SCHEMA_VERSION = "1.0"
 _RETENTION_POLICY_REF = "simulator-audit-retention-v1@1.0"
 _WORD = re.compile(r"[\w-]+", re.UNICODE)
-
-
-def _path(value: str) -> str:
-    if not isinstance(value, str) or not value or value != value.strip():
-        raise ValueError("projection paths must be non-empty dotted names")
-    pieces = value.split(".")
-    if any(not piece or not piece.replace("_", "").isalnum() for piece in pieces):
-        raise ValueError("projection paths must contain only dotted field names")
-    return value
-
-
-class ToolKnowledgeQuerySettings(ContractModel):
-    """Resolved action/input/response projections for one adapter namespace."""
-
-    query_ref: Literal[TOOL_KNOWLEDGE_QUERY_CONTRACT] = TOOL_KNOWLEDGE_QUERY_CONTRACT
-    adapter_identity: str = Field(min_length=1, max_length=256)
-    scope_paths: tuple[str, ...] = Field(min_length=1, max_length=32)
-    action_path: str = Field(min_length=1, max_length=128)
-    input_paths: tuple[str, ...] = Field(min_length=1, max_length=32)
-    response_path: str = Field(min_length=1, max_length=128)
-
-    @field_validator("scope_paths", "input_paths")
-    @classmethod
-    def _paths_unique(cls, value: tuple[str, ...]) -> tuple[str, ...]:
-        if len(set(value)) != len(value):
-            raise ValueError("projection paths must be unique")
-        for path in value:
-            _path(path)
-        return value
-
-    @field_validator("action_path", "response_path")
-    @classmethod
-    def _path_values(cls, value: str) -> str:
-        return _path(value)
-
-    @model_validator(mode="after")
-    def _roots(self) -> ToolKnowledgeQuerySettings:
-        if any(not path.startswith(("observation.", "pre_state.")) for path in self.scope_paths):
-            raise ValueError("scope paths must be rooted at observation or pre_state")
-        if not self.action_path.startswith("action."):
-            raise ValueError("action_path must be rooted at action")
-        if any(not path.startswith("action.") for path in self.input_paths):
-            raise ValueError("input paths must be rooted at action")
-        if not self.response_path.startswith("result."):
-            raise ValueError("response_path must be rooted at result")
-        return self
 
 
 class ToolKnowledgeCandidate(ContractModel):

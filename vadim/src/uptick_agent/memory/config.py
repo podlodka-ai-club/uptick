@@ -8,12 +8,14 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from uptick_agent.memory.consolidation import ConsolidationSettings
 from uptick_agent.memory.contracts import ContractModel
 from uptick_agent.memory.lesson_contracts import LessonSettings
-from uptick_agent.memory.patterns import PatternQuerySettings
-from uptick_agent.memory.playbooks import PlaybookQuerySettings
-from uptick_agent.memory.tool_knowledge import ToolKnowledgeQuerySettings
+from uptick_agent.memory.settings import (
+    ConsolidationSettings,
+    PatternQuerySettings,
+    PlaybookQuerySettings,
+    ToolKnowledgeQuerySettings,
+)
 
 _AUDIT_RETENTION_POLICY_ID = "simulator-audit-retention-v1"
 _AUDIT_RETENTION_POLICY_VERSION = "1.0"
@@ -199,6 +201,11 @@ class MemoryConfiguration(ContractModel):
     playbook_query_settings: PlaybookQuerySettings | None = None
     tool_knowledge: ModuleConfig = Field(default_factory=ModuleConfig)
     tool_knowledge_query_settings: ToolKnowledgeQuerySettings | None = None
+    # Optional third-party/injected memory is deliberately only a generic
+    # declaration here.  Its concrete settings and construction belong to the
+    # composition root.  Field-level exclusion keeps old manifests bytewise
+    # compatible when this declaration is omitted.
+    xmemory: ModuleConfig | None = Field(default=None, exclude_if=lambda value: value is None)
     consolidation: ModuleConfig = Field(default_factory=ModuleConfig)
     consolidation_settings: ConsolidationSettings | None = None
     forgetting: ModuleConfig = Field(default_factory=ModuleConfig)
@@ -209,6 +216,10 @@ class MemoryConfiguration(ContractModel):
 
     @model_validator(mode="after")
     def _validate_dependencies_and_profile(self) -> MemoryConfiguration:
+        if self.xmemory is not None and self.xmemory.enabled:
+            major, minor = (int(part) for part in self.schema_version.split(".", maxsplit=1))
+            if (major, minor) < (1, 3):
+                raise ValueError("enabled xmemory requires MemoryConfiguration schema_version 1.3")
         if self.world_model.enabled and not (self.episodic.enabled or self.lessons.enabled):
             raise ValueError("world_model requires episodic or lessons")
         if self.playbooks.enabled and not (self.lessons.enabled or self.world_model.enabled):
@@ -220,7 +231,7 @@ class MemoryConfiguration(ContractModel):
         return self
 
     def _modules(self) -> dict[str, ModuleConfig]:
-        return {
+        modules = {
             "compatibility.legacy": self.compatibility_legacy,
             "episodic": self.episodic,
             "lessons": self.lessons,
@@ -230,6 +241,9 @@ class MemoryConfiguration(ContractModel):
             "consolidation": self.consolidation,
             "forgetting": self.forgetting,
         }
+        if self.xmemory is not None:
+            modules["xmemory"] = self.xmemory
+        return modules
 
     @property
     def modules(self) -> dict[str, ModuleConfig]:

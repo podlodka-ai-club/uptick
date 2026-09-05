@@ -34,6 +34,11 @@ experiment protocol is in
 live traces do not establish eligible lesson support or learning utility.
 The sealed live integration record is in
 [`V2_LIVE_INTEGRATION_RESULTS.md`](V2_LIVE_INTEGRATION_RESULTS.md).
+The current completeness and dependency audit is in
+[`ARCHITECTURE_AUDIT.md`](ARCHITECTURE_AUDIT.md); the evidence-based comparison
+with the sibling baseline is in [`AGENT_COMPARISON.md`](AGENT_COMPARISON.md).
+The optional research xMemory adapter is documented separately in
+[`../XMEMORY_INTEGRATION.md`](../XMEMORY_INTEGRATION.md).
 
 The initial simulator policy profile is now owner-approved:
 

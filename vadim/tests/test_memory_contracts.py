@@ -336,6 +336,31 @@ def test_legacy_baseline_config_is_canonical_and_fingerprint_is_stable() -> None
     assert len(first.fingerprint) == 64
 
 
+def test_omitted_optional_xmemory_keeps_legacy_serialization_and_hash_shape() -> None:
+    legacy = MemoryConfiguration.legacy_baseline()
+    legacy_payload = legacy.model_dump(mode="json")
+
+    assert "xmemory" not in legacy_payload
+    restored = MemoryConfiguration.model_validate(legacy_payload)
+    assert restored.model_dump(mode="json") == legacy_payload
+    assert restored.fingerprint == legacy.fingerprint
+
+
+def test_xmemory_requires_explicit_minor_schema_and_changes_the_fingerprint() -> None:
+    with pytest.raises(ValidationError, match="schema_version 1.3"):
+        MemoryConfiguration(xmemory=ModuleConfig(enabled=True))
+
+    enabled = MemoryConfiguration(
+        schema_version="1.3",
+        xmemory=ModuleConfig(enabled=True, version="xmemory-1.0"),
+    )
+
+    assert enabled.xmemory is not None
+    assert enabled.modules["xmemory"] == enabled.xmemory
+    assert enabled.model_dump(mode="json")["xmemory"]["version"] == "xmemory-1.0"
+    assert enabled.fingerprint != MemoryConfiguration.legacy_baseline().fingerprint
+
+
 def test_episodic_only_profile_enables_only_the_stage_four_module() -> None:
     configuration = MemoryConfiguration.episodic_only()
 
