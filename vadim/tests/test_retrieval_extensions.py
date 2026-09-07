@@ -127,9 +127,7 @@ def test_embedding_validation_rejects_bad_dimension_nonfinite_and_zero_vectors()
 
 
 def test_zero_budget_short_circuits_providers_and_hard_caps_items_and_tokens() -> None:
-    embeddings = FakeEmbeddings(
-        {"query": (1.0, 0.0), "one": (1.0, 0.0), "two": (0.9, 0.1)}
-    )
+    embeddings = FakeEmbeddings({"query": (1.0, 0.0), "one": (1.0, 0.0), "two": (0.9, 0.1)})
     items = [_item("one", {"label": "one"}, tokens=3), _item("two", {"label": "two"}, tokens=3)]
     strategy = SemanticRetrievalStrategy(
         embeddings,

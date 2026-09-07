@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from typing import Literal, Protocol, runtime_checkable
 
@@ -39,6 +39,7 @@ from uptick_agent.memory.lesson_contracts import (
     LESSON_VALIDATION_POLICY,
     LessonEvidence,
     LessonRunDeclaration,
+    LessonSettings,
     snapshot_input_hash,
 )
 from uptick_agent.memory.patterns import (
@@ -261,6 +262,52 @@ def _apply_record_id(plan_id: str) -> str:
 
 def _tokens(value: object) -> set[str]:
     return {token.casefold() for token in _WORD.findall(canonical_json(value)) if len(token) > 1}
+
+
+def _matches_request_scopes(
+    request: MemoryContextRequest,
+    scopes: Mapping[str, object],
+    *,
+    latest_result_only: bool = False,
+) -> bool:
+    """Evaluate validated dotted scopes without broadening request context."""
+
+    context: Mapping[str, object] = request.context
+    if latest_result_only:
+        latest_result = request.context.get("latest_result")
+        if not isinstance(latest_result, dict):
+            return False
+        context = {"latest_result": latest_result}
+    return all(
+        (actual := request_scope_value(context, path)) is not REQUEST_SCOPE_MISSING
+        and canonical_json(actual) == canonical_json(expected)
+        for path, expected in scopes.items()
+    )
+
+
+def _matches_consolidated_lesson_scope(
+    candidate: Mapping[str, object],
+    settings: LessonSettings | None,
+    request: MemoryContextRequest,
+) -> bool:
+    """Apply opt-in lesson paths after a lesson has entered consolidation."""
+
+    if settings is None:
+        raise MemoryPermanentError("consolidated lesson settings are missing")
+    condition_paths = settings.condition_paths
+    if condition_paths is None:
+        return True
+    conditions = candidate.get("conditions")
+    if not isinstance(conditions, dict):
+        raise MemoryPermanentError("consolidated lesson conditions are malformed")
+    if candidate.get("condition_paths") != condition_paths:
+        raise MemoryPermanentError("consolidated lesson condition paths are not bound")
+    scopes: dict[str, object] = {}
+    for key, path in condition_paths.items():
+        if key not in conditions:
+            raise MemoryPermanentError("consolidated lesson condition is missing")
+        scopes[path] = conditions[key]
+    return _matches_request_scopes(request, scopes, latest_result_only=True)
 
 
 def _contrast_pairs(records: list[StoredRecord], limit: int) -> tuple[tuple[str, str], ...]:
@@ -549,10 +596,11 @@ class ConsolidationMemory:
                 scope = candidate.get("scope")
                 if not isinstance(scope, dict):
                     raise MemoryPermanentError("world consolidation item scope is malformed")
-                if any(
-                    (actual := request_scope_value(request.context, path)) is REQUEST_SCOPE_MISSING
-                    or canonical_json(actual) != canonical_json(expected)
-                    for path, expected in scope.items()
+                if not _matches_request_scopes(request, scope):
+                    continue
+            elif item.get("kind") == "lesson":
+                if not _matches_consolidated_lesson_scope(
+                    candidate, latest_plan.settings.lesson_settings, request
                 ):
                     continue
             item_tokens = _tokens(candidate)

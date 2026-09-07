@@ -10,7 +10,14 @@ from pathlib import Path
 from time import monotonic
 from typing import Any
 
-from openai_codex import ApprovalMode, AsyncCodex, CodexConfig, Sandbox
+from openai_codex import (
+    ApprovalMode,
+    AsyncCodex,
+    CodexConfig,
+    Sandbox,
+    ServerBusyError,
+    TransportClosedError,
+)
 from pydantic import ValidationError
 
 from uptick_agent.decisions.contracts import DecisionContext, V1NextStep
@@ -82,6 +89,8 @@ _FORBIDDEN_TOOL_EVENT_TYPES = frozenset(
     }
 )
 _MAX_DECISION_ATTEMPTS = 2
+_BUSY_RETRY_DELAY_SECONDS = 0.25
+_CLIENT_CLOSE_TIMEOUT_SECONDS = 3.0
 
 
 def _field(value: Any, name: str) -> Any:
@@ -130,10 +139,12 @@ class _UsageAccumulator:
         self._values = {field: 0 for field in self._fields}
         self._known = {field: True for field in self._fields}
         self._seen = False
+        self._complete = True
         self._reported_requests = 0
 
     def add(self, usage: dict[str, int | None] | None) -> None:
         if usage is None:
+            self._complete = False
             return
         self._seen = True
         self._reported_requests += 1
@@ -145,7 +156,7 @@ class _UsageAccumulator:
                 self._values[field] += value
 
     def values(self) -> dict[str, int | None] | None:
-        if not self._seen:
+        if not self._seen or not self._complete:
             return None
         return {
             field: self._values[field] if self._known[field] else None for field in self._fields
@@ -206,9 +217,11 @@ class CodexLlmClient:
         self.model = model
         self.system_prompt = system_prompt
         self._last_telemetry: LlmCallTelemetry | None = None
+        self._last_attempts: tuple[dict[str, Any], ...] = ()
         self.developer_instructions = self._developer_instructions(())
         self._owns_client = client is None
         self._owns_workspace = client is None
+        self._client_config: CodexConfig | None = None
         self._closed = False
 
         if self._owns_workspace:
@@ -223,12 +236,11 @@ class CodexLlmClient:
             if workspace is None:  # pragma: no cover - guarded by _owns_workspace
                 raise AssertionError("owned Codex client requires an isolated workspace")
             try:
-                self._client = AsyncCodex(
-                    CodexConfig(
-                        cwd=str(workspace),
-                        config_overrides=CODEX_CONFIG_OVERRIDES,
-                    )
+                self._client_config = CodexConfig(
+                    cwd=str(workspace),
+                    config_overrides=CODEX_CONFIG_OVERRIDES,
                 )
+                self._client = AsyncCodex(self._client_config)
             except Exception as error:
                 shutil.rmtree(workspace, ignore_errors=True)
                 raise LlmConfigurationError(
@@ -245,6 +257,16 @@ class CodexLlmClient:
     def last_telemetry(self) -> LlmCallTelemetry | None:
         return self._last_telemetry
 
+    @property
+    def last_attempts(self) -> tuple[dict[str, Any], ...]:
+        return tuple(
+            {
+                **attempt,
+                "usage": dict(usage) if isinstance(usage := attempt.get("usage"), dict) else None,
+            }
+            for attempt in self._last_attempts
+        )
+
     async def generate_structured[T](
         self, request: StructuredGenerationRequest[T]
     ) -> StructuredGenerationResult[T]:
@@ -254,6 +276,7 @@ class CodexLlmClient:
         usage = _UsageAccumulator()
         completed = False
         self._last_telemetry = None
+        self._last_attempts = ()
         try:
             if (
                 request.settings.temperature is not None
@@ -269,37 +292,72 @@ class CodexLlmClient:
             except Exception as error:
                 raise LlmTransientError(
                     "Could not verify the ChatGPT/Codex subscription session; retry the request. "
-                    "If it persists, run `codex login` on your trusted local machine."
+                    "If it persists, run `codex login` on your trusted local machine. "
+                    f"provider_cause_type={type(error).__name__}."
                 ) from error
 
             validation_feedback: str | None = None
             for attempt in range(_MAX_DECISION_ATTEMPTS):
                 retry_count = attempt
-                thread = await self._client.thread_start(**self._thread_start_kwargs(request))
                 request_count += 1
-                prompt = self._structured_prompt(
-                    request.messages, validation_feedback=validation_feedback
+                try:
+                    thread = await self._client.thread_start(**self._thread_start_kwargs(request))
+                    prompt = self._structured_prompt(
+                        request.messages, validation_feedback=validation_feedback
+                    )
+                    run_kwargs = self._run_kwargs(request)
+                    if not self._owns_client:
+                        # Borrowed SDK clients retain their caller-owned lifecycle
+                        # and the original cancellation behavior.
+                        result = await thread.run(prompt, **run_kwargs)
+                    else:
+                        turn_task = asyncio.create_task(thread.run(prompt, **run_kwargs))
+                        try:
+                            # AsyncTurnHandle.stream unregisters its router queue in
+                            # a finally block. Shield the SDK task so cancellation
+                            # does not detach the queue before the owned transport
+                            # is closed and can wake its blocked reader.
+                            result = await asyncio.shield(turn_task)
+                        except asyncio.CancelledError:
+                            with suppress(Exception):
+                                await self._client.close()
+                            with suppress(BaseException):
+                                await turn_task
+                            raise
+                except asyncio.CancelledError:
+                    usage.add(None)
+                    self._record_attempt(
+                        request_count, outcome="cancelled", cause_type="CancelledError"
+                    )
+                    raise
+                except (ServerBusyError, TransportClosedError) as error:
+                    usage.add(None)
+                    self._record_attempt(
+                        request_count, outcome="provider_error", cause_type=type(error).__name__
+                    )
+                    if attempt + 1 >= _MAX_DECISION_ATTEMPTS:
+                        raise self._transient_failure(error, exhausted=True) from error
+                    if isinstance(error, TransportClosedError):
+                        if not self._owns_client:
+                            raise self._transient_failure(error, exhausted=False) from error
+                        await self._replace_owned_client()
+                    else:
+                        await asyncio.sleep(_BUSY_RETRY_DELAY_SECONDS)
+                    continue
+                except Exception as error:
+                    usage.add(None)
+                    self._record_attempt(
+                        request_count, outcome="provider_error", cause_type=type(error).__name__
+                    )
+                    raise
+                reported_usage = _codex_usage(result)
+                usage.add(reported_usage)
+                self._record_attempt(
+                    request_count,
+                    outcome="provider_result",
+                    status=self._status_value(getattr(result, "status", None)),
+                    usage=reported_usage,
                 )
-                run_kwargs = self._run_kwargs(request)
-                if not self._owns_client:
-                    # Borrowed SDK clients retain their caller-owned lifecycle
-                    # and the original cancellation behavior.
-                    result = await thread.run(prompt, **run_kwargs)
-                else:
-                    turn_task = asyncio.create_task(thread.run(prompt, **run_kwargs))
-                    try:
-                        # AsyncTurnHandle.stream unregisters its router queue in
-                        # a finally block. Shield the SDK task so cancellation
-                        # does not detach the queue before the owned transport
-                        # is closed and can wake its blocked reader.
-                        result = await asyncio.shield(turn_task)
-                    except asyncio.CancelledError:
-                        with suppress(Exception):
-                            await self._client.close()
-                        with suppress(BaseException):
-                            await turn_task
-                        raise
-                usage.add(_codex_usage(result))
 
                 self._reject_tool_events(result)
                 status = self._status_value(getattr(result, "status", None))
@@ -347,7 +405,7 @@ class CodexLlmClient:
         except Exception as error:
             raise LlmTransientError(
                 "Codex decision request failed after ChatGPT subscription authentication; "
-                "inspect the chained runtime error."
+                f"provider_cause_type={type(error).__name__}; inspect the chained runtime error."
             ) from error
         finally:
             if not completed:
@@ -357,6 +415,25 @@ class CodexLlmClient:
                     retry_count=retry_count,
                     usage=usage,
                 )
+
+    async def _replace_owned_client(self) -> None:
+        if not self._owns_client or self._client_config is None:
+            raise AssertionError("only an owned Codex client can be replaced")
+        previous = self._client
+        with suppress(Exception):
+            async with asyncio.timeout(_CLIENT_CLOSE_TIMEOUT_SECONDS):
+                await previous.close()
+        self._client = AsyncCodex(self._client_config)
+
+    @staticmethod
+    def _transient_failure(error: BaseException, *, exhausted: bool) -> LlmTransientError:
+        retry = " after one bounded retry" if exhausted else ""
+        return LlmTransientError(
+            f"Codex decision request failed{retry}; provider_cause_type={type(error).__name__}."
+        )
+
+    def _record_attempt(self, attempt: int, **values: Any) -> None:
+        self._last_attempts = (*self._last_attempts, {"attempt": attempt, **values})
 
     async def generate_text(self, request: TextGenerationRequest) -> TextGenerationResult:
         del request

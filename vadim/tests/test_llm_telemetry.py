@@ -366,7 +366,7 @@ def test_codex_missing_usage_and_provider_failure_keep_nullable_telemetry() -> N
     asyncio.run(scenario())
 
 
-def test_codex_cancellation_after_first_attempt_preserves_known_usage() -> None:
+def test_codex_cancellation_after_first_attempt_marks_aggregate_usage_incomplete() -> None:
     async def scenario() -> None:
         usage = _codex_usage(
             total={
@@ -390,8 +390,11 @@ def test_codex_cancellation_after_first_attempt_preserves_known_usage() -> None:
         assert model.last_telemetry is not None
         assert model.last_telemetry.request_count == 2
         assert model.last_telemetry.retry_count == 1
-        assert model.last_telemetry.input_tokens == 8
+        assert model.last_telemetry.input_tokens is None
+        assert model.last_telemetry.total_tokens is None
         assert model.last_telemetry.usage_reported_requests == 1
+        assert model.last_attempts[0]["usage"]["total_tokens"] == 11
+        assert model.last_attempts[1]["outcome"] == "cancelled"
 
     asyncio.run(scenario())
 

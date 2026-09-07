@@ -72,13 +72,14 @@ class StoredRecord(RecordWrite):
                 raise TypeError("stored record must be a StoredRecord")
             serialized = value.model_dump(mode="python", round_trip=True, warnings="error")
             record = cls.model_validate(serialized)
-            write = RecordWrite.model_validate(
-                {
-                    field_name: serialized[field_name]
-                    for field_name in RecordWrite.model_fields
-                }
+            # StoredRecord inherits every RecordWrite field and validator.
+            # Validate once, then hash exactly the original write fields; building
+            # two more equivalent Pydantic objects only repeats that validation.
+            body = record.model_dump(
+                mode="json", include=set(RecordWrite.model_fields), warnings="error"
             )
-            expected = cls.from_write(write)
+            expected_hash = sha256_json(body)
+
         except (
             KeyError,
             PydanticSerializationError,
@@ -87,7 +88,7 @@ class StoredRecord(RecordWrite):
             ValidationError,
         ) as error:
             raise MemoryPermanentError("stored record is invalid") from error
-        if record.content_hash != expected.content_hash:
+        if record.content_hash != expected_hash:
             raise MemoryPermanentError("stored record content hash mismatch")
         return record
 

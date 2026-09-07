@@ -6,7 +6,11 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT, compose_system_prompt
+from uptick_agent.decisions.instructions import (
+    BATCH_CORE_SYSTEM_PROMPT,
+    CORE_SYSTEM_PROMPT,
+    compose_system_prompt,
+)
 from uptick_agent.decisions.runtime import RuntimeDecisionContext
 from uptick_agent.environment.contracts import EnvironmentDecisionSpec
 from uptick_agent.llm.contracts import (
@@ -33,8 +37,13 @@ class StructuredDecisionModel:
         self._client = client
         self.model = getattr(client, "model", None)
         self._spec = EnvironmentDecisionSpec(response_model, environment_briefing)
+        default_prompt = (
+            BATCH_CORE_SYSTEM_PROMPT
+            if "actions" in response_model.model_fields
+            else CORE_SYSTEM_PROMPT
+        )
         self._system_prompt = compose_system_prompt(
-            CORE_SYSTEM_PROMPT if system_prompt is None else system_prompt,
+            default_prompt if system_prompt is None else system_prompt,
             environment_briefing,
         )
         self.settings = settings or GenerationSettings()
@@ -63,6 +72,7 @@ class StructuredDecisionModel:
         self, context: RuntimeDecisionContext
     ) -> StructuredGenerationRequest[BaseModel]:
         self._spec.assert_unchanged()
+        choice = "actions" if "actions" in self.response_model.model_fields else "action"
         return StructuredGenerationRequest(
             model=self.model,
             settings=self.settings,
@@ -72,7 +82,7 @@ class StructuredDecisionModel:
                 LlmMessage(
                     role="user",
                     content=(
-                        "Choose the next action from this runtime context. JSON follows:\n"
+                        f"Choose the next {choice} from this runtime context. JSON follows:\n"
                         + context.model_dump_json()
                     ),
                 ),

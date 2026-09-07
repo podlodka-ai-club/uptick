@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from uptick_agent.decisions.contracts import V2NextStep
 from uptick_agent.environment.contracts import EnvironmentDecisionSpec, validate_decision
-from uptick_agent.simulator.actions import QueryLogs, QueryMetrics
+from uptick_agent.simulator.actions import QueryLogs, QueryLogsSummary, QueryMetrics
 from uptick_agent.simulator.decisions import SimulatorV2Decision
 from uptick_agent.simulator.v2_client import SimulatorV2ApiError, SimulatorV2Client
 from uptick_agent.simulator.v2_environment import SimulatorV2Environment, SimulatorV2Session
@@ -69,6 +69,22 @@ def _metrics_response() -> dict[str, object]:
     return {"clock": _clock(), "current": {"uptime_ratio": 0.995}, "series": []}
 
 
+def _logs_summary_response() -> dict[str, object]:
+    return {
+        "clock": _clock(),
+        "window": {"from": START.isoformat(), "to": END.isoformat()},
+        "group_by": "source_cidr",
+        "ipv4_prefix_length": 24,
+        "ipv6_prefix_length": 64,
+        "groups": [
+            {"key": "203.0.113.0/24", "requests": 17, "unique_ips": 4},
+        ],
+        "total_requests": 23,
+        "total_groups": 2,
+        "next_offset": 1,
+    }
+
+
 def _client(handler):
     transport = httpx.MockTransport(handler)
     http_client = httpx.AsyncClient(base_url="http://simulator.test", transport=transport)
@@ -95,11 +111,40 @@ def test_canonical_v2_decision_adds_queries_without_changing_legacy_schema() -> 
 
     assert isinstance(decision.action, QueryLogs)
     assert "query_logs" in str(SimulatorV2Decision.model_json_schema())
+    assert "query_logs_summary" in str(SimulatorV2Decision.model_json_schema())
     assert "query_metrics" in str(SimulatorV2Decision.model_json_schema())
     assert "query_logs" not in str(V2NextStep.model_json_schema())
     schema = str(SimulatorV2Decision.model_json_schema())
     assert "ipv4network" not in schema
     assert "ipv6network" not in schema
+
+
+def test_logs_summary_action_requires_window_and_limits_prefixes_to_cidr_groups() -> None:
+    action = QueryLogsSummary(
+        **{
+            "from": START,
+            "to": END,
+            "group_by": "source_cidr",
+            "ipv4_prefix_length": 20,
+            "ipv6_prefix_length": 56,
+        }
+    )
+    assert action.model_dump(mode="json", by_alias=True)["from"] == START.isoformat()
+    schema = QueryLogsSummary.model_json_schema()
+    assert "response totals still cover" in schema["description"]
+    assert "not attacker classifications" in schema["description"]
+
+    with pytest.raises(ValidationError):
+        QueryLogsSummary.model_validate({"to": END, "group_by": "status"})
+    with pytest.raises(ValidationError, match="IP prefix lengths require"):
+        QueryLogsSummary(
+            from_time=START,
+            to_time=END,
+            group_by="source_ip",
+            ipv4_prefix_length=24,
+        )
+    with pytest.raises(ValidationError, match="from must not be later"):
+        QueryLogsSummary(from_time=END, to_time=START, group_by="status")
 
 
 def test_query_logs_accepts_canonical_ipv4_and_ipv6_cidrs() -> None:
@@ -304,6 +349,178 @@ def test_query_logs_omits_optional_parameters_but_keeps_false() -> None:
         try:
             await client.query_logs(RUN_ID, has_error=False)
             assert dict(requests[0].url.params) == {"has_error": "false", "limit": "100"}
+        finally:
+            await http_client.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_query_logs_summary_forwards_public_contract_and_preserves_cursor_state() -> None:
+    requests: list[httpx.Request] = []
+
+    async def scenario() -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200, json=_logs_summary_response())
+
+        client, http_client = _client(handler)
+        try:
+            session = _session()
+            session.logs_from_by_status["500"] = START
+            session.logs_cursor = "incremental-cursor"
+            session.logs_cursor_status = 500
+            session.logs_cursor_by_status["500"] = "incremental-cursor"
+            session.seen_log_ids.add("already-seen")
+            before = (
+                dict(session.logs_from_by_status),
+                dict(session.logs_cursor_by_status),
+                session.logs_cursor,
+                session.logs_cursor_status,
+                set(session.seen_log_ids),
+            )
+            result = await SimulatorV2Environment(client).execute(
+                session,
+                QueryLogsSummary(
+                    from_time=START,
+                    to_time=END,
+                    group_by="source_cidr",
+                    page="product_page",
+                    status=500,
+                    has_error=True,
+                    error="SERVER_CAPACITY_EXCEEDED",
+                    source_ip="203.0.113.10",
+                    source_cidr="203.0.113.0/24",
+                    user_agent="shop-bot",
+                    region_code="US",
+                    firewall_rule_id="allow-shop",
+                    limit=1,
+                    offset=0,
+                    ipv4_prefix_length=24,
+                    ipv6_prefix_length=64,
+                ),
+            )
+
+            assert requests[0].url.path == f"/v2/runs/{RUN_ID}/logs/summary"
+            assert dict(requests[0].url.params) == {
+                "from": START.isoformat(),
+                "to": END.isoformat(),
+                "group_by": "source_cidr",
+                "limit": "1",
+                "offset": "0",
+                "page": "product_page",
+                "status": "500",
+                "has_error": "true",
+                "error": "SERVER_CAPACITY_EXCEEDED",
+                "source_ip": "203.0.113.10",
+                "source_cidr": "203.0.113.0/24",
+                "user_agent": "shop-bot",
+                "region_code": "US",
+                "firewall_rule_id": "allow-shop",
+                "ipv4_prefix_length": "24",
+                "ipv6_prefix_length": "64",
+            }
+            assert result.data == _logs_summary_response()
+            assert result.action_kind == "query_logs_summary"
+            assert "23 matching logs" in result.summary
+            assert (
+                dict(session.logs_from_by_status),
+                dict(session.logs_cursor_by_status),
+                session.logs_cursor,
+                session.logs_cursor_status,
+                set(session.seen_log_ids),
+            ) == before
+        finally:
+            await http_client.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_query_logs_summary_keeps_false_and_server_prefix_defaults() -> None:
+    requests: list[httpx.Request] = []
+
+    async def scenario() -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            response = _logs_summary_response()
+            response["group_by"] = "status"
+            response.pop("ipv4_prefix_length")
+            response.pop("ipv6_prefix_length")
+            return httpx.Response(200, json=response)
+
+        client, http_client = _client(handler)
+        try:
+            await client.query_logs_summary(
+                RUN_ID,
+                from_time=START,
+                to_time=END,
+                group_by="status",
+                has_error=False,
+            )
+            assert dict(requests[0].url.params) == {
+                "from": START.isoformat(),
+                "to": END.isoformat(),
+                "group_by": "status",
+                "limit": "100",
+                "offset": "0",
+                "has_error": "false",
+            }
+        finally:
+            await http_client.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_query_logs_summary_rejects_invalid_direct_client_params_before_http() -> None:
+    async def scenario() -> None:
+        requests: list[httpx.Request] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200, json=_logs_summary_response())
+
+        client, http_client = _client(handler)
+        try:
+            with pytest.raises(SimulatorV2ApiError, match="group_by is invalid"):
+                await client.query_logs_summary(
+                    RUN_ID,
+                    from_time=START,
+                    to_time=END,
+                    group_by="attacker",
+                )
+            with pytest.raises(SimulatorV2ApiError, match="IP prefix lengths require"):
+                await client.query_logs_summary(
+                    RUN_ID,
+                    from_time=START,
+                    to_time=END,
+                    group_by="status",
+                    ipv4_prefix_length=24,
+                )
+            assert requests == []
+        finally:
+            await http_client.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_query_logs_summary_rejects_malformed_public_groups() -> None:
+    async def scenario() -> None:
+        def handler(_request: httpx.Request) -> httpx.Response:
+            response = _logs_summary_response()
+            response["groups"] = [{"key": "500", "requests": 0, "unique_ips": 1}]
+            return httpx.Response(200, json=response)
+
+        client, http_client = _client(handler)
+        try:
+            result = await SimulatorV2Environment(client).execute(
+                _session(),
+                QueryLogsSummary(
+                    from_time=START,
+                    to_time=END,
+                    group_by="source_cidr",
+                ),
+            )
+            assert result.ok is False
+            assert result.data["code"] == "INVALID_RESPONSE"
         finally:
             await http_client.aclose()
 

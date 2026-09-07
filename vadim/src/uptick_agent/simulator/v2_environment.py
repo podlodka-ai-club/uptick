@@ -9,7 +9,10 @@ is needed by a run.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
+import math
+import re
 from collections import Counter
 from collections.abc import Mapping
 from contextlib import suppress
@@ -32,11 +35,16 @@ from uptick_agent.simulator.actions import (
     GetOverview,
     GetResources,
     QueryLogs,
+    QueryLogsSummary,
     QueryMetrics,
     V2AdvanceTime,
     V2ProbePage,
 )
-from uptick_agent.simulator.decisions import SimulatorV2Action, SimulatorV2Decision
+from uptick_agent.simulator.decisions import (
+    SimulatorV2Action,
+    SimulatorV2BatchDecision,
+    SimulatorV2Decision,
+)
 from uptick_agent.simulator.timestamps import TimestampOrder, parse_rfc3339
 from uptick_agent.simulator.v2_client import SimulatorV2ApiError, SimulatorV2Client
 from uptick_agent.v2_actions import ControlCommand, GetControlCommands, GetInbox
@@ -72,6 +80,7 @@ class SimulatorV2Session:
     last_observed_views: dict[str, dict[str, Any]] = field(default_factory=dict)
     last_observed_at: dict[str, TimestampOrder] = field(default_factory=dict)
     latest_server_clock: TimestampOrder | None = None
+    advance_progress: list[dict[str, Any]] = field(default_factory=list)
 
     def next_request_id(self, kind: str) -> str:
         self.request_number += 1
@@ -82,6 +91,8 @@ class SimulatorV2Session:
 # while retaining the cursor for the next observation.
 _MAX_PAGES_PER_READ = 1
 _MAX_LAST_OBSERVED_BYTES = 12_000
+_MAX_ADVANCE_PROGRESS_BYTES = 2_500
+_MAX_ADVANCE_PROGRESS_ENTRIES = 8
 # Reserve a small amount of the per-view share for the public map key.
 _MAX_LAST_OBSERVED_VIEW_BYTES = (_MAX_LAST_OBSERVED_BYTES // 3) - 100
 _LAST_OBSERVED_ACTIONS = frozenset({"get_metrics", "get_resources", "get_overview"})
@@ -367,6 +378,13 @@ def _error_result(action_kind: str, error: BaseException, *, terminal: bool = Fa
         "code": code,
         "message": message,
     }
+    if code == "RUN_BUSY" and status_code in (409, 429):
+        details = getattr(error, "details", {})
+        if isinstance(details, dict) and details:
+            payload["details"] = details
+        retry_after = getattr(error, "retry_after_seconds", None)
+        if retry_after is not None:
+            payload["retry_after_seconds"] = retry_after
     safe_payload = _safe(payload)
     return ToolResult(
         action_kind=action_kind,
@@ -380,6 +398,10 @@ def _error_result(action_kind: str, error: BaseException, *, terminal: bool = Fa
 def _server_clock(value: object) -> tuple[str, TimestampOrder] | None:
     if not isinstance(value, Mapping):
         return None
+    if value.get("type") == "time.advance" and value.get("status") == "succeeded":
+        value = value.get("result")
+        if not isinstance(value, Mapping):
+            return None
     clock = value.get("clock")
     if not isinstance(clock, Mapping):
         return None
@@ -399,6 +421,78 @@ def _json_size(value: object) -> int:
             "utf-8"
         )
     )
+
+
+def _advance_progress(action_kind: str, data: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Extract bounded facts from one completed public time advance."""
+
+    if data.get("type") == "time.advance":
+        if data.get("status") != "succeeded":
+            return None
+        payload = data.get("result")
+        source_kind = "public_time_advance_operation"
+        source_id = data.get("operation_id")
+    elif action_kind in {"advance_time", "advance_time_v2"} and "operation_id" not in data:
+        payload = data
+        source_kind = "public_time_advance_response"
+        source_id = data.get("request_id")
+        if not isinstance(source_id, str) or not source_id:
+            try:
+                encoded = json.dumps(
+                    data, allow_nan=False, sort_keys=True, separators=(",", ":")
+                ).encode("utf-8")
+                source_id = f"sha256:{hashlib.sha256(encoded).hexdigest()}"
+            except (OverflowError, TypeError, ValueError):
+                source_id = None
+    else:
+        return None
+
+    def invalid(reason: str) -> dict[str, str]:
+        marker = {"status": "invalid", "reason": reason}
+        if isinstance(source_id, str) and 0 < len(source_id) <= 128:
+            marker["source_id"] = source_id
+        return marker
+
+    if not isinstance(source_id, str) or not source_id:
+        return invalid("invalid_source_id")
+    if not isinstance(payload, Mapping):
+        return invalid("invalid_completed_result")
+    clock = payload.get("clock")
+    requested = payload.get("requested_duration_seconds")
+    applied = clock.get("applied_advance_seconds") if isinstance(clock, Mapping) else None
+    if applied is None:
+        applied = payload.get("applied_advance_seconds")
+    stop_reason = payload.get("stop_reason")
+    fields = (("requested_seconds", requested), ("applied_seconds", applied))
+    for name, value in fields:
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            return invalid(f"invalid_{name}")
+        try:
+            finite = math.isfinite(value)
+        except OverflowError:
+            finite = False
+        if not finite:
+            return invalid(f"invalid_{name}")
+    if requested <= 0:
+        return invalid("nonpositive_requested_seconds")
+    if applied < 0 or applied > requested:
+        return invalid("out_of_range_applied_seconds")
+    if not isinstance(stop_reason, str) or not stop_reason:
+        return invalid("invalid_stop_reason")
+    clock_info = _server_clock(payload)
+    if clock_info is None:
+        return invalid("invalid_observed_at")
+    observed_at, _ = clock_info
+    return {
+        "status": "completed",
+        "requested_seconds": requested,
+        "applied_seconds": applied,
+        "applied_ratio": applied / requested,
+        "stop_reason": stop_reason,
+        "source_kind": source_kind,
+        "source_id": source_id,
+        "observed_at": observed_at,
+    }
 
 
 def _selected_fields(value: object, fields: tuple[str, ...]) -> tuple[dict[str, Any], int]:
@@ -523,9 +617,16 @@ class SimulatorV2Environment:
     """Translate simulator v2 actions and responses to generic agent ports."""
 
     def __init__(
-        self, client: SimulatorV2Client, *, environment_briefing: str | None = None
+        self,
+        client: SimulatorV2Client,
+        *,
+        environment_briefing: str | None = None,
+        action_batch: bool = False,
     ) -> None:
+        if not isinstance(action_batch, bool):
+            raise TypeError("action_batch must be a boolean")
         self.client = client
+        self._action_batch = action_batch
         # An optional briefing is an expected external startup document.  It
         # is never used as a local fallback when the server omits its public
         # commands document.
@@ -540,8 +641,43 @@ class SimulatorV2Environment:
             raise RuntimeError(f"environment decision spec is unavailable: {detail}")
         return self._decision_spec
 
+    def can_continue_batch(self, session: SimulatorV2Session, result: ToolResult) -> bool:
+        """Continue only after a successful result with no unresolved operation.
+
+        A run overview's status="running" describes the run, not an async
+        operation. Operation IDs and links supply the relevant distinction.
+        """
+        if not self._action_batch or not result.ok or result.terminal:
+            return False
+        if isinstance(result.data.get("operation_id"), str) and (
+            result.data.get("status") != "succeeded"
+        ):
+            return False
+        return all(
+            session.operation_statuses.get(link.operation_id) == "succeeded"
+            for link in result.operation_links
+        )
+
     @staticmethod
     def _update_public_state(session: SimulatorV2Session, result: ToolResult) -> None:
+        progress = _advance_progress(result.action_kind, result.data) if result.ok else None
+        operation_id = result.data.get("operation_id")
+        already_completed = (
+            isinstance(operation_id, str)
+            and session.operation_statuses.get(operation_id) == "succeeded"
+        )
+        if progress is not None and not already_completed:
+            if _json_size({"advance_progress": [progress]}) > _MAX_ADVANCE_PROGRESS_BYTES:
+                source_id = progress.get("source_id")
+                progress = {"status": "invalid", "reason": "progress_entry_over_budget"}
+                if isinstance(source_id, str) and len(source_id) <= 128:
+                    progress["source_id"] = source_id
+            session.advance_progress.append(progress)
+            session.advance_progress[:] = session.advance_progress[-_MAX_ADVANCE_PROGRESS_ENTRIES:]
+            while _json_size({"advance_progress": session.advance_progress}) > (
+                _MAX_ADVANCE_PROGRESS_BYTES
+            ):
+                session.advance_progress.pop(0)
         for link in result.operation_links:
             if link.relation == "initiated" and result.ok:
                 session.operation_statuses[link.operation_id] = "accepted"
@@ -595,6 +731,7 @@ class SimulatorV2Environment:
         ]
         entry = {
             "action_kind": result.action_kind,
+            "run_id": session.run_id,
             "observed_at": raw_clock,
             "freshness": "stale" if out_of_order else "observed",
             "stale": out_of_order,
@@ -626,10 +763,13 @@ class SimulatorV2Environment:
             session.latest_server_clock = session_clock
         if session.latest_server_clock is not None:
             self._mark_stale(session, session.latest_server_clock)
-        return {
+        state: dict[str, object] = {
             "operation_statuses": copy.deepcopy(session.operation_statuses),
             "last_observed": copy.deepcopy(session.last_observed_views),
         }
+        if session.advance_progress:
+            state["advance_progress"] = copy.deepcopy(session.advance_progress)
+        return state
 
     async def start(
         self,
@@ -686,7 +826,9 @@ class SimulatorV2Environment:
         else:
             # Freeze the actual public startup input before any decision request.
             self._decision_spec = EnvironmentDecisionSpec(
-                response_model=SimulatorV2Decision,
+                response_model=SimulatorV2BatchDecision
+                if self._action_batch
+                else SimulatorV2Decision,
                 environment_briefing=startup_briefing,
             )
         return session, _result(
@@ -809,6 +951,9 @@ class SimulatorV2Environment:
         if isinstance(action, QueryLogs):
             return await self._query_logs(session, action)
 
+        if isinstance(action, QueryLogsSummary):
+            return await self._query_logs_summary(session, action)
+
         if isinstance(action, GetResources):
             value = _safe(await self.client.resources(session.run_id))
             self._observe(session, value)
@@ -826,13 +971,57 @@ class SimulatorV2Environment:
 
         if isinstance(action, GetOperation):
             value = _safe(await self.client.operation(session.run_id, action.operation_id))
-            self._observe(session, value)
             operation_status = value.get("status", "unknown")
             if operation_status not in {"queued", "running", "succeeded", "failed"}:
                 raise SimulatorV2ApiError(
                     200, "INVALID_RESPONSE", "Operation response has invalid status"
                 )
             ok = operation_status != "failed"
+            if value.get("type") == "time.advance":
+                self._validate_time_operation(session, value, operation_id=action.operation_id)
+                completed = value.get("result")
+                if operation_status == "succeeded":
+                    if not isinstance(completed, Mapping):
+                        raise SimulatorV2ApiError(
+                            200, "INVALID_RESPONSE", "Completed time operation has no result"
+                        )
+                    self._observe(session, completed)
+                    terminal = _terminal_for(completed)
+                else:
+                    if completed is not None or "result" not in value:
+                        raise SimulatorV2ApiError(
+                            200, "INVALID_RESPONSE", "Unfinished time operation has invalid result"
+                        )
+                    if operation_status == "failed" and not isinstance(value.get("error"), Mapping):
+                        raise SimulatorV2ApiError(
+                            200, "INVALID_RESPONSE", "Failed time operation has no error"
+                        )
+                    terminal = False
+                progress = _advance_progress(action.kind, value)
+                summary = f"Time advance operation {action.operation_id} is {operation_status}. "
+                if progress is not None and progress.get("status") == "completed":
+                    summary += (
+                        "Completed progress: advanced "
+                        f"{progress['applied_seconds']}s of requested "
+                        f"{progress['requested_seconds']}s."
+                    )
+                else:
+                    summary += (
+                        "Completed progress metadata is unavailable; inspect its public result."
+                        if ok and operation_status == "succeeded"
+                        else "Inspect overview before another advance."
+                        if not ok
+                        else "Poll this operation; other requests are blocked while it runs."
+                    )
+                return _result(
+                    action.kind,
+                    value,
+                    summary,
+                    ok=ok,
+                    terminal=terminal,
+                    operation_relation="observed",
+                )
+            self._observe(session, value)
             return _result(
                 action.kind,
                 value,
@@ -878,14 +1067,25 @@ class SimulatorV2Environment:
                 )
             else:
                 stop_when = {"new_log_errors": 1}
+            request_id = session.next_request_id("advance")
             value = _safe(
                 await self.client.advance_time(
                     session.run_id,
-                    request_id=session.next_request_id("advance"),
+                    request_id=request_id,
                     duration_seconds=action.duration_seconds,
                     stop_when=stop_when,
                 )
             )
+            if "operation_id" in value:
+                self._validate_time_operation(session, value, request_id=request_id)
+                return _result(
+                    action.kind,
+                    value,
+                    f"Time advance accepted as operation {value['operation_id']} "
+                    f"(status={value['status']}); poll get_operation for its result. "
+                    "Acceptance does not establish time advancement.",
+                    operation_relation="initiated",
+                )
             self._observe(session, value)
             clock = value.get("clock") or {}
             actual = clock.get("applied_advance_seconds", value.get("applied_advance_seconds"))
@@ -1092,6 +1292,95 @@ class SimulatorV2Environment:
             terminal=_clock_terminal({"clock": clock}),
         )
 
+    async def _query_logs_summary(
+        self, session: SimulatorV2Session, action: QueryLogsSummary
+    ) -> ToolResult:
+        value = _safe(
+            await self.client.query_logs_summary(
+                session.run_id,
+                from_time=action.from_time,
+                to_time=action.to_time,
+                group_by=action.group_by,
+                page=action.page,
+                status=action.status,
+                has_error=action.has_error,
+                error=action.error,
+                source_ip=action.source_ip,
+                source_cidr=action.source_cidr,
+                user_agent=action.user_agent,
+                region_code=action.region_code,
+                firewall_rule_id=action.firewall_rule_id,
+                limit=action.limit,
+                offset=action.offset,
+                ipv4_prefix_length=action.ipv4_prefix_length,
+                ipv6_prefix_length=action.ipv6_prefix_length,
+            )
+        )
+        clock = _required_clock(value)
+        window = value.get("window")
+        groups = value.get("groups")
+        group_by = value.get("group_by")
+        total_requests = value.get("total_requests")
+        total_groups = value.get("total_groups")
+        next_offset = value.get("next_offset")
+        if not isinstance(window, Mapping):
+            raise SimulatorV2ApiError(
+                200, "INVALID_RESPONSE", "Logs summary response has invalid window"
+            )
+        if group_by != action.group_by:
+            raise SimulatorV2ApiError(
+                200, "INVALID_RESPONSE", "Logs summary response changed group_by"
+            )
+        if not isinstance(groups, list) or any(not isinstance(item, dict) for item in groups):
+            raise SimulatorV2ApiError(
+                200, "INVALID_RESPONSE", "Logs summary response has invalid groups"
+            )
+        for group in groups:
+            requests = group.get("requests")
+            unique_ips = group.get("unique_ips")
+            if (
+                not isinstance(group.get("key"), str)
+                or not isinstance(requests, int)
+                or isinstance(requests, bool)
+                or requests < 1
+                or not isinstance(unique_ips, int)
+                or isinstance(unique_ips, bool)
+                or unique_ips < 0
+            ):
+                raise SimulatorV2ApiError(
+                    200, "INVALID_RESPONSE", "Logs summary response has invalid group"
+                )
+        if any(
+            not isinstance(item, int) or isinstance(item, bool) or item < 0
+            for item in (total_requests, total_groups)
+        ):
+            raise SimulatorV2ApiError(
+                200, "INVALID_RESPONSE", "Logs summary response has invalid totals"
+            )
+        if next_offset is not None and (
+            not isinstance(next_offset, int) or isinstance(next_offset, bool) or next_offset < 0
+        ):
+            raise SimulatorV2ApiError(
+                200, "INVALID_RESPONSE", "Logs summary response has invalid next offset"
+            )
+        observed = _datetime(clock.get("simulation_time"))
+        if observed is None:
+            raise SimulatorV2ApiError(
+                200, "INVALID_RESPONSE", "Logs summary response has invalid clock"
+            )
+        # Explicit summaries are independent of incremental log polling state.
+        session.simulation_time = observed
+        return ToolResult(
+            action_kind=action.kind,
+            summary=(
+                f"Summarized {total_requests} matching logs into {total_groups} groups; "
+                f"returned={len(groups)}; next_offset="
+                f"{next_offset if next_offset is not None else 'none'}."
+            ),
+            data=value,
+            terminal=_clock_terminal({"clock": clock}),
+        )
+
     async def _get_inbox(
         self, session: SimulatorV2Session, action: SimulatorV2Action
     ) -> ToolResult:
@@ -1163,6 +1452,30 @@ class SimulatorV2Environment:
             data=_safe(data),
             terminal=bool(latest_clock and _clock_terminal({"clock": latest_clock})),
         )
+
+    @staticmethod
+    def _validate_time_operation(
+        session: SimulatorV2Session,
+        data: Mapping[str, Any],
+        *,
+        operation_id: str | None = None,
+        request_id: str | None = None,
+    ) -> None:
+        returned_id = data.get("operation_id")
+        returned_request = data.get("request_id")
+        if (
+            data.get("run_id") != session.run_id
+            or not isinstance(returned_id, str)
+            or re.fullmatch(r"[A-Za-z0-9]{16,64}", returned_id) is None
+            or (operation_id is not None and returned_id != operation_id)
+            or not isinstance(returned_request, str)
+            or not returned_request
+            or (request_id is not None and returned_request != request_id)
+            or data.get("status") not in {"queued", "running", "succeeded", "failed"}
+        ):
+            raise SimulatorV2ApiError(
+                200, "INVALID_RESPONSE", "Time operation identity or status is invalid"
+            )
 
     @staticmethod
     def _observe(

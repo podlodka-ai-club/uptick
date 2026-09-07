@@ -662,3 +662,20 @@ async def test_quoted_json_credentials_are_redacted_before_hashing_and_storage(
     assert prompt_capture.redaction_outcome == "redacted"
     assert prompt_capture.content_hash
     assert prompt_capture.redaction_audit_hash
+
+
+@pytest.mark.parametrize(
+    "missing", ["request_id", "decision_id", "iteration", "outcome_correlation_id"]
+)
+def test_memory_read_completion_requires_correlations_without_world_transition(missing):
+    write = _write(event_type="decision.memory_read_completed", transition_id=None)
+    assert write.transition_id is None
+    payload = write.model_dump(mode="python")
+    payload[missing] = None
+    with pytest.raises(ValueError):
+        AuditTraceWrite.model_validate(payload)
+    with pytest.raises(ValueError, match="must not reference a world transition"):
+        _write(event_type="decision.memory_read_completed")
+    # The original world-action completion gate is not weakened.
+    with pytest.raises(ValueError, match="requires transition_id"):
+        _write(event_type="decision.completed", transition_id=None)

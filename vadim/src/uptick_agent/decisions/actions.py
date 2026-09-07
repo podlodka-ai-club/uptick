@@ -8,6 +8,7 @@ __all__ = [
     "GetOverview",
     "GetMetrics",
     "GetLogs",
+    "QueryLogsSummary",
     "V1GetLogs",
     "GetResources",
     "GetDeployments",

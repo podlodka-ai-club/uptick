@@ -142,6 +142,78 @@ def _new_client(handler):
     return raw, SimulatorV2Client(http_client=raw)
 
 
+def test_start_sends_participant_token_only_when_configured() -> None:
+    async def scenario() -> None:
+        token = "participant-fixture-token"
+        payloads: list[dict[str, object]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/v2/start"
+            payloads.append(json.loads(request.content))
+            return _json_response(201, _start_body())
+
+        raw = httpx.AsyncClient(
+            transport=httpx.MockTransport(handler), base_url="http://simulator/"
+        )
+        client = SimulatorV2Client(http_client=raw, participant_token=token)
+        try:
+            started = await client.start(
+                seed=42, agent_id="agent", agent_version="v2", request_id="start-1"
+            )
+            assert payloads == [
+                {
+                    "participant_token": token,
+                    "seed": 42,
+                    "agent_id": "agent",
+                    "agent_version": "v2",
+                    "request_id": "start-1",
+                }
+            ]
+            assert token not in json.dumps(started)
+        finally:
+            await client.aclose()
+            await raw.aclose()
+
+    asyncio.run(scenario())
+
+
+def test_participant_token_is_redacted_from_start_errors() -> None:
+    async def scenario() -> None:
+        token = "participant-fixture-token"
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/v2/start"
+            assert json.loads(request.content)["participant_token"] == token
+            return _json_response(
+                401,
+                {
+                    "error": "INVALID_PARTICIPANT_TOKEN",
+                    "message": f"participant token {token} is invalid",
+                },
+            )
+
+        raw = httpx.AsyncClient(
+            transport=httpx.MockTransport(handler), base_url="http://simulator/"
+        )
+        client = SimulatorV2Client(http_client=raw, participant_token=token)
+        try:
+            with pytest.raises(SimulatorV2ApiError) as raised:
+                await client.start(
+                    seed=42, agent_id="agent", agent_version="v2", request_id="start-1"
+                )
+            error = raised.value
+            assert error.status_code == 401
+            assert error.code == "INVALID_PARTICIPANT_TOKEN"
+            assert token not in error.message
+            assert token not in str(error)
+            assert "<redacted>" in error.message
+        finally:
+            await client.aclose()
+            await raw.aclose()
+
+    asyncio.run(scenario())
+
+
 def test_all_18_commands_use_v2_payload_and_private_target_auth() -> None:
     async def scenario() -> None:
         calls: list[dict[str, object]] = []

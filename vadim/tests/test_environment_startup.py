@@ -56,7 +56,7 @@ def test_cli_uses_actual_startup_text_before_constructing_model(tmp_path, monkey
             events.append("model.closed")
 
     client = Client()
-    monkeypatch.setattr(cli, "SimulatorV2Client", lambda _url: client)
+    monkeypatch.setattr(cli, "SimulatorV2Client", lambda _url, *, participant_token=None: client)
 
     def factory(args, spec):
         assert events == ["start"]

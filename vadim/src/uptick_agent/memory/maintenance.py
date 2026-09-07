@@ -919,6 +919,10 @@ class MaintenanceRetrievalView:
             raise MemoryValidationError(
                 "operational retrieval candidates must be ContextItem values"
             )
+        if not items:
+            # There is nothing to rank, decay, or suppress. Do not scan the
+            # entire source corpus for empty contributions from gated modules.
+            return []
         source_records = await self._store.list(namespace=self._namespace)
         created_at = {}
         for record in source_records:

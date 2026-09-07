@@ -126,7 +126,7 @@ def build_manifest(
     conditions, contrasts = _conditions(audit=audit, smoke=smoke)
     source_hash = sha256_tree(source_dir)
     normalized_simulator_url = simulator_url.rstrip("/")
-    settings = {"reasoning_effort": "low"}
+    settings = {"reasoning_effort": "medium"}
     profile = V2EvaluationProfile(
         profile_id=profile_id,
         environment=V2EnvironmentPin(
@@ -141,7 +141,7 @@ def build_manifest(
         ),
         provider=V2ProviderPin(
             provider="codex",
-            model="gpt-5.6-sol",
+            model="gpt-5.6-terra",
             settings=settings,
             prompt_fingerprint=hashlib.sha256(
                 compose_system_prompt(CORE_SYSTEM_PROMPT, environment_briefing).encode()

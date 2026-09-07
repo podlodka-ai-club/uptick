@@ -380,7 +380,6 @@ class DefaultEvaluationMemoryFactory:
             },
         )
 
-
     async def _validate_training_provenance(
         self,
         condition: V2Condition,

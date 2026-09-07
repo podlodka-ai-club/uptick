@@ -18,7 +18,8 @@ from uptick_agent.redaction import sanitize_json
 class EnvironmentDecisionSpec:
     """The public decision surface for one environment.
 
-    The environment owns the response envelope and its typed ``action`` field.
+    The environment owns the response envelope and its typed ``action`` field
+    (or an explicitly opted-in bounded ``actions`` field).
     The runner never discovers or authorises tools from observations, memory,
     or a fixed application-wide action union.
     """
@@ -83,7 +84,7 @@ def validate_decision(spec: EnvironmentDecisionSpec, decision: object) -> BaseMo
         raise ValueError("decision does not match the environment response schema") from error
     if not isinstance(validated, spec.response_model):
         raise TypeError("environment response schema returned an unexpected model")
-    decision_action(validated)
+    decision_actions(validated)
     return validated
 
 
@@ -94,6 +95,41 @@ def decision_action(decision: BaseModel) -> BaseModel:
     if not isinstance(action, BaseModel):
         raise ValueError("environment decision must contain a typed action model")
     return action
+
+
+MAX_DECISION_ACTIONS = 4
+_MISSING = object()
+
+
+def decision_actions(
+    decision: BaseModel, *, max_actions: int = MAX_DECISION_ACTIONS
+) -> tuple[BaseModel, ...]:
+    """Return one or a bounded explicit list of typed environment actions.
+
+    A response with an ``actions`` field is a deliberate opt-in envelope.  It
+    cannot also publish the legacy ``action`` field, and each list member must
+    already be a typed Pydantic model owned by the environment.  The runner
+    does not interpret action fields or manufacture repetition semantics.
+    """
+
+    if (
+        isinstance(max_actions, bool)
+        or not isinstance(max_actions, int)
+        or not 1 <= max_actions <= MAX_DECISION_ACTIONS
+    ):
+        raise ValueError(f"max_actions must be an integer between 1 and {MAX_DECISION_ACTIONS}")
+    actions = getattr(decision, "actions", _MISSING)
+    if actions is _MISSING:
+        return (decision_action(decision),)
+    if getattr(decision, "action", _MISSING) is not _MISSING:
+        raise ValueError("environment decision cannot contain both action and actions")
+    if not isinstance(actions, (list, tuple)):
+        raise ValueError("environment decision actions must be a list of typed action models")
+    if not 1 <= len(actions) <= max_actions:
+        raise ValueError(f"environment decision must contain between 1 and {max_actions} actions")
+    if not all(isinstance(action, BaseModel) for action in actions):
+        raise ValueError("environment decision actions must be typed action models")
+    return tuple(actions)
 
 
 def public_state_payload(state: object) -> dict[str, Any]:
@@ -111,7 +147,9 @@ def public_state_payload(state: object) -> dict[str, Any]:
 
 __all__ = [
     "EnvironmentDecisionSpec",
+    "MAX_DECISION_ACTIONS",
     "decision_action",
+    "decision_actions",
     "public_state_payload",
     "validate_decision",
 ]

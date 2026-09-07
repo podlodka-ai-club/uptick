@@ -142,9 +142,7 @@ class StoredEpisodicLessonSource:
             raise MemoryValidationError(
                 "episodic_namespace and declaration_namespace must be disjoint"
             )
-        if isinstance(run_declarations, (str, bytes)) or not isinstance(
-            run_declarations, Sequence
-        ):
+        if isinstance(run_declarations, (str, bytes)) or not isinstance(run_declarations, Sequence):
             raise MemoryValidationError("run_declarations must be a sequence")
         owned = [_owned_declaration(value) for value in run_declarations]
         if len({declaration.run_id for declaration in owned}) != len(owned):
@@ -198,10 +196,7 @@ class StoredEpisodicLessonSource:
             ),
             None,
         )
-        if (
-            current is None
-            or current.phase == "frozen_evaluation"
-        ):
+        if current is None or current.phase == "frozen_evaluation":
             return None
 
         snapshot_id = self._snapshot_id(
@@ -419,9 +414,7 @@ class StoredEpisodicLessonSource:
                         payload=expected_payload,
                     ),
                     operation=_CONTEXT_OPERATION,
-                    idempotency_key=self._operation_key(
-                        "context", idempotency_key, snapshot_id
-                    ),
+                    idempotency_key=self._operation_key("context", idempotency_key, snapshot_id),
                 )
             except MemoryConflictError:
                 existing = await self._store.get(

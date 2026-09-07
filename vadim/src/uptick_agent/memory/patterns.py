@@ -308,7 +308,7 @@ def _canonical(value: object) -> str:
     return canonical_json(value)
 
 
-def _transition_projection(
+def project_pattern_transition(
     transition: ExperienceTransition, settings: PatternQuerySettings
 ) -> tuple[dict[str, JsonValue], JsonValue, JsonValue] | None:
     scope: dict[str, JsonValue] = {}
@@ -341,7 +341,7 @@ def generate_pattern_candidates(
         declaration = declarations[transition.run_id]
         if declaration.phase != "learning":
             continue
-        projection = _transition_projection(transition, owned_settings)
+        projection = project_pattern_transition(transition, owned_settings)
         if projection is None:
             continue
         scope, action_kind, result_value = projection
@@ -467,7 +467,7 @@ def validate_pattern_candidate(
             continue
         if declaration.phase != "learning":
             raise MemoryValidationError("unknown pattern evidence run phase")
-        projection = _transition_projection(transition, owned_settings)
+        projection = project_pattern_transition(transition, owned_settings)
         if projection is None:
             continue
         scope, action_kind, result_value = projection

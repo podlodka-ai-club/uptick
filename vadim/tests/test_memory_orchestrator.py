@@ -526,9 +526,7 @@ async def test_item_audit_uses_actual_receipts_and_outcome_precedes_finalizer() 
             "lesson-1",
         ),
     ]
-    assert audit.writes[-1].outcome_correlation_id == audit_event_id(
-        "run.outcome", "run"
-    )
+    assert audit.writes[-1].outcome_correlation_id == audit_event_id("run.outcome", "run")
     assert audit.writes[-1].metadata["outcome_semantics"] == (
         "runner-observed-before-module-finalizers"
     )
@@ -561,9 +559,7 @@ async def test_generic_sink_without_receipts_emits_no_item_created_event() -> No
 
 @_async_test
 async def test_orchestrator_owns_configuration_snapshot_after_caller_mutation() -> None:
-    configuration = _config().model_copy(
-        update={"audit": AuditConfiguration.simulator_default()}
-    )
+    configuration = _config().model_copy(update={"audit": AuditConfiguration.simulator_default()})
     audit = _AuditSink(configuration)
     orchestrator = MemoryOrchestrator(configuration, [], audit_sink=audit)
     owned_fingerprint = orchestrator.configuration_fingerprint

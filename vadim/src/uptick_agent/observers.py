@@ -20,9 +20,18 @@ class ConsoleObserver:
     async def on_step(self, record: RuntimeStepRecord) -> None:
         action = getattr(record.decision, "action", None)
         action_kind = getattr(action, "kind", type(action).__name__)
+        executed_action = getattr(record, "action", None)
+        if executed_action is not None:
+            action_kind = executed_action.get("kind", record.result.action_kind)
+        action_index = (
+            f" action_index={record.action_index}"
+            if getattr(record, "action_index", None) is not None
+            else ""
+        )
         marker = "ok" if record.result.ok else "error"
         print(
-            f"step={record.iteration} action={action_kind} result={marker} {record.result.summary}"
+            f"step={record.iteration}{action_index} action={action_kind} "
+            f"result={marker} {record.result.summary}"
         )
 
     async def on_finish(self, result: RuntimeRunResult) -> None:

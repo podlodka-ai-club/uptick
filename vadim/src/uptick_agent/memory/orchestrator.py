@@ -43,6 +43,7 @@ from uptick_agent.memory.contracts import (
     MemoryValidationError,
     RunFinalizer,
     RunOutcome,
+    SelectedContextMaterializer,
 )
 from uptick_agent.memory.retrieval import RetrievalStrategy
 from uptick_agent.memory.stores.contracts import canonical_json
@@ -398,9 +399,105 @@ class MemoryOrchestrator:
             request_id=request.request_id,
             warnings=warnings,
         )
+        context, diagnostics = await self._materialize_selected(context, diagnostics, request)
         self._last_context_diagnostics = diagnostics
         await self._record_context_trace(request, diagnostics)
         return context
+
+    async def _materialize_selected(
+        self,
+        context: DecisionMemoryContext,
+        diagnostics: MemoryContextDiagnostics,
+        request: MemoryContextRequest,
+    ) -> tuple[DecisionMemoryContext, MemoryContextDiagnostics]:
+        groups: dict[tuple[str, str], list[int]] = {}
+        for index, item in enumerate(context.items):
+            module_id = item.envelope.origin_module
+            module = self._modules[module_id]
+            if (
+                isinstance(module, SelectedContextMaterializer)
+                and module.context_materialization_enabled is True
+            ):
+                groups.setdefault((module_id, item.envelope.artefact_type), []).append(index)
+        if not groups:
+            return context, diagnostics
+
+        items = list(context.items)
+        warnings = list(context.warnings)
+        changed: dict[str, int] = {}
+        for (module_id, artefact_type), indexes in groups.items():
+            original = [items[index] for index in indexes]
+            group_used = sum(item.estimated_tokens for item in original)
+            module_limit = self._configuration.modules[module_id].max_context_tokens
+            advanced = self._configuration.retrieval.advanced
+            if advanced.enabled and advanced.max_estimated_tokens is not None:
+                module_limit = min(module_limit, advanced.max_estimated_tokens)
+            spare = [
+                diagnostics.effective_token_limit - sum(i.estimated_tokens for i in items),
+                module_limit
+                - sum(i.estimated_tokens for i in items if i.envelope.origin_module == module_id),
+            ]
+            type_limit = self._configuration.context_budget.per_type_tokens.get(artefact_type)
+            if type_limit is not None:
+                spare.append(
+                    type_limit
+                    - sum(
+                        i.estimated_tokens
+                        for i in items
+                        if i.envelope.artefact_type == artefact_type
+                    )
+                )
+            allowance = group_used + min(spare)
+            if allowance < group_used:
+                raise MemoryPermanentError("selected context exceeds its materialization budget")
+            module = self._modules[module_id]
+            try:
+                expanded = await module.materialize_selected(
+                    [item.model_copy(deep=True) for item in original],
+                    request.model_copy(deep=True),
+                    max_estimated_tokens=allowance,
+                )
+            except (MemoryTransientError, MemoryValidationError, MemoryPermanentError) as error:
+                # The already admitted view remains available; no unchecked new text escapes.
+                warnings.append(f"memory.materialization_failed.{module_id}.{type(error).__name__}")
+                continue
+            if not isinstance(expanded, list) or len(expanded) != len(original):
+                raise MemoryPermanentError("materializer changed the selected item count")
+            owned: list[ContextItem] = []
+            for before, after in zip(original, expanded, strict=True):
+                try:
+                    after = ContextItem.model_validate(
+                        after.model_dump(mode="python", round_trip=True, warnings="error")
+                    )
+                except (AttributeError, TypeError, ValueError) as error:
+                    raise MemoryPermanentError("materializer returned an invalid item") from error
+                identity_exclude = {"estimated_tokens": True, "envelope": {"item"}}
+                if before.model_dump(exclude=identity_exclude) != after.model_dump(
+                    exclude=identity_exclude
+                ):
+                    raise MemoryPermanentError("materializer changed selection or source identity")
+                owned.append(self._with_verified_token_estimate(after))
+            if sum(item.estimated_tokens for item in owned) > allowance:
+                raise MemoryPermanentError("materializer exceeded its assigned budget")
+            for index, before, after in zip(indexes, original, owned, strict=True):
+                items[index] = after
+                if before != after:
+                    changed[after.envelope.item_id] = after.estimated_tokens
+        warnings = sorted(set(warnings))
+        evidence = [dict(entry) for entry in diagnostics.selection_evidence]
+        for entry in evidence:
+            if entry.get("outcome") == "selected" and entry.get("item_id") in changed:
+                entry["materialized_estimated_tokens"] = changed[entry["item_id"]]
+        return (
+            context.model_copy(update={"items": items, "warnings": warnings}),
+            diagnostics.model_copy(
+                update={
+                    "used_estimated_tokens": sum(item.estimated_tokens for item in items),
+                    "selection_evidence": evidence,
+                    "warnings": warnings,
+                }
+            ),
+        )
 
     async def _record_context_trace(
         self,

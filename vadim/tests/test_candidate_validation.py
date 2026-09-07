@@ -119,7 +119,9 @@ def _record(transition_or_outcome):
     )
 
 
-def _evidence(items: list[tuple[object, LessonRunDeclaration]]) -> LessonEvidence:
+def _evidence(
+    items: list[tuple[object, LessonRunDeclaration]], *, outcome_status: str = "completed"
+) -> LessonEvidence:
     records: list[StoredRecord] = []
     declarations: list[LessonRunDeclaration] = []
     for item, declaration in items:
@@ -129,7 +131,7 @@ def _evidence(items: list[tuple[object, LessonRunDeclaration]]) -> LessonEvidenc
                 _record(
                     RunOutcome(
                         run_id=declaration.run_id,
-                        status="completed",
+                        status=outcome_status,
                         finished_at=_TIME,
                         stop_reason="done",
                     )
@@ -151,6 +153,27 @@ def _evidence(items: list[tuple[object, LessonRunDeclaration]]) -> LessonEvidenc
 def _positive_candidate(evidence: LessonEvidence):
     candidates = extract_candidates(evidence, _SETTINGS)
     return next(candidate for candidate in candidates if candidate.polarity == "positive")
+
+
+@pytest.mark.parametrize("status", ["failed", "interrupted", "completed"])
+def test_ineligible_learning_experience_can_propose_but_cannot_promote(status: str) -> None:
+    evidence = _evidence(
+        [(_transition("run-a", value=-10), _declaration("run-a", eligible=False))],
+        outcome_status=status,
+    )
+    candidates = extract_candidates(evidence, _SETTINGS)
+    assert len(candidates) == 1
+    assert candidates[0].polarity == "negative"
+    validated = validate_candidate(candidates[0], evidence, _SETTINGS)
+    assert validated.status != "active"
+    assert validated.manifest.support_run_ids == ()
+
+
+def test_frozen_evaluation_experience_cannot_propose_candidates() -> None:
+    evidence = _evidence(
+        [(_transition("run-a", value=-10), _declaration("run-a", phase="frozen_evaluation"))]
+    )
+    assert extract_candidates(evidence, _SETTINGS) == []
 
 
 def test_two_completed_eligible_first_attempts_activate_deterministically() -> None:

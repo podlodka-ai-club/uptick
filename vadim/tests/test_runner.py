@@ -249,9 +249,7 @@ def test_runner_audit_correlations_and_event_order_are_deterministic() -> None:
     async def scenario() -> None:
         configuration = _audited_configuration()
         audit = RecordingAuditSink(configuration)
-        memory = TrackingMemory(
-            InMemoryMemory(), configuration=configuration, audit_sink=audit
-        )
+        memory = TrackingMemory(InMemoryMemory(), configuration=configuration, audit_sink=audit)
         runner = AgentRunner(
             config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=3),
             model=ScriptedModel(),
@@ -288,12 +286,17 @@ def test_runner_audit_correlations_and_event_order_are_deterministic() -> None:
             )
             assert context.decision_id is None
             assert completed.transition_id
-            assert len({
-                context.event_id,
-                input_event.event_id,
-                selected.event_id,
-                completed.event_id,
-            }) == 4
+            assert (
+                len(
+                    {
+                        context.event_id,
+                        input_event.event_id,
+                        selected.event_id,
+                        completed.event_id,
+                    }
+                )
+                == 4
+            )
 
     asyncio.run(scenario())
 
@@ -401,9 +404,7 @@ def test_runner_keeps_structured_facts_when_decision_traces_are_disabled() -> No
                 "unit": "minor",
             }
         ]
-        assert outcome.metadata["outcome_semantics"] == (
-            "runner-observed-before-module-finalizers"
-        )
+        assert outcome.metadata["outcome_semantics"] == ("runner-observed-before-module-finalizers")
 
     asyncio.run(scenario())
 
@@ -416,9 +417,7 @@ def test_runner_records_selected_action_before_execution_failure() -> None:
     async def scenario() -> None:
         configuration = _audited_configuration()
         audit = RecordingAuditSink(configuration)
-        memory = TrackingMemory(
-            InMemoryMemory(), configuration=configuration, audit_sink=audit
-        )
+        memory = TrackingMemory(InMemoryMemory(), configuration=configuration, audit_sink=audit)
         runner = AgentRunner(
             config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=1),
             model=ScriptedModel(),
@@ -454,9 +453,7 @@ def test_runner_cancellation_keeps_input_correlation_and_records_interrupted_out
     async def scenario() -> None:
         configuration = _audited_configuration()
         audit = RecordingAuditSink(configuration)
-        memory = TrackingMemory(
-            InMemoryMemory(), configuration=configuration, audit_sink=audit
-        )
+        memory = TrackingMemory(InMemoryMemory(), configuration=configuration, audit_sink=audit)
         runner = AgentRunner(
             config=AgentConfig(agent_id="test-agent", agent_version="v1", max_steps=1),
             model=CancellingModel(),

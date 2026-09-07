@@ -273,8 +273,7 @@ def test_structured_store_rejects_tampered_records_on_read(
             )
             with sqlite3.connect(path) as connection:
                 connection.execute(
-                    f"UPDATE memory_records SET {column} = ? "
-                    "WHERE namespace = ? AND record_id = ?",
+                    f"UPDATE memory_records SET {column} = ? WHERE namespace = ? AND record_id = ?",
                     (value, "experiment-1", "record"),
                 )
 

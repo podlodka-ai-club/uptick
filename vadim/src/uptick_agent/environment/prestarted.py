@@ -32,6 +32,12 @@ class PrestartedEnvironment:
     async def execute(self, session, action):
         return await self._environment.execute(session, action)
 
+    def can_continue_batch(self, session, result):
+        checker = getattr(self._environment, "can_continue_batch", None)
+        if not callable(checker):
+            return False
+        return checker(session, result)
+
     def public_state(self, session):
         return self._environment.public_state(session)
 

@@ -28,6 +28,7 @@ from uptick_agent.memory.lesson_contracts import (
     ValidatedLesson,
     snapshot_input_hash,
 )
+from uptick_agent.memory.patterns import REQUEST_SCOPE_MISSING, request_scope_value
 from uptick_agent.memory.stores.contracts import (
     RecordWrite,
     StoredRecord,
@@ -41,7 +42,7 @@ from uptick_agent.redaction import sanitize_json
 LESSONS_MODULE_ID = "lessons"
 LESSONS_MODULE_VERSION = "1.0"
 LESSON_BATCH_RECORD_TYPE = "lesson-batch"
-LESSON_BATCH_SCHEMA_VERSION = "1.0"
+LESSON_BATCH_SCHEMA_VERSION = "1.1"
 _RETENTION_POLICY_REF = "simulator-audit-retention-v1@1.0"
 _WORD = re.compile(r"[\w-]+", re.UNICODE)
 
@@ -118,10 +119,11 @@ def _snapshot_rank(evidence: LessonEvidence) -> tuple[int, tuple[str, ...]]:
 
     return (
         len(evidence.snapshot.members),
-        tuple(sorted(
-            f"{member.record_id}:{member.content_hash}"
-            for member in evidence.snapshot.members
-        )),
+        tuple(
+            sorted(
+                f"{member.record_id}:{member.content_hash}" for member in evidence.snapshot.members
+            )
+        ),
     )
 
 
@@ -261,6 +263,8 @@ class LessonsMemory:
         for lesson in refreshed:
             if lesson.status != "active":
                 continue
+            if not self._matches_opt_in_scope(lesson, batch.settings, request):
+                continue
             support_ids = set(lesson.manifest.support_run_ids) | set(
                 lesson.manifest.support_logical_run_ids
             )
@@ -280,6 +284,29 @@ class LessonsMemory:
             module_version=self._module_version,
             items=[self._item(lesson, score, overlap) for score, lesson, overlap in ranked],
         )
+
+    @staticmethod
+    def _matches_opt_in_scope(
+        lesson: ValidatedLesson,
+        settings: LessonSettings,
+        request: MemoryContextRequest,
+    ) -> bool:
+        """Apply request scope only for explicitly path-bound lessons."""
+
+        if settings.condition_paths is None:
+            return True
+        latest_result = request.context.get("latest_result")
+        if not isinstance(latest_result, dict):
+            return False
+        scoped_context = {"latest_result": latest_result}
+        for key, path in settings.condition_paths.items():
+            actual = request_scope_value(scoped_context, path)
+            expected = lesson.candidate.conditions.get(key, REQUEST_SCOPE_MISSING)
+            if actual is REQUEST_SCOPE_MISSING or expected is REQUEST_SCOPE_MISSING:
+                return False
+            if canonical_json(actual) != canonical_json(expected):
+                return False
+        return True
 
     async def _verify_evidence(self, evidence: LessonEvidence) -> None:
         members = evidence.snapshot.members
@@ -312,6 +339,8 @@ class LessonsMemory:
             if owned.record_type != LESSON_BATCH_RECORD_TYPE:
                 raise MemoryPermanentError("stored lesson batch has an invalid record type")
             batch = LessonBatch.model_validate(owned.payload)
+            if batch.schema_version not in {"1.0", LESSON_BATCH_SCHEMA_VERSION}:
+                raise MemoryPermanentError("stored lesson batch schema is unsupported")
             if batch.retention_policy_ref != _RETENTION_POLICY_REF:
                 raise MemoryPermanentError("stored lesson retention policy is unsupported")
             if owned.namespace != self._namespace:
@@ -331,7 +360,11 @@ class LessonsMemory:
                 validate_candidate,
             )
 
-            expected = extract_candidates(batch.evidence, batch.settings)
+            expected = extract_candidates(
+                batch.evidence,
+                batch.settings,
+                include_ineligible_learning=batch.schema_version != "1.0",
+            )
             regenerated = [
                 validate_candidate(candidate, batch.evidence, batch.settings)
                 for candidate in expected
@@ -359,9 +392,7 @@ class LessonsMemory:
 
         for _, batch in batches:
             snapshot = batch.evidence.snapshot
-            members = {
-                (member.record_id, member.content_hash) for member in snapshot.members
-            }
+            members = {(member.record_id, member.content_hash) for member in snapshot.members}
             for _, other in batches:
                 if other is batch:
                     continue

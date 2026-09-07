@@ -58,6 +58,18 @@ class EnvironmentSession(Protocol):
     seed: int
 
 
+class BatchContinuationEnvironment(Protocol):
+    """Optional adapter-owned barrier for explicit action batches.
+
+    Returning ``True`` means the adapter has finished the preceding public
+    result and permits the next action in the already validated list.  A
+    missing hook, ``False``, an error result, or a terminal result is a
+    conservative barrier.
+    """
+
+    def can_continue_batch(self, session: EnvironmentSession, result: ToolResult) -> bool: ...
+
+
 class Environment(Protocol):
     """A world adapter. The runner does not depend on HTTP or this simulator."""
 

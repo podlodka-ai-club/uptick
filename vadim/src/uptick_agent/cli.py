@@ -7,12 +7,17 @@ import json
 import os
 import subprocess
 from collections.abc import Callable
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Protocol
 
 from uptick_agent.composition.evaluation_memory import DefaultEvaluationMemoryFactory
 from uptick_agent.decisions.contracts import NextStep, V1NextStep, V2NextStep
-from uptick_agent.decisions.instructions import CORE_SYSTEM_PROMPT, compose_system_prompt
+from uptick_agent.decisions.instructions import (
+    BATCH_CORE_SYSTEM_PROMPT,
+    CORE_SYSTEM_PROMPT,
+    compose_system_prompt,
+)
 from uptick_agent.environment.contracts import EnvironmentDecisionSpec
 from uptick_agent.environment.prestarted import PrestartedEnvironment
 from uptick_agent.evaluation.artifacts import FilesystemEvaluationArtifactStore
@@ -30,6 +35,7 @@ from uptick_agent.llm import (
 from uptick_agent.llm.decision_model import (
     StructuredDecisionModel as _GenericStructuredDecisionModel,
 )
+from uptick_agent.llm.recovery import TimeoutRecoveryPolicy
 from uptick_agent.memory import InMemoryMemory, JsonlMemory, legacy_memory_runtime
 from uptick_agent.memory.stores import SqliteStructuredStore
 from uptick_agent.observers import CompositeObserver, ConsoleObserver, JsonlObserver
@@ -41,7 +47,7 @@ from uptick_agent.simulator.briefings import (
     V1_ENVIRONMENT_BRIEFING,
     V2_ENVIRONMENT_BRIEFING,
 )
-from uptick_agent.simulator.decisions import SimulatorV2Decision
+from uptick_agent.simulator.decisions import SimulatorV2BatchDecision, SimulatorV2Decision
 from uptick_agent.simulator.v2_client import SimulatorV2Client
 from uptick_agent.simulator.v2_environment import SimulatorV2Environment
 from uptick_agent.simulator.v2_policy import SimulatorV2TimeBudgetPolicy
@@ -103,20 +109,46 @@ def _common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--model",
         default=None,
-        help="OpenAI uses OPENAI_MODEL (or gpt-4.1-mini); Codex uses optional CODEX_MODEL.",
+        help=(
+            "OpenAI uses OPENAI_MODEL (or gpt-4.1-mini); Codex uses CODEX_MODEL (or gpt-5.6-terra)."
+        ),
     )
     parser.add_argument(
         "--reasoning-effort",
         choices=["none", "minimal", "low", "medium", "high", "xhigh"],
         default=None,
-        help="Optional provider reasoning effort; omitted keeps provider defaults.",
+        help="Reasoning effort; defaults to medium for Codex, provider default for OpenAI.",
     )
     parser.add_argument("--openai-base-url", default=os.getenv("OPENAI_BASE_URL"))
+    parser.add_argument(
+        "--recover-decision-timeouts",
+        action="store_true",
+        help=(
+            "Retry one timed-out LLM request with a fresh client: "
+            "45s per attempt, 120s total including cleanup."
+        ),
+    )
     parser.add_argument("--agent-id", default="uptick-sgr")
     parser.add_argument("--agent-version", default="baseline-0.1")
     parser.add_argument("--max-steps", type=int, default=160)
-    parser.add_argument("--memory", choices=["none", "in-memory", "jsonl"], default="jsonl")
+    parser.add_argument(
+        "--action-batch",
+        action="store_true",
+        help="Opt in to up to four ordered v2 actions per decision; requires --max-actions.",
+    )
+    parser.add_argument("--max-actions", type=int, default=None)
+    parser.add_argument(
+        "--memory",
+        choices=["none", "in-memory", "jsonl", "online-world", "online-lessons", "online-full"],
+        default="jsonl",
+    )
     parser.add_argument("--memory-file", type=Path, default=Path("memory.jsonl"))
+    parser.add_argument(
+        "--memory-database",
+        type=Path,
+        default=Path("memory.sqlite3"),
+        help="Persistent SQLite evidence and derived knowledge for opt-in online memory.",
+    )
     parser.add_argument("--artifacts", type=Path, default=Path("artifacts"))
 
 
@@ -166,6 +198,16 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _memory_factory(args) -> Callable[[], AgentMemory]:
+    if args.memory in {"online-world", "online-lessons", "online-full"}:
+        if args.command != "run" or getattr(args, "simulator_api_version", "v2") != "v2":
+            raise ValueError("online memory currently requires a single v2 run")
+        from uptick_agent.composition.sre_memory import compose_sre_online_memory
+
+        return lambda: compose_sre_online_memory(
+            SqliteStructuredStore(args.memory_database),
+            namespace="sre-online",
+            mode=args.memory.removeprefix("online-"),
+        )
     if args.memory == "none":
         return lambda: legacy_memory_runtime(None)
     if args.memory == "in-memory":
@@ -195,7 +237,9 @@ def _decision_model(
             )
         else:
             decision_spec = EnvironmentDecisionSpec(
-                response_model=V2NextStep,
+                response_model=(
+                    SimulatorV2BatchDecision if getattr(args, "action_batch", False) else V2NextStep
+                ),
                 environment_briefing=V2_ENVIRONMENT_BRIEFING,
             )
 
@@ -221,9 +265,22 @@ def _decision_model(
     if args.decision_provider == "openai":
         model = args.model or os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
     else:
-        model = args.model or os.getenv("CODEX_MODEL") or None
-    settings = GenerationSettings(reasoning_effort=args.reasoning_effort)
-    client = registry.create(LlmProviderConfig(provider=args.decision_provider, model=model))
+        model = args.model or os.getenv("CODEX_MODEL") or "gpt-5.6-terra"
+    effort = args.reasoning_effort
+    if effort is None and args.decision_provider == "codex":
+        effort = "medium"
+    settings = GenerationSettings(reasoning_effort=effort)
+    client = registry.create(
+        LlmProviderConfig(
+            provider=args.decision_provider,
+            model=model,
+            timeout_recovery=(
+                TimeoutRecoveryPolicy()
+                if getattr(args, "recover_decision_timeouts", False)
+                else None
+            ),
+        )
+    )
     assert decision_spec is not None
     return _build_decision_model(client, args, decision_spec, settings=settings)
 
@@ -492,7 +549,12 @@ async def _evaluate_v2(args: argparse.Namespace) -> int:
             await self.client.aclose()
 
     def environment_factory(block, condition, attempt):
-        return OwnedV2Environment(SimulatorV2Client(args.simulator_url))
+        return OwnedV2Environment(
+            SimulatorV2Client(
+                args.simulator_url,
+                participant_token=os.getenv("SIMULATOR_PARTICIPANT_TOKEN") or None,
+            )
+        )
 
     def model_factory(block, condition, attempt, run_id, decision_spec):
         return _v2_model_factory(manifest.profile, args, decision_spec)
@@ -514,6 +576,16 @@ async def _evaluate_v2(args: argparse.Namespace) -> int:
 
 
 async def _main(args) -> int:
+    action_batch = getattr(args, "action_batch", False)
+    max_actions = getattr(args, "max_actions", None)
+    if action_batch and (
+        getattr(args, "simulator_api_version", "v2") != "v2" or args.command == "evaluate-v2"
+    ):
+        raise ValueError("action batches currently require a v2 run or benchmark")
+    if action_batch and (type(max_actions) is not int or max_actions < 1):
+        raise ValueError("action batches require an explicit positive --max-actions")
+    if not action_batch and max_actions is not None:
+        raise ValueError("--max-actions currently requires --action-batch")
     if args.command == "evaluate-v2":
         return await _evaluate_v2(args)
     if getattr(args, "seed", 1) == 0:
@@ -527,6 +599,8 @@ async def _main(args) -> int:
         "agent_version": args.agent_version,
         "max_steps": args.max_steps,
     }
+    if action_batch:
+        config_values["max_actions"] = max_actions
     config = AgentConfig(**config_values)
     seeds: list[int] | None = None
     if args.command == "benchmark":
@@ -561,8 +635,9 @@ async def _main(args) -> int:
     return 0
 
 
-def _prompt_fingerprint(briefing: str | None) -> str:
-    return hashlib.sha256(compose_system_prompt(CORE_SYSTEM_PROMPT, briefing).encode()).hexdigest()
+def _prompt_fingerprint(briefing: str | None, *, action_batch: bool = False) -> str:
+    core = BATCH_CORE_SYSTEM_PROMPT if action_batch else CORE_SYSTEM_PROMPT
+    return hashlib.sha256(compose_system_prompt(core, briefing).encode()).hexdigest()
 
 
 def _expected_environment_briefing(args: argparse.Namespace) -> str:
@@ -581,16 +656,23 @@ def _expected_environment_briefing(args: argparse.Namespace) -> str:
 async def _run_seed(args, config: AgentConfig, memory: AgentMemory, seed: int):
     model = None
     api_version = getattr(args, "simulator_api_version", "v2")
+    if getattr(args, "action_batch", False) and (
+        api_version != "v2" or type(getattr(config, "max_actions", None)) is not int
+    ):
+        raise ValueError("action batches require v2 and an explicit action budget before start")
     client = (
         SimulatorClient(args.simulator_url)
         if api_version == "v1"
-        else SimulatorV2Client(args.simulator_url)
+        else SimulatorV2Client(
+            args.simulator_url,
+            participant_token=os.getenv("SIMULATOR_PARTICIPANT_TOKEN") or None,
+        )
     )
     try:
         environment = (
             SimulatorEnvironment(client, environment_briefing=V1_ENVIRONMENT_BRIEFING)
             if api_version == "v1"
-            else SimulatorV2Environment(client)
+            else SimulatorV2Environment(client, action_batch=getattr(args, "action_batch", False))
         )
         session, latest = await environment.start(
             seed=seed,
@@ -613,7 +695,14 @@ async def _run_seed(args, config: AgentConfig, memory: AgentMemory, seed: int):
                 "run_id": session.run_id,
                 "spec": spec.public_input(),
                 "spec_fingerprint": spec.fingerprint,
-                "prompt_fingerprint": _prompt_fingerprint(spec.environment_briefing),
+                "prompt_fingerprint": _prompt_fingerprint(
+                    spec.environment_briefing, action_batch=getattr(args, "action_batch", False)
+                ),
+                **(
+                    {"decision_timeout_recovery": asdict(TimeoutRecoveryPolicy())}
+                    if getattr(args, "recover_decision_timeouts", False)
+                    else {}
+                ),
             },
         )
         model = _decision_model(args, spec)

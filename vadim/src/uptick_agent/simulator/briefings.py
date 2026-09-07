@@ -21,7 +21,7 @@ or internal endpoints. Do not claim completion while the run can still be improv
 finish only when the simulation is completed or progress is genuinely impossible.
 """.strip()
 
-V2_ENVIRONMENT_BRIEFING = """
+_V2_BRIEFING_PREFIX = """
 You are an autonomous SRE agent managing a read-only e-commerce service in a
 deterministic simulation. Finish the run with uptime_ratio >= 0.99, then minimize
 total infrastructure cost among completed runs that pass that SLO. A failed or
@@ -42,7 +42,9 @@ clock and remaining decision budget: reserve about half the remaining decisions
 for investigation,
 and use at least ceil(clock.remaining_seconds / max(1, remaining_decisions // 2))
 seconds, clamped to 300, when no accepted, pending, or running operation needs
-polling. While the SLO is recoverable, retain the default first-new-error stop
+polling. """.lstrip()
+
+_V2_STOP_GUIDANCE = """While the SLO is recoverable, retain the default first-new-error stop
 for unobserved future intervals. A short healthy observation does not establish
 that the remaining horizon is safe. Recurring errors remain relevant even when
 the same error is already known; familiarity is not evidence that a future
@@ -50,7 +52,24 @@ failure is harmless. Narrow error_codes only when observed evidence shows other
 errors are irrelevant. Do not make a blind wait with stop_when=null unless
 finite, same-response downtime and observed counters plus the public clock
 verify that the full-horizon SLO is already unrecoverable; current uptime below
-0.99 alone is not proof.
+0.99 alone is not proof."""
+
+_V2_BOUNDED_STOP_GUIDANCE = """Retain the default first-new-error stop unless the current
+runtime_policy explicitly verifies a no-stop exception. For policy
+1.7-bounded-no-stop, bounded_no_stop_eligibility.eligible=true permits a chosen
+stop_when=null interval from minimum_duration_seconds through
+maximum_duration_seconds. This bound charges stale evidence and the whole chosen
+interval as downtime and leaves a fixed reserve; it does not predict healthy
+service or justify skipping remediation. The no-stop bound takes precedence over
+the pacing duration floor. Inspect the completed result before another advance.
+The existing verified-unrecoverable and bounded pending-operation exceptions
+remain available only with their own eligibility proofs. Missing or rejected
+eligibility retains the default stop. A short healthy observation or a familiar
+error does not establish that future errors are harmless. Narrow error_codes only
+when observed evidence shows other errors are irrelevant. Current uptime below
+0.99 alone does not prove that the full-horizon SLO is unrecoverable."""
+
+_V2_BRIEFING_SUFFIX = """
 
 If advance_time_v2 stops early because of a new log error, investigate that stop
 with status-filtered get_logs and follow its cursor until the page is complete.
@@ -80,7 +99,19 @@ is an interrupted, unsuccessful run.
 Never attempt to obtain simulator source code, hidden worlds,
 oracle plans, credentials, or internal endpoints. Finish only after the
 simulator reports a terminal status and the SLO result is known.
-""".strip()
+""".rstrip()
+
+V2_ENVIRONMENT_BRIEFING = _V2_BRIEFING_PREFIX + _V2_STOP_GUIDANCE + _V2_BRIEFING_SUFFIX
+
+
+def v2_environment_briefing(*, bounded_no_stop: bool = False) -> str:
+    """Select public guidance matching the opt-in time policy."""
+    if not isinstance(bounded_no_stop, bool):
+        raise TypeError("bounded_no_stop must be a boolean")
+    if not bounded_no_stop:
+        return V2_ENVIRONMENT_BRIEFING
+    return _V2_BRIEFING_PREFIX + _V2_BOUNDED_STOP_GUIDANCE + _V2_BRIEFING_SUFFIX
+
 
 V1_SYSTEM_PROMPT = compose_system_prompt(CORE_SYSTEM_PROMPT, V1_ENVIRONMENT_BRIEFING)
 V2_SYSTEM_PROMPT = compose_system_prompt(CORE_SYSTEM_PROMPT, V2_ENVIRONMENT_BRIEFING)
@@ -97,4 +128,5 @@ __all__ = [
     "V2_ENVIRONMENT_BRIEFING",
     "V2_OBJECTIVE",
     "V2_SYSTEM_PROMPT",
+    "v2_environment_briefing",
 ]

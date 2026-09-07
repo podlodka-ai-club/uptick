@@ -51,6 +51,15 @@ class _PrestartedEnvironment:
             action,
         )  # type: ignore[arg-type]
 
+    def can_continue_batch(self, session: EnvironmentSession, result: ToolResult) -> bool:
+        checker = getattr(self._environment, "can_continue_batch", None)
+        if not callable(checker):
+            return False
+        underlying_session = (
+            self._session._session if isinstance(session, _AttributedSession) else session
+        )
+        return checker(underlying_session, result)
+
     def public_state(self, session: EnvironmentSession) -> Mapping[str, object]:
         state = self._environment.public_state(
             self._session._session if isinstance(session, _AttributedSession) else session

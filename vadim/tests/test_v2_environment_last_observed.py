@@ -112,8 +112,7 @@ def test_last_observed_views_keep_exact_clock_and_are_deep_copied() -> None:
         metrics["data"]["current"]["uptime_ratio"] = 0  # type: ignore[index]
         fresh_state = environment.public_state(session)
         assert (
-            fresh_state["last_observed"]["get_metrics"]["data"]["current"]["uptime_ratio"]
-            == 0.99
+            fresh_state["last_observed"]["get_metrics"]["data"]["current"]["uptime_ratio"] == 0.99
         )  # type: ignore[index]
 
     asyncio.run(scenario())
@@ -269,8 +268,7 @@ def test_resource_view_is_role_labelled_and_bounded_with_explicit_omission_count
         assert payload["servers"][0]["role"] == "backend"  # type: ignore[index]
         assert payload["truncation"]["omitted_items"] > 0  # type: ignore[index]
         assert (
-            len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode())
-            <= 12_000
+            len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()) <= 12_000
         )
 
     asyncio.run(scenario())
@@ -366,8 +364,7 @@ def test_near_bound_views_keep_full_metrics_and_explicit_fallbacks() -> None:
         assert len(json.dumps(views, ensure_ascii=False, separators=(",", ":")).encode()) <= 12_000
         for view in views.values():  # type: ignore[union-attr]
             assert (
-                len(json.dumps(view, ensure_ascii=False, separators=(",", ":")).encode())
-                <= 3_900
+                len(json.dumps(view, ensure_ascii=False, separators=(",", ":")).encode()) <= 3_900
             )
         assert views["get_metrics"]["objective_metrics"] == [  # type: ignore[index]
             {"name": name, "value": float(index), "unit": "units"}

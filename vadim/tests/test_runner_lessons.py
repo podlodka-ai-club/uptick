@@ -126,10 +126,13 @@ def test_runner_learns_across_runs_ignores_evaluation_and_demotes_on_counterexam
                 config=AgentConfig(max_steps=1),
             ).run(seed=42)
             assert result.status == status
-            lessons_by_run.append([
-                item for item in model.contexts[0].memory_context.items
-                if item.envelope.origin_module == "lessons"
-            ])
+            lessons_by_run.append(
+                [
+                    item
+                    for item in model.contexts[0].memory_context.items
+                    if item.envelope.origin_module == "lessons"
+                ]
+            )
 
         assert [len(items) for items in lessons_by_run] == [0, 0, 1, 1, 0]
         assert lessons_by_run[2][0].envelope.trust_classification == "derived_untrusted"
@@ -152,15 +155,20 @@ def test_lesson_core_imports_only_generic_boundaries():
         "httpx",
     )
     for name in (
-        "lessons.py", "lesson_contracts.py", "candidate_validation.py", "lesson_evidence.py"
+        "lessons.py",
+        "lesson_contracts.py",
+        "candidate_validation.py",
+        "lesson_evidence.py",
     ):
         tree = ast.parse((package / name).read_text())
         imports = [
             module
             for node in ast.walk(tree)
             for module in (
-                [node.module or ""] if isinstance(node, ast.ImportFrom)
-                else [alias.name for alias in node.names] if isinstance(node, ast.Import)
+                [node.module or ""]
+                if isinstance(node, ast.ImportFrom)
+                else [alias.name for alias in node.names]
+                if isinstance(node, ast.Import)
                 else []
             )
         ]

@@ -52,6 +52,7 @@ __all__ = [
     "StructuredAuditTraceSink",
 ]
 
+
 def _capture_audit_hash(
     *,
     body_class: RawBodyClass,
@@ -94,8 +95,7 @@ class StructuredAuditTraceSink:
         if not owned_configuration.enabled:
             raise MemoryValidationError("structured audit trace requires enabled configuration")
         if len(runtime_configuration_fingerprint) != 64 or any(
-            character not in "0123456789abcdef"
-            for character in runtime_configuration_fingerprint
+            character not in "0123456789abcdef" for character in runtime_configuration_fingerprint
         ):
             raise MemoryValidationError(
                 "runtime configuration fingerprint must be lowercase SHA-256"
@@ -285,23 +285,18 @@ class StructuredAuditTraceSink:
         if record.record_id != event.event_id or record.created_at != event.occurred_at:
             raise MemoryPermanentError("stored audit record metadata does not match its event")
         if (
-            event.runtime_configuration_fingerprint
-            != self.runtime_configuration_fingerprint
-            or event.audit_configuration_fingerprint
-            != self.audit_configuration_fingerprint
+            event.runtime_configuration_fingerprint != self.runtime_configuration_fingerprint
+            or event.audit_configuration_fingerprint != self.audit_configuration_fingerprint
         ):
             raise MemoryPermanentError("stored audit trace uses another resolved configuration")
         if (
-            event.raw_content_policy_ref
-            != self._raw_content_policy_ref
+            event.raw_content_policy_ref != self._raw_content_policy_ref
             or event.retention_policy_ref != self._configuration.retention.reference
             or event.redactor_ref != self._redactor_ref
         ):
             raise MemoryPermanentError("stored audit trace uses unsupported policy references")
         for capture in event.captures:
-            content_hash = (
-                sha256_json(capture.body) if capture.state == "captured" else None
-            )
+            content_hash = sha256_json(capture.body) if capture.state == "captured" else None
             if content_hash != capture.content_hash:
                 raise MemoryPermanentError("stored audit body content hash does not match")
             expected_audit_hash = (

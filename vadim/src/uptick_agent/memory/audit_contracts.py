@@ -21,6 +21,7 @@ AuditEventType = Literal[
     "decision.input",
     "decision.selected",
     "decision.completed",
+    "decision.memory_read_completed",
     "run.outcome",
 ]
 CaptureState = Literal["captured", "disabled", "quarantined"]
@@ -190,6 +191,7 @@ def _validate_event_correlations(
         "decision.input",
         "decision.selected",
         "decision.completed",
+        "decision.memory_read_completed",
     }
     if (event_type == "memory.context_selected" or event_type in decision_events) and (
         request_id is None
@@ -202,6 +204,11 @@ def _validate_event_correlations(
             raise ValueError("completed decision trace requires transition_id")
         if outcome_correlation_id is None:
             raise ValueError("completed decision trace requires outcome_correlation_id")
+    if event_type == "decision.memory_read_completed":
+        if transition_id is not None:
+            raise ValueError("memory read trace must not reference a world transition")
+        if outcome_correlation_id is None:
+            raise ValueError("memory read trace requires outcome_correlation_id")
     if event_type == "memory.item_created" and transition_id is None:
         raise ValueError("created memory item trace requires transition_id")
     if event_type == "run.outcome" and outcome_correlation_id is None:

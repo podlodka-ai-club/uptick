@@ -64,7 +64,12 @@ def _declaration(run_id: str, scenario: str) -> LessonRunDeclaration:
 
 
 def _transition(
-    run_id: str, *, scenario: str, index: int, result_shape: str = "healthy"
+    run_id: str,
+    *,
+    scenario: str,
+    index: int,
+    result_shape: str = "healthy",
+    observation: dict[str, object] | None = None,
 ) -> ExperienceTransition:
     return DefaultExperienceTransitionAssembler().assemble(
         TransitionAssemblyRequest(
@@ -76,7 +81,7 @@ def _transition(
             scenario_id=f"scenario:{scenario}",
             trust_classification="external_untrusted",
             pre_state={"service": "ready"},
-            observation={"state": {"service": "ready"}, "condition": "degraded"},
+            observation=observation or {"state": {"service": "ready"}, "condition": "degraded"},
             action={"kind": "restart"},
             result={"shape": result_shape, "ok": result_shape == "healthy"},
             before_objective_metrics=[ObjectiveMetric(name="health", value=1, unit="points")],
@@ -99,7 +104,7 @@ def _outcome_record_id(run_id: str) -> str:
     return hashlib.sha256(f"run-outcome:{run_id}".encode()).hexdigest()
 
 
-async def _seed(*, with_declarations: bool = True):
+async def _seed(*, with_declarations: bool = True, nested: bool = False):
     store = InMemoryStructuredStore()
     declarations = [_declaration("run-a", "a"), _declaration("run-b", "b")]
     for index, declaration in enumerate(declarations):
@@ -107,6 +112,7 @@ async def _seed(*, with_declarations: bool = True):
             declaration.run_id,
             scenario=declaration.scenario_id.removeprefix("scenario:"),
             index=index,
+            observation=({"format": "records", "data": {"duplicate_lines": 2}} if nested else None),
         )
         await store.append(
             RecordWrite(
@@ -165,6 +171,21 @@ def _settings() -> ConsolidationSettings:
             action_path="action.kind",
             result_path="result.shape",
         ),
+    )
+
+
+def _nested_lesson_settings() -> ConsolidationSettings:
+    return ConsolidationSettings(
+        lesson_settings=LessonSettings(
+            metric_name="health",
+            metric_unit="points",
+            direction="maximize",
+            condition_keys=("format", "duplicate_lines"),
+            condition_paths={
+                "format": "observation.format",
+                "duplicate_lines": "observation.data.duplicate_lines",
+            },
+        )
     )
 
 
@@ -234,9 +255,72 @@ def test_dry_run_apply_and_retrieval_revalidate_the_same_plan():
             )
         )
         assert contribution.items
+        assert any(item.envelope.artefact_type == "lesson" for item in contribution.items)
         assert all(
             item.envelope.trust_classification == "derived_untrusted" for item in contribution.items
         )
+
+    _run(scenario())
+
+
+def test_applied_nested_lessons_require_matching_latest_result_scope():
+    async def scenario() -> None:
+        store, snapshot = await _seed(nested=True)
+        memory = ConsolidationMemory(
+            store,
+            namespace="consolidation",
+            evidence_namespace=_EPISODIC,
+            declaration_namespace=_DECLARATIONS,
+            settings=_nested_lesson_settings(),
+        )
+        request = ConsolidationRequest(
+            request_id="nested-consolidate",
+            snapshot_id=snapshot.snapshot_id,
+            idempotency_key="nested-dry",
+            dry_run=True,
+        )
+        dry = await memory.consolidate(request)
+        assert dry.deltas
+        await memory.consolidate(request.model_copy(update={"dry_run": False}))
+
+        matching = await memory.retrieve(
+            MemoryContextRequest(
+                request_id="nested-match",
+                run_id="new-run",
+                query="records duplicate_lines",
+                context={
+                    "latest_result": {
+                        "format": "records",
+                        "data": {"duplicate_lines": 2},
+                    }
+                },
+            )
+        )
+        mismatched = await memory.retrieve(
+            MemoryContextRequest(
+                request_id="nested-mismatch",
+                run_id="new-run",
+                query="records duplicate_lines",
+                context={
+                    "latest_result": {
+                        "format": "records",
+                        "data": {"duplicate_lines": 0},
+                    }
+                },
+            )
+        )
+        missing = await memory.retrieve(
+            MemoryContextRequest(
+                request_id="nested-missing",
+                run_id="new-run",
+                query="records duplicate_lines",
+                context={"latest_result": {"format": "records"}},
+            )
+        )
+
+        assert len(matching.items) == 1
+        assert mismatched.items == []
+        assert missing.items == []
 
     _run(scenario())
 

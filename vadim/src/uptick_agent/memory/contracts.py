@@ -325,6 +325,22 @@ class ContextContributor(Protocol):
 
 
 @runtime_checkable
+class SelectedContextMaterializer(Protocol):
+    """Optional source-backed expansion after selection, within an assigned budget."""
+
+    @property
+    def context_materialization_enabled(self) -> bool: ...
+
+    async def materialize_selected(
+        self,
+        items: list[ContextItem],
+        request: MemoryContextRequest,
+        *,
+        max_estimated_tokens: int,
+    ) -> list[ContextItem]: ...
+
+
+@runtime_checkable
 class ConsolidationParticipant(Protocol):
     async def consolidate(self, request: ConsolidationRequest) -> ConsolidationResult: ...
 

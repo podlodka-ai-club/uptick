@@ -255,6 +255,7 @@ def episodic_memory_runtime(
         store,
         namespace=namespace,
         module_version=configuration.episodic.version,
+        episodic_recall=configuration.episodic_recall,
     )
     orchestrator = MemoryOrchestrator(
         configuration,

@@ -105,9 +105,7 @@ class SemanticRetrievalSettings:
             or self.recency_reference_time.utcoffset() is None
         ):
             raise MemoryValidationError("recency_reference_time must be timezone-aware")
-        if _finite_nonnegative(
-            self.recency_half_life_seconds, "recency_half_life_seconds"
-        ) <= 0:
+        if _finite_nonnegative(self.recency_half_life_seconds, "recency_half_life_seconds") <= 0:
             raise MemoryValidationError("recency_half_life_seconds must be positive")
         _positive_int(self.graph_depth, "graph_depth")
         _positive_int(self.graph_max_neighbors, "graph_max_neighbors")
@@ -288,9 +286,7 @@ class SemanticRetrievalStrategy:
                 raise MemoryValidationError("retrieval candidates must be ContextItem values")
             try:
                 source.append(
-                    ContextItem.model_validate(
-                        item.model_dump(mode="python", round_trip=True)
-                    )
+                    ContextItem.model_validate(item.model_dump(mode="python", round_trip=True))
                 )
             except (TypeError, ValueError) as error:
                 raise MemoryValidationError("retrieval candidate is invalid") from error
@@ -298,9 +294,10 @@ class SemanticRetrievalStrategy:
             return source
         # A zero caller budget is a hard read boundary.  Do not invoke an
         # embedding or reformulation provider when no item can be admitted.
-        if self._limit(self.settings.max_items, request.max_items) == 0 or self._limit(
-            self.settings.max_estimated_tokens, request.max_estimated_tokens
-        ) == 0:
+        if (
+            self._limit(self.settings.max_items, request.max_items) == 0
+            or self._limit(self.settings.max_estimated_tokens, request.max_estimated_tokens) == 0
+        ):
             return []
 
         # Work on an owned, round-tripped request so a provider cannot mutate
@@ -409,9 +406,7 @@ class SemanticRetrievalStrategy:
         if reference is None:  # pragma: no cover - guarded by settings validation
             raise MemoryValidationError("recency reference time is unavailable")
         age = max(0.0, (reference.astimezone(UTC) - _timestamp(value)).total_seconds())
-        result = math.exp(
-            -math.log(2) * age / self.settings.recency_half_life_seconds
-        )
+        result = math.exp(-math.log(2) * age / self.settings.recency_half_life_seconds)
         if not math.isfinite(result):
             raise MemoryValidationError("recency signal is not finite")
         return result

@@ -66,9 +66,7 @@ class FastEmbedPort:
             try:
                 converted = float(component)
             except (TypeError, ValueError, OverflowError) as error:
-                raise MemoryValidationError(
-                    "FastEmbed returned a non-numeric embedding"
-                ) from error
+                raise MemoryValidationError("FastEmbed returned a non-numeric embedding") from error
             if not math.isfinite(converted):
                 raise MemoryValidationError("FastEmbed returned a non-finite embedding")
             result.append(converted)

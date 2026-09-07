@@ -49,13 +49,11 @@ def test_sanitize_json_handles_spaces_escaped_quotes_and_nested_serialization() 
     assert secret not in sanitized
     assert "value with spaces" not in sanitized
     assert sanitize_json(sanitized) == sanitized
-    assert json.loads(json.loads(sanitized)["payload"]) == {
-        "data": {"access_token": "<redacted>"}
-    }
+    assert json.loads(json.loads(sanitized)["payload"]) == {"data": {"access_token": "<redacted>"}}
 
 
 def test_redaction_preserves_non_secret_text() -> None:
-    text = "runtime context: {\"message\": \"service healthy\", \"count\": 2}"
+    text = 'runtime context: {"message": "service healthy", "count": 2}'
 
     assert redact_text(text) == text
 
@@ -70,15 +68,9 @@ def test_redaction_preserves_non_secret_text() -> None:
     ],
 )
 @pytest.mark.parametrize("encoding", ["json-string", "quote-only"])
-def test_redaction_handles_escaped_json_backslash_variants(
-    secret: str, encoding: str
-) -> None:
+def test_redaction_handles_escaped_json_backslash_variants(secret: str, encoding: str) -> None:
     inner = json.dumps({"api_key": secret, "message": "keep"})
-    fragment = (
-        json.dumps(inner)[1:-1]
-        if encoding == "json-string"
-        else inner.replace('"', '\\"')
-    )
+    fragment = json.dumps(inner)[1:-1] if encoding == "json-string" else inner.replace('"', '\\"')
 
     sanitized = redact_text(f"memo: {fragment} suffix")
 
@@ -132,7 +124,7 @@ def test_audit_store_scrubs_double_encoded_json_inside_prose() -> None:
         assert secret not in serialized_event
         assert secret not in serialized_store
         captured = event.captures[0]
-        assert captured.body == {"content": "memo: \"{\\\"api_key\\\":\\\"<redacted>\\\"}\""}
+        assert captured.body == {"content": 'memo: "{\\"api_key\\":\\"<redacted>\\"}"'}
 
     asyncio.run(scenario())
 

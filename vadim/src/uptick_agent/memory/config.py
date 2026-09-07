@@ -11,7 +11,9 @@ from pydantic import Field, model_validator
 from uptick_agent.memory.contracts import ContractModel
 from uptick_agent.memory.lesson_contracts import LessonSettings
 from uptick_agent.memory.settings import (
+    EPISODIC_RECALL_POLICY,
     ConsolidationSettings,
+    EpisodicRecallSettings,
     PatternQuerySettings,
     PlaybookQuerySettings,
     ToolKnowledgeQuerySettings,
@@ -193,10 +195,18 @@ class MemoryConfiguration(ContractModel):
         )
     )
     episodic: ModuleConfig = Field(default_factory=ModuleConfig)
+    # Opt-in only: omission is intentionally excluded so the canonical
+    # default configuration remains byte-for-byte compatible with Stage 4.
+    episodic_recall: EpisodicRecallSettings | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     lessons: ModuleConfig = Field(default_factory=ModuleConfig)
     lesson_settings: LessonSettings | None = None
     world_model: ModuleConfig = Field(default_factory=ModuleConfig)
     world_query_settings: PatternQuerySettings | None = None
+    observed_world_policy: Literal["observed-pattern-summary-v1@1.0"] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     playbooks: ModuleConfig = Field(default_factory=ModuleConfig)
     playbook_query_settings: PlaybookQuerySettings | None = None
     tool_knowledge: ModuleConfig = Field(default_factory=ModuleConfig)
@@ -216,10 +226,30 @@ class MemoryConfiguration(ContractModel):
 
     @model_validator(mode="after")
     def _validate_dependencies_and_profile(self) -> MemoryConfiguration:
+        if self.observed_world_policy is not None:
+            version = tuple(int(part) for part in self.schema_version.split("."))
+            if version < (1, 5):
+                raise ValueError("observed_world_policy requires schema_version 1.5")
+            if not self.world_model.enabled or not self.episodic.enabled:
+                raise ValueError("observed_world_policy requires world_model and episodic enabled")
+            if self.world_query_settings is None:
+                raise ValueError("observed_world_policy requires explicit world query settings")
+            if self.profile_kind != "experiment":
+                raise ValueError("observed_world_policy requires an explicit experiment profile")
         if self.xmemory is not None and self.xmemory.enabled:
             major, minor = (int(part) for part in self.schema_version.split(".", maxsplit=1))
             if (major, minor) < (1, 3):
                 raise ValueError("enabled xmemory requires MemoryConfiguration schema_version 1.3")
+        if self.episodic_recall is not None:
+            if self.episodic_recall.policy_ref != EPISODIC_RECALL_POLICY:
+                raise ValueError("unsupported episodic recall policy")
+            major, minor = (int(part) for part in self.schema_version.split(".", maxsplit=1))
+            if (major, minor) < (1, 4):
+                raise ValueError("episodic_recall requires MemoryConfiguration schema_version 1.4")
+            if not self.episodic.enabled:
+                raise ValueError("episodic_recall requires episodic enabled")
+            if self.profile_kind == "default":
+                raise ValueError("episodic_recall is experimental and cannot be enabled by default")
         if self.world_model.enabled and not (self.episodic.enabled or self.lessons.enabled):
             raise ValueError("world_model requires episodic or lessons")
         if self.playbooks.enabled and not (self.lessons.enabled or self.world_model.enabled):

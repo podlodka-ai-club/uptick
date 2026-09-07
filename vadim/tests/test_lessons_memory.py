@@ -231,6 +231,36 @@ def test_replay_normalizes_redacted_outcome_and_conflicting_input_is_rejected() 
     asyncio.run(scenario())
 
 
+def test_legacy_batch_replays_original_proposal_policy_after_restart() -> None:
+    async def scenario() -> None:
+        store, memory, source, outcome = await _prepare_one_run()
+        # The old policy produced an empty batch for this declared learning run.
+        source.evidence[outcome.run_id].runs[0].eligible = False
+        await memory.finalize(outcome, idempotency_key="finalize")
+        record = (await store.list(namespace="lessons"))[0]
+        assert record.payload["schema_version"] == "1.1"
+        assert len(record.payload["lessons"]) == 1
+        payload = {**record.payload, "schema_version": "1.0", "lessons": []}
+        legacy = StoredRecord.from_write(
+            RecordWrite(
+                namespace=record.namespace,
+                record_id=record.record_id,
+                record_type=record.record_type,
+                payload=payload,
+                created_at=record.created_at,
+            )
+        )
+        store._records[(record.namespace, record.record_id)] = legacy
+        restarted = LessonsMemory(store, namespace="lessons", source=source, settings=_settings())
+        await restarted.finalize(outcome, idempotency_key="finalize-again")
+        contribution = await restarted.retrieve(
+            MemoryContextRequest(request_id="legacy-read", run_id="other", query="summary")
+        )
+        assert contribution.items == []
+
+    asyncio.run(scenario())
+
+
 def test_tampered_active_lesson_fails_closed_on_retrieval() -> None:
     async def scenario() -> None:
         store, memory, _source, outcome = await _prepare_one_run()

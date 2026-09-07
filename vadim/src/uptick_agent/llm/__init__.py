@@ -27,6 +27,8 @@ __all__ = [
     "StructuredGenerationResult",
     "TextGenerationRequest",
     "TextGenerationResult",
+    "TimeoutRecoveryLlmClient",
+    "TimeoutRecoveryPolicy",
     "serialize_structured_generation_request",
 ]
 
@@ -59,6 +61,8 @@ _EXPORTS = {
     "LlmProviderConfig": ("registry", "LlmProviderConfig"),
     "LlmProviderFactory": ("registry", "LlmProviderFactory"),
     "LlmProviderRegistry": ("registry", "LlmProviderRegistry"),
+    "TimeoutRecoveryLlmClient": ("recovery", "TimeoutRecoveryLlmClient"),
+    "TimeoutRecoveryPolicy": ("recovery", "TimeoutRecoveryPolicy"),
     "OpenAIProviderFactory": ("openai", "OpenAIProviderFactory"),
     "OpenAISGRModel": ("openai", "OpenAISGRModel"),
 }

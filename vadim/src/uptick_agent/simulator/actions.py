@@ -35,6 +35,7 @@ class GetLogs(StrictModel):
 
 PageType = Literal["product_list", "product_page"]
 PageRequestStatus = Literal[200, 403, 500, 503]
+LogGroupBy = Literal["source_ip", "source_cidr", "user_agent", "region_code", "page", "status"]
 RequestFailureCode = Literal[
     "SERVER_CAPACITY_EXCEEDED",
     "DB_CONNECTION_LIMIT_EXCEEDED",
@@ -123,6 +124,58 @@ class QueryLogs(StrictModel):
                 ip_network(self.source_cidr, strict=True)
             except ValueError:
                 raise ValueError("source_cidr must be a canonical IPv4 or IPv6 network") from None
+        return self
+
+
+class QueryLogsSummary(StrictModel):
+    """Aggregate every matching public log without reading individual pages.
+
+    The requested window is inclusive. ``limit`` and ``offset`` paginate only
+    the returned groups; response totals still cover the complete filtered
+    window. Groups are observations, not attacker classifications.
+    """
+
+    kind: Literal["query_logs_summary"] = "query_logs_summary"
+    from_time: QueryTime = Field(alias="from")
+    to_time: QueryTime = Field(alias="to")
+    group_by: LogGroupBy
+    page: PageType | None = None
+    status: PageRequestStatus | None = None
+    has_error: bool | None = None
+    error: RequestFailureCode | None = None
+    source_ip: IPAddress | None = None
+    source_cidr: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=49,
+        pattern=r"^[0-9A-Fa-f:.]+/[0-9]{1,3}$",
+    )
+    user_agent: str | None = Field(default=None, min_length=1, max_length=2048)
+    region_code: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
+    firewall_rule_id: str | None = Field(
+        default=None, min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    )
+    limit: int = Field(default=100, ge=1, le=1000)
+    offset: int = Field(default=0, ge=0)
+    ipv4_prefix_length: int | None = Field(default=None, ge=0, le=32)
+    ipv6_prefix_length: int | None = Field(default=None, ge=0, le=128)
+
+    model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def validate_window_and_filters(self) -> QueryLogsSummary:
+        _validate_time_window(self.from_time, self.to_time, require_pair=True)
+        if self.has_error is False and self.error is not None:
+            raise ValueError("error is incompatible with has_error=false")
+        if self.source_cidr is not None:
+            try:
+                ip_network(self.source_cidr, strict=True)
+            except ValueError:
+                raise ValueError("source_cidr must be a canonical IPv4 or IPv6 network") from None
+        if self.group_by != "source_cidr" and (
+            self.ipv4_prefix_length is not None or self.ipv6_prefix_length is not None
+        ):
+            raise ValueError("IP prefix lengths require group_by=source_cidr")
         return self
 
 

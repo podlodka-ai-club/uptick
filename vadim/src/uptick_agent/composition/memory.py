@@ -8,8 +8,8 @@ operation.  No finalizer invokes consolidation.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -22,7 +22,7 @@ from uptick_agent.evaluation_presets import (
 from uptick_agent.memory.audit_contracts import AuditTraceEvent, AuditTraceSink, AuditTraceWrite
 from uptick_agent.memory.compatibility.contracts import MemoryEntry
 from uptick_agent.memory.compatibility.legacy import LegacyMemoryAdapter
-from uptick_agent.memory.config import MemoryConfiguration
+from uptick_agent.memory.config import MemoryConfiguration, ModuleConfig
 from uptick_agent.memory.consolidation import ConsolidationMemory
 from uptick_agent.memory.contracts import (
     ConsolidationRequest,
@@ -37,7 +37,7 @@ from uptick_agent.memory.contracts import (
     RunOutcome,
 )
 from uptick_agent.memory.episodic import EpisodicMemory
-from uptick_agent.memory.lesson_contracts import LessonRunDeclaration
+from uptick_agent.memory.lesson_contracts import LessonEvidence, LessonRunDeclaration
 from uptick_agent.memory.lesson_evidence import StoredEpisodicLessonSource
 from uptick_agent.memory.maintenance import MaintenanceRetrievalView, MemoryMaintenance
 from uptick_agent.memory.orchestrator import (
@@ -115,6 +115,15 @@ class ExperimentalMemoryRuntime:
     orchestrator: MemoryOrchestrator
     maintenance: MemoryMaintenance | None
     legacy: LegacyMemoryAdapter | None
+    allow_observed_learning: bool = False
+    _observed_learning_writer: WorldModelMemory | None = field(default=None, repr=False)
+    _run_declarations: tuple[LessonRunDeclaration, ...] = field(default_factory=tuple, repr=False)
+
+    @property
+    def observed_learning_enabled(self) -> bool:
+        """Whether this runtime was explicitly composed with a learning writer."""
+
+        return self.allow_observed_learning
 
     @property
     def configuration(self) -> MemoryConfiguration:
@@ -143,6 +152,71 @@ class ExperimentalMemoryRuntime:
 
     async def record_transition(self, transition: ExperienceTransition) -> None:
         await self.orchestrator.record_transition(transition)
+
+    async def record_observed_learning(
+        self,
+        evidence: LessonEvidence,
+        *,
+        learning_cutoffs: Mapping[str, datetime],
+        idempotency_key: str,
+    ) -> None:
+        """Explicitly write observed summaries through the registered world module.
+
+        Read-capable runtimes remain read-only unless the composition caller opts
+        into this capability.  Composition-owned frozen declarations are merged
+        into the evidence boundary before delegation so omitting them from the
+        supplied evidence cannot turn evaluation records into learning input.
+        """
+
+        if not self.allow_observed_learning:
+            raise MemoryValidationError(
+                "observed learning capability is disabled; compose with "
+                "allow_observed_learning=True"
+            )
+        if self.preset.configuration.observed_world_policy is None:
+            raise MemoryValidationError(
+                "observed learning requires the observed_world_policy opt-in"
+            )
+        writer = self._observed_learning_writer
+        if writer is None:
+            raise MemoryValidationError("observed learning capability is unavailable")
+        if not isinstance(evidence, LessonEvidence):
+            raise MemoryValidationError("observed learning requires LessonEvidence")
+        if not isinstance(learning_cutoffs, Mapping):
+            raise MemoryValidationError("observed learning_cutoffs must be a mapping")
+        frozen_run_ids = {
+            declaration.run_id
+            for declaration in self._run_declarations
+            if declaration.phase == "frozen_evaluation"
+        }
+        if frozen_run_ids & set(learning_cutoffs):
+            raise MemoryValidationError("frozen evaluation cannot supply observed learning")
+
+        if len({declaration.run_id for declaration in evidence.runs}) != len(evidence.runs):
+            raise MemoryValidationError("evidence declarations must have unique run IDs")
+        supplied = {declaration.run_id: declaration for declaration in evidence.runs}
+        for declaration in self._run_declarations:
+            previous = supplied.get(declaration.run_id)
+            if previous is not None and previous.model_dump(mode="json") != declaration.model_dump(
+                mode="json"
+            ):
+                raise MemoryValidationError(
+                    f"evidence declaration conflicts with composition for {declaration.run_id}"
+                )
+            supplied[declaration.run_id] = declaration
+        owned_evidence = evidence.model_copy(
+            update={
+                "runs": sorted(
+                    supplied.values(),
+                    key=lambda item: (item.logical_run_id, item.attempt_index, item.run_id),
+                )
+            }
+        )
+        await writer.record_observed(
+            owned_evidence,
+            learning_cutoffs,
+            idempotency_key=idempotency_key,
+        )
 
     async def clear(self, run_id: str | None = None) -> None:
         if self.legacy is not None:
@@ -254,6 +328,7 @@ def compose_experimental_runtime(
     clock: Callable[[], datetime] | None = None,
     audit_sink: AuditTraceSink | None = None,
     retrieval_strategy: RetrievalStrategy | None = None,
+    allow_observed_learning: bool = False,
 ) -> ExperimentalMemoryRuntime:
     """Construct real enabled modules for one preset.
 
@@ -262,8 +337,28 @@ def compose_experimental_runtime(
     explicit setting in the resolved configuration.
     """
 
+    if not isinstance(allow_observed_learning, bool):
+        raise MemoryValidationError("allow_observed_learning must be a boolean")
     resolved = _resolve_preset(preset, condition_id=condition_id)
     configuration = resolved.configuration
+    # Validate this concrete implementation graph before constructing modules.
+    # Generic configurations may still be used with other injected participants.
+    for name in (
+        "lessons",
+        "world_model",
+        "playbooks",
+        "tool_knowledge",
+        "consolidation",
+        "forgetting",
+    ):
+        if getattr(configuration, name).enabled and not configuration.episodic.enabled:
+            raise MemoryValidationError(f"{name} requires episodic enabled")
+    if configuration.playbooks.enabled and not configuration.lessons.enabled:
+        raise MemoryValidationError("playbooks requires lessons enabled")
+    if allow_observed_learning and configuration.observed_world_policy is None:
+        raise MemoryValidationError(
+            "allow_observed_learning requires the observed_world_policy opt-in"
+        )
     if configuration.retrieval.semantic and not bool(
         getattr(retrieval_strategy, "semantic_capability", False)
     ):
@@ -273,7 +368,12 @@ def compose_experimental_runtime(
     if isinstance(run_declarations, (str, bytes)):
         raise MemoryValidationError("run_declarations must be a sequence")
     try:
-        owned_declarations = tuple(run_declarations)
+        owned_declarations = tuple(
+            declaration.model_copy(deep=True)
+            if isinstance(declaration, LessonRunDeclaration)
+            else declaration
+            for declaration in run_declarations
+        )
     except TypeError as error:
         raise MemoryValidationError("run_declarations must be a sequence") from error
     base = validate_namespace(namespace)
@@ -283,6 +383,7 @@ def compose_experimental_runtime(
     playbook_namespace = validate_namespace(f"{base}:playbooks")
     tool_namespace = validate_namespace(f"{base}:tool-knowledge")
     now = clock or (lambda: datetime.now(UTC))
+    observed_learning_writer: list[WorldModelMemory] = []
 
     source: StoredEpisodicLessonSource | None = None
     declaration_namespace: str | None = None
@@ -367,6 +468,7 @@ def compose_experimental_runtime(
                     store,
                     namespace=episodic_namespace,
                     module_version=module_config.version,
+                    episodic_recall=configuration.episodic_recall,
                 ),
                 retrieval_strategy=_strategy(
                     configuration,
@@ -404,16 +506,25 @@ def compose_experimental_runtime(
         if configuration.world_query_settings is None:
             raise MemoryValidationError("world_model requires explicit query settings")
         settings = configuration.world_query_settings
+
+        def create_world_model(
+            module_config: ModuleConfig, *, source=source, settings=settings
+        ) -> WorldModelMemory:
+            module = WorldModelMemory(
+                store,
+                namespace=world_namespace,
+                source=source,
+                settings=settings,
+                module_version=module_config.version,
+                allow_observed_summaries=configuration.observed_world_policy is not None,
+            )
+            observed_learning_writer.append(module)
+            return module
+
         registrations.append(
             MemoryModuleRegistration(
                 "world_model",
-                lambda module_config, source=source, settings=settings: WorldModelMemory(
-                    store,
-                    namespace=world_namespace,
-                    source=source,
-                    settings=settings,
-                    module_version=module_config.version,
-                ),
+                create_world_model,
                 requires=("episodic",),
                 retrieval_strategy=_strategy(
                     configuration,
@@ -503,7 +614,16 @@ def compose_experimental_runtime(
         registrations,
         audit_sink=audit_sink,
     )
-    return ExperimentalMemoryRuntime(resolved, orchestrator, maintenance, legacy)
+    writer = observed_learning_writer[0] if observed_learning_writer else None
+    return ExperimentalMemoryRuntime(
+        resolved,
+        orchestrator,
+        maintenance,
+        legacy,
+        allow_observed_learning=allow_observed_learning,
+        _observed_learning_writer=writer,
+        _run_declarations=owned_declarations,
+    )
 
 
 def _resolve_preset(

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Iterable
-from datetime import UTC
+from datetime import UTC, datetime
 
 from pydantic import ValidationError
 from pydantic_core import PydanticSerializationError
@@ -119,6 +119,18 @@ def _validate_transition_record(record: StoredRecord) -> ExperienceTransition:
     return transition
 
 
+def validate_transition_record(record: StoredRecord) -> ExperienceTransition:
+    """Validate one canonical experience-transition record.
+
+    This is the single-record form of the transition checks used by observed
+    evidence validation.  It intentionally delegates to the existing private
+    implementation so callers cannot bypass any of its integrity, redaction,
+    or provenance gates.
+    """
+
+    return _validate_transition_record(record)
+
+
 def _expected_outcome_record_id(run_id: str) -> str:
     return hashlib.sha256(f"run-outcome:{run_id}".encode()).hexdigest()
 
@@ -201,12 +213,12 @@ def _validate_declarations(
     return by_run
 
 
-def validate_evidence(evidence: LessonEvidence) -> LessonEvidence:
-    """Validate and return an owned evidence bundle suitable for pure search.
+def validate_observed_evidence(evidence: LessonEvidence) -> LessonEvidence:
+    """Validate observed bytes and provenance without certifying run identity.
 
     The snapshot member set must exactly equal the supplied verified records.
-    Record payloads, IDs, timestamps, declarations, and assembler provenance
-    are all checked here so callers can use this function at an input boundary.
+    This boundary permits incomplete declarations for unaccepted proposals.
+    Activation and strict lesson search must still call ``validate_evidence``.
     """
 
     if not isinstance(evidence, LessonEvidence):
@@ -286,7 +298,24 @@ def validate_evidence(evidence: LessonEvidence) -> LessonEvidence:
         if members[record_id] != record.content_hash:
             raise _invalid("snapshot member hash does not match its stored record")
 
+    return owned.model_copy(update={"snapshot": snapshot, "records": records})
+
+
+def validate_evidence(evidence: LessonEvidence) -> LessonEvidence:
+    """Validate observed evidence plus complete immutable run declarations."""
+
+    owned = validate_observed_evidence(evidence)
     declarations = _validate_declarations(owned.runs)
+    transitions = {
+        record.record_id: _validate_transition_record(record)
+        for record in owned.records
+        if record.record_type == _TRANSITION_RECORD_TYPE
+    }
+    outcomes = {
+        record.payload["run_id"]
+        for record in owned.records
+        if record.record_type == _OUTCOME_RECORD_TYPE
+    }
     referenced_runs = {transition.run_id for transition in transitions.values()} | set(outcomes)
     unknown_runs = referenced_runs - set(declarations)
     if unknown_runs:
@@ -298,7 +327,30 @@ def validate_evidence(evidence: LessonEvidence) -> LessonEvidence:
             or transition.scenario_id != declaration.scenario_id
         ):
             raise _invalid("transition context does not match its run declaration")
-    return owned.model_copy(update={"snapshot": snapshot, "records": records})
+    return owned
+
+
+def select_observed_learning_transitions(
+    evidence: LessonEvidence, learning_cutoffs: dict[str, datetime]
+) -> tuple[LessonEvidence, list[ExperienceTransition]]:
+    """Select explicit learning observations, without certifying world identity."""
+
+    if any(cutoff.utcoffset() is None for cutoff in learning_cutoffs.values()):
+        raise MemoryValidationError("learning cutoffs require timezone-aware timestamps")
+    owned = validate_observed_evidence(evidence)
+    if any(
+        run.phase == "frozen_evaluation" and run.run_id in learning_cutoffs for run in owned.runs
+    ):
+        raise MemoryValidationError("frozen evaluation cannot supply observed proposals")
+    selected = []
+    for record in owned.records:
+        if record.record_type != _TRANSITION_RECORD_TYPE:
+            continue
+        transition = ExperienceTransition.model_validate(record.payload)
+        cutoff = learning_cutoffs.get(transition.run_id)
+        if cutoff is not None and transition.occurred_at <= cutoff:
+            selected.append(transition)
+    return owned, sorted(selected, key=lambda item: item.transition_id)
 
 
 def _owned_settings(settings: LessonSettings) -> LessonSettings:
@@ -342,14 +394,47 @@ def _signed_utility(delta: float, direction: str) -> float:
     return delta if direction == "maximize" else -delta
 
 
+_CONDITION_MISSING = object()
+
+
+def _project_observation_path(value: object, path: str) -> object:
+    current = value
+    for piece in path.split("."):
+        if not isinstance(current, dict) or piece not in current:
+            return _CONDITION_MISSING
+        current = current[piece]
+    return current
+
+
+def _observed_conditions(
+    transition: ExperienceTransition, settings: LessonSettings
+) -> dict[str, object] | None:
+    """Project configured conditions while preserving legacy literal keys."""
+
+    if settings.condition_paths is None:
+        if any(key not in transition.observation for key in settings.condition_keys):
+            return None
+        return {key: transition.observation[key] for key in settings.condition_keys}
+
+    values: dict[str, object] = {}
+    for key in settings.condition_keys:
+        path = settings.condition_paths[key]
+        _root, _separator, relative = path.partition(".")
+        value = _project_observation_path(transition.observation, relative)
+        if value is _CONDITION_MISSING:
+            return None
+        values[key] = value
+    return values
+
+
 def _transition_matches(
     transition: ExperienceTransition, candidate: LessonCandidate, settings: LessonSettings
 ) -> float | None:
     if canonical_json(transition.action) != canonical_json(candidate.action):
         return None
-    if any(key not in transition.observation for key in settings.condition_keys):
+    observed_conditions = _observed_conditions(transition, settings)
+    if observed_conditions is None:
         return None
-    observed_conditions = {key: transition.observation[key] for key in settings.condition_keys}
     if canonical_json(observed_conditions) != canonical_json(candidate.conditions):
         return None
     delta = _transition_metric_delta(
@@ -379,8 +464,18 @@ def _supporting(
     )
 
 
-def extract_candidates(evidence: LessonEvidence, settings: LessonSettings) -> list[LessonCandidate]:
-    """Extract semantic exact-match candidates in deterministic ID order."""
+def extract_candidates(
+    evidence: LessonEvidence,
+    settings: LessonSettings,
+    *,
+    include_ineligible_learning: bool = True,
+) -> list[LessonCandidate]:
+    """Propose exact-match hypotheses from declared learning observations.
+
+    A failed or ineligible attempt can suggest a hypothesis; it cannot supply
+    eligible support. Promotion remains exclusively the validator's decision.
+    Frozen evaluation is excluded from proposal as well as validation search.
+    """
 
     owned_evidence = validate_evidence(evidence)
     owned_settings = _owned_settings(settings)
@@ -400,7 +495,8 @@ def extract_candidates(evidence: LessonEvidence, settings: LessonSettings) -> li
             continue
         if declaration.phase != "learning":
             raise _invalid("unknown lesson run phase")
-        if any(key not in transition.observation for key in owned_settings.condition_keys):
+        conditions = _observed_conditions(transition, owned_settings)
+        if conditions is None:
             continue
         delta = _transition_metric_delta(
             transition,
@@ -413,10 +509,14 @@ def extract_candidates(evidence: LessonEvidence, settings: LessonSettings) -> li
         if signed == 0:
             continue
         polarity = "positive" if signed > 0 else "negative"
-        if not _supporting(declaration, outcomes.get(declaration.run_id), signed, polarity):
+        # Retain exact proposal semantics when replaying persisted 1.0 batches.
+        if not include_ineligible_learning and not _supporting(
+            declaration, outcomes.get(declaration.run_id), signed, polarity
+        ):
             continue
         candidate = LessonCandidate(
-            conditions={key: transition.observation[key] for key in owned_settings.condition_keys},
+            conditions=conditions,
+            condition_paths=owned_settings.condition_paths,
             action=transition.action,
             metric_name=owned_settings.metric_name,
             metric_unit=owned_settings.metric_unit,
@@ -479,6 +579,7 @@ def validate_candidate(
         or owned_candidate.metric_unit != owned_settings.metric_unit
         or owned_candidate.direction != owned_settings.direction
         or set(owned_candidate.conditions) != set(owned_settings.condition_keys)
+        or owned_candidate.condition_paths != owned_settings.condition_paths
     ):
         raise _invalid("candidate is not grounded in the configured exact query contract")
 
@@ -686,4 +787,9 @@ def validate_candidate(
     )
 
 
-__all__ = ["extract_candidates", "validate_candidate", "validate_evidence"]
+__all__ = [
+    "extract_candidates",
+    "validate_candidate",
+    "validate_evidence",
+    "validate_transition_record",
+]

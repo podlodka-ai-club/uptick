@@ -65,6 +65,8 @@ _REF_PATTERN = re.compile(
     r"(?i)\b(credential[_ -]?id|server[_ -]?id|database[_ -]?id)\s*[:=]\s*"
     r"([A-Za-z0-9][A-Za-z0-9._:-]{0,127})"
 )
+_OPERATION_ID_PATTERN = re.compile(r"^[A-Za-z0-9]{16,64}$")
+_RETRY_AFTER_SECONDS_PATTERN = re.compile(r"^[0-9]+$")
 
 
 def _parse_query_time(value: datetime | str) -> TimestampOrder:
@@ -110,12 +112,38 @@ def _query_value(value: object) -> str | None:
 class SimulatorV2ApiError(RuntimeError):
     """A safe API error with no response body or request payload attached."""
 
-    __slots__ = ("status_code", "code", "message")
+    __slots__ = ("status_code", "code", "message", "details", "retry_after_seconds")
 
-    def __init__(self, status_code: int, code: str, message: str) -> None:
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        message: str,
+        *,
+        details: dict[str, str] | None = None,
+        retry_after_seconds: int | None = None,
+    ) -> None:
         self.status_code = int(status_code)
         self.code = code if code else "HTTP_ERROR"
         self.message = message if message else "Simulator request failed"
+        operation_id = details.get("operation_id") if isinstance(details, dict) else None
+        self.details = (
+            {"operation_id": operation_id}
+            if self.status_code in (409, 429)
+            and self.code == "RUN_BUSY"
+            and isinstance(operation_id, str)
+            and _OPERATION_ID_PATTERN.fullmatch(operation_id)
+            else {}
+        )
+        self.retry_after_seconds = (
+            retry_after_seconds
+            if self.status_code in (409, 429)
+            and self.code == "RUN_BUSY"
+            and isinstance(retry_after_seconds, int)
+            and not isinstance(retry_after_seconds, bool)
+            and retry_after_seconds >= 0
+            else None
+        )
         super().__init__(f"HTTP {self.status_code} {self.code}: {self.message}")
 
 
@@ -168,6 +196,7 @@ class SimulatorV2Client:
         base_url: str = _DEFAULT_BASE_URL,
         *,
         timeout: float = 30.0,
+        participant_token: str | None = None,
         http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self._owns_client = http_client is None
@@ -178,6 +207,9 @@ class SimulatorV2Client:
         )
         self._runs: dict[str, _RunAuthState] = {}
         self._redactor = _SecretRedactor()
+        self._participant_token = participant_token if participant_token else None
+        if self._participant_token is not None:
+            self._redactor.register(self._participant_token)
 
     async def _request_json(
         self,
@@ -228,6 +260,8 @@ class SimulatorV2Client:
     def _raise_http_error(self, response: httpx.Response) -> None:
         code = "HTTP_ERROR"
         message = "Simulator request failed"
+        details: dict[str, str] = {}
+        retry_after_seconds: int | None = None
         try:
             body = response.json()
         except (TypeError, ValueError):
@@ -239,7 +273,30 @@ class SimulatorV2Client:
                 code = self._safe_string(raw_code, fallback=code)
             if isinstance(raw_message, str) and raw_message:
                 message = self._safe_string(raw_message, fallback=message)
-        raise SimulatorV2ApiError(response.status_code, code, message)
+            if code == "RUN_BUSY" and response.status_code in (409, 429):
+                raw_details = body.get("details")
+                raw_operation_id = (
+                    raw_details.get("operation_id") if isinstance(raw_details, dict) else None
+                )
+                if isinstance(raw_operation_id, str):
+                    operation_id = self._safe_string(raw_operation_id, fallback="")
+                    if _OPERATION_ID_PATTERN.fullmatch(operation_id):
+                        details["operation_id"] = operation_id
+                raw_retry_after = response.headers.get("Retry-After")
+                if raw_retry_after and _RETRY_AFTER_SECONDS_PATTERN.fullmatch(raw_retry_after):
+                    try:
+                        retry_after_seconds = int(raw_retry_after)
+                    except ValueError:
+                        # Python rejects pathologically long integer strings;
+                        # treat them like any other malformed response header.
+                        retry_after_seconds = None
+        raise SimulatorV2ApiError(
+            response.status_code,
+            code,
+            message,
+            details=details,
+            retry_after_seconds=retry_after_seconds,
+        )
 
     def _safe_string(self, value: str, *, fallback: str) -> str:
         try:
@@ -317,6 +374,11 @@ class SimulatorV2Client:
             "POST",
             "/v2/start",
             json={
+                **(
+                    {"participant_token": self._participant_token}
+                    if self._participant_token is not None
+                    else {}
+                ),
                 "seed": seed,
                 "agent_id": agent_id,
                 "agent_version": agent_version,
@@ -485,6 +547,102 @@ class SimulatorV2Client:
             self._run_path(run_id, "/logs"),
             params=query,
             required=("clock", "logs", "next_cursor"),
+        )
+        return self._public(body)
+
+    async def query_logs_summary(
+        self,
+        run_id: str,
+        *,
+        from_time: datetime | str,
+        to_time: datetime | str,
+        group_by: str,
+        page: str | None = None,
+        status: int | None = None,
+        has_error: bool | None = None,
+        error: str | None = None,
+        source_ip: object | None = None,
+        source_cidr: object | None = None,
+        user_agent: str | None = None,
+        region_code: str | None = None,
+        firewall_rule_id: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+        ipv4_prefix_length: int | None = None,
+        ipv6_prefix_length: int | None = None,
+    ) -> dict[str, Any]:
+        if from_time is None or to_time is None:
+            raise SimulatorV2ApiError(400, "INVALID_REQUEST", "from and to are required")
+        _validate_query_window(from_time, to_time, require_pair=True)
+        valid_groups = {
+            "source_ip",
+            "source_cidr",
+            "user_agent",
+            "region_code",
+            "page",
+            "status",
+        }
+        if group_by not in valid_groups:
+            raise SimulatorV2ApiError(400, "INVALID_REQUEST", "group_by is invalid")
+        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 1000:
+            raise SimulatorV2ApiError(400, "INVALID_REQUEST", "limit must be between 1 and 1000")
+        if not isinstance(offset, int) or isinstance(offset, bool) or offset < 0:
+            raise SimulatorV2ApiError(400, "INVALID_REQUEST", "offset must be non-negative")
+        if has_error is False and error is not None:
+            raise SimulatorV2ApiError(
+                400, "INVALID_REQUEST", "error is incompatible with has_error=false"
+            )
+        for name, value, maximum in (
+            ("ipv4_prefix_length", ipv4_prefix_length, 32),
+            ("ipv6_prefix_length", ipv6_prefix_length, 128),
+        ):
+            if value is not None and (
+                not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= maximum
+            ):
+                raise SimulatorV2ApiError(
+                    400, "INVALID_REQUEST", f"{name} must be between 0 and {maximum}"
+                )
+        if group_by != "source_cidr" and (
+            ipv4_prefix_length is not None or ipv6_prefix_length is not None
+        ):
+            raise SimulatorV2ApiError(
+                400, "INVALID_REQUEST", "IP prefix lengths require group_by=source_cidr"
+            )
+        query: dict[str, Any] = {
+            "from": _query_time(from_time),
+            "to": _query_time(to_time),
+            "group_by": group_by,
+            "limit": limit,
+            "offset": offset,
+        }
+        for key, value in (
+            ("page", page),
+            ("status", status),
+            ("has_error", has_error),
+            ("error", error),
+            ("source_ip", _query_value(source_ip)),
+            ("source_cidr", _query_value(source_cidr)),
+            ("user_agent", user_agent),
+            ("region_code", region_code),
+            ("firewall_rule_id", firewall_rule_id),
+            ("ipv4_prefix_length", ipv4_prefix_length),
+            ("ipv6_prefix_length", ipv6_prefix_length),
+        ):
+            if value is not None:
+                query[key] = value
+        body, _ = await self._request_json(
+            "GET",
+            self._run_path(run_id, "/logs/summary"),
+            params=query,
+            required=(
+                "clock",
+                "window",
+                "group_by",
+                "groups",
+                "total_requests",
+                "total_groups",
+                "next_offset",
+            ),
         )
         return self._public(body)
 
@@ -739,20 +897,22 @@ class SimulatorV2Client:
         return {"username": username, "password": password}
 
     async def operation(self, run_id: str, operation_id: str) -> dict[str, Any]:
-        body, _ = await self._request_json(
+        body, status = await self._request_json(
             "GET",
             self._run_path(run_id, f"/operations/{quote(operation_id, safe='')}"),
-            required=(
-                "clock",
-                "operation_id",
-                "type",
-                "command",
-                "request_id",
-                "status",
-                "progress",
-                "result",
-            ),
         )
+        if status != 200:
+            raise SimulatorV2ApiError(
+                status, "INVALID_RESPONSE", "Operation returned an invalid HTTP status"
+            )
+        self._validate_fields(body, ("operation_id", "type", "request_id", "status", "result"))
+        if body.get("type") == "time.advance":
+            self._validate_fields(
+                body,
+                ("run_id", "submitted_at", "started_at", "completed_at"),
+            )
+        else:
+            self._validate_fields(body, ("clock", "command", "progress"))
         return self._public(body)
 
     async def advance_time(
@@ -766,19 +926,31 @@ class SimulatorV2Client:
         payload: dict[str, Any] = {"request_id": request_id, "duration_seconds": duration_seconds}
         if stop_when is not None:
             payload["stop_when"] = stop_when
-        body, _ = await self._request_json(
+        body, status = await self._request_json(
             "POST",
             self._run_path(run_id, "/time/advance"),
             json=payload,
-            required=(
-                "clock",
-                "previous_simulation_time",
-                "requested_duration_seconds",
-                "processed_events",
-                "new_logs",
-                "stop_reason",
-            ),
         )
+        if status == 202:
+            self._validate_fields(body, ("run_id", "request_id", "operation_id", "status"))
+        elif status == 200:
+            self._validate_fields(
+                body,
+                (
+                    "clock",
+                    "previous_simulation_time",
+                    "requested_duration_seconds",
+                    "processed_events",
+                    "new_logs",
+                    "stop_reason",
+                ),
+            )
+        else:
+            raise SimulatorV2ApiError(
+                status,
+                "INVALID_RESPONSE",
+                "Time advance returned an invalid HTTP status",
+            )
         return self._public(body)
 
     async def aclose(self) -> None:

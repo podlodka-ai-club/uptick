@@ -24,14 +24,14 @@ _SECRET_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b"),
 )
 _QUOTED_SECRET_ASSIGNMENT = re.compile(
-    rf'''(?ix)
+    rf"""(?ix)
         (?P<key_quote>["'])
         (?P<key>{_SECRET_LABEL})
         (?P=key_quote)(?P<separator>\s*:\s*)
         (?P<value_quote>["'])
         (?:\\.|(?! (?P=value_quote) ).)*
         (?P=value_quote)
-    '''
+    """
 )
 
 
@@ -104,9 +104,7 @@ def _redact_embedded_json(value: str) -> str:
     return "".join(result)
 
 
-def _decode_escaped_json_fragment(
-    value: str, start: int
-) -> tuple[object, int, str] | None:
+def _decode_escaped_json_fragment(value: str, start: int) -> tuple[object, int, str] | None:
     """Decode escaped JSON by validating complete candidates with ``json``.
 
     Escaped fragments can contain backslashes immediately before structural

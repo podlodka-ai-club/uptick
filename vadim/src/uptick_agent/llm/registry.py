@@ -6,16 +6,22 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from uptick_agent.llm.contracts import LlmClient, LlmConfigurationError
+from uptick_agent.llm.recovery import TimeoutRecoveryLlmClient, TimeoutRecoveryPolicy
 
 
 @dataclass(frozen=True, slots=True)
 class LlmProviderConfig:
     provider: str
     model: str | None = None
+    timeout_recovery: TimeoutRecoveryPolicy | None = None
 
     def __post_init__(self) -> None:
         if not self.provider.strip():
             raise ValueError("LLM provider name must not be blank")
+        if self.timeout_recovery is not None and not isinstance(
+            self.timeout_recovery, TimeoutRecoveryPolicy
+        ):
+            raise TypeError("timeout_recovery must be a TimeoutRecoveryPolicy or None")
 
 
 class LlmProviderFactory(Protocol):
@@ -45,4 +51,12 @@ class LlmProviderRegistry:
             raise LlmConfigurationError(
                 f"LLM provider {config.provider!r} is not registered (available: {choices})"
             ) from error
-        return factory.create(config)
+        client = factory.create(config)
+        if config.timeout_recovery is None:
+            return client
+        return TimeoutRecoveryLlmClient(
+            client,
+            factory=factory,
+            config=config,
+            policy=config.timeout_recovery,
+        )

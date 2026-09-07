@@ -45,12 +45,12 @@ LEARNING_SYSTEM_PROMPT = (
     "JSON object."
 )
 
-# Keep this equal to ``GenerationSettings(reasoning_effort="low")`` serialized
+# Keep this equal to ``GenerationSettings(reasoning_effort="medium")`` serialized
 # at the request boundary, including its explicit nullable defaults.
 GENERATION_SETTINGS = {
     "temperature": None,
     "max_output_tokens": None,
-    "reasoning_effort": "low",
+    "reasoning_effort": "medium",
 }
 
 
@@ -116,7 +116,7 @@ def _manifest(root: Path, output: Path) -> LearningCycleManifest:
     return LearningCycleManifest(
         experiment_id="controlled-incident-learning-v1",
         provider="codex-subscription",
-        model="gpt-5.6-sol",
+        model="gpt-5.6-terra",
         generation_settings=dict(GENERATION_SETTINGS),
         prompt=LEARNING_SYSTEM_PROMPT,
         source_revision=metadata["source_revision"],
@@ -170,7 +170,7 @@ def _model_factory():
 
     def factory(_phase: str, _condition_id: str, _seed: int, spec):
         client = CodexProviderFactory().create(
-            LlmProviderConfig(provider="codex-subscription", model="gpt-5.6-sol")
+            LlmProviderConfig(provider="codex-subscription", model="gpt-5.6-terra")
         )
         return StructuredDecisionModel(
             client,

@@ -27,4 +27,3 @@ class ReasonedQueryPort(Protocol):
     """Reformulate a request using only its public request/context payload."""
 
     def rewrite(self, request: MemoryContextRequest) -> str | Awaitable[str]: ...
-

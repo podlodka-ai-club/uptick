@@ -18,6 +18,7 @@ from uptick_agent.memory.lesson_contracts import LessonSettings
 PATTERN_QUERY_CONTRACT = "memory-pattern-query-v1@1.0"
 PLAYBOOK_QUERY_CONTRACT = "memory-playbook-query-v1@1.0"
 TOOL_KNOWLEDGE_QUERY_CONTRACT = "memory-tool-knowledge-query-v1@1.0"
+EPISODIC_RECALL_POLICY = "episodic-raw-recall-v1@1.0"
 
 
 def _validate_dotted_path(value: str) -> str:
@@ -27,6 +28,18 @@ def _validate_dotted_path(value: str) -> str:
     if any(not piece or not piece.replace("_", "").isalnum() for piece in pieces):
         raise ValueError("projection paths must contain only dotted field names")
     return value
+
+
+class EpisodicRecallSettings(ContractModel):
+    """Explicit opt-in to finalized non-successful raw episode recall.
+
+    ``None`` in ``MemoryConfiguration`` retains the Stage 4 completed-only
+    policy.  Presence of this declaration is the versioned opt-in; the
+    allowed statuses are deliberately fixed so a caller cannot quietly
+    broaden or weaken the recall boundary through a free-form list.
+    """
+
+    policy_ref: Literal[EPISODIC_RECALL_POLICY] = EPISODIC_RECALL_POLICY
 
 
 class PatternQuerySettings(ContractModel):
@@ -151,6 +164,7 @@ class ConsolidationSettings(ContractModel):
 
 __all__ = [
     "ConsolidationSettings",
+    "EpisodicRecallSettings",
     "PatternQuerySettings",
     "PlaybookQuerySettings",
     "ToolKnowledgeQuerySettings",

@@ -1,4 +1,5 @@
 import ast
+import copy
 import hashlib
 import importlib
 import json
@@ -10,6 +11,7 @@ MEMORY_ROOT = Path(__file__).parents[1] / "src" / "uptick_agent" / "memory"
 PACKAGE_ROOT = MEMORY_ROOT.parent
 PROJECT_ROOT = MEMORY_ROOT.parents[2]
 SCHEMA_BASELINE = Path(__file__).parent / "fixtures" / "historical_schema_fingerprints.json"
+EPISODIC_DEFAULT_BASELINE = Path(__file__).parent / "fixtures" / "episodic_default_pre_feature.json"
 
 # Generic layers may name only these stable memory contracts.  Every other
 # module under ``uptick_agent.memory`` is an implementation reachable through
@@ -69,11 +71,7 @@ def _resolved_from_imports(node: ast.ImportFrom, package_parts: list[str]) -> se
         return imports
     if node.level:
         base = package_parts[: len(package_parts) - (node.level - 1)]
-        return {
-            ".".join((*base, alias.name))
-            for alias in node.names
-            if alias.name != "*"
-        }
+        return {".".join((*base, alias.name)) for alias in node.names if alias.name != "*"}
     return set()
 
 
@@ -212,10 +210,7 @@ def _forbidden_imports(
         str(path.relative_to(PROJECT_ROOT)): sorted(
             imported
             for imported in _imports(path)
-            if any(
-                imported == prefix or imported.startswith(f"{prefix}.")
-                for prefix in forbidden
-            )
+            if any(imported == prefix or imported.startswith(f"{prefix}.") for prefix in forbidden)
             and (path, imported) not in allowed
         )
         for path in paths
@@ -228,6 +223,135 @@ def _allowlisted_edges(
     """Build exact file/module edges accepted at a layer boundary."""
 
     return {(path, module) for path in paths for module in modules}
+
+
+def _project_historical_schema(schema: dict) -> tuple[dict, bool]:
+    """Project only the exactly asserted, optional contract additions."""
+
+    projected = copy.deepcopy(schema)
+    definitions = projected.get("$defs", {})
+    has_additive_batch_fields = False
+    for node in (projected, *definitions.values()):
+        if node.get("title") in {"AuditTraceWrite", "AuditTraceEvent"}:
+            event_type = node.get("properties", {}).get("event_type", {})
+            values = event_type.get("enum", [])
+            if "decision.memory_read_completed" in values:
+                assert values == [
+                    "memory.context_selected",
+                    "memory.item_created",
+                    "decision.input",
+                    "decision.selected",
+                    "decision.completed",
+                    "decision.memory_read_completed",
+                    "run.outcome",
+                ]
+                values.remove("decision.memory_read_completed")
+                has_additive_batch_fields = True
+        declaration = {
+            "AgentConfig": ("max_actions", "Max Actions", 1),
+            "RunResult": ("action_count", "Action Count", 0),
+        }.get(node.get("title"))
+        if declaration is None:
+            continue
+        field_name, field_title, minimum = declaration
+        properties = node.get("properties", {})
+        if field_name not in properties:
+            continue
+        assert properties[field_name] == {
+            "anyOf": [{"minimum": minimum, "type": "integer"}, {"type": "null"}],
+            "default": None,
+            "title": field_title,
+        }
+        assert field_name not in node.get("required", [])
+        properties.pop(field_name)
+        has_additive_batch_fields = True
+    lesson_settings = definitions.get("LessonSettings")
+    if lesson_settings is not None:
+        condition_paths = lesson_settings.get("properties", {}).get("condition_paths")
+        if condition_paths is not None:
+            assert condition_paths == {
+                "anyOf": [
+                    {"additionalProperties": {"type": "string"}, "type": "object"},
+                    {"type": "null"},
+                ],
+                "default": None,
+                "title": "Condition Paths",
+            }
+            assert "condition_paths" not in lesson_settings.get("required", [])
+            assert lesson_settings.get("description") == (
+                "The complete, fixed policy/query configuration for Stage 6.\n\n"
+                "``condition_keys`` remains the legacy literal top-level observation\n"
+                "contract.  ``condition_paths`` is an explicit opt-in alias map for\n"
+                "nested observations; dotted-looking legacy keys are never reinterpreted."
+            )
+            lesson_settings["properties"].pop("condition_paths")
+            lesson_settings["description"] = (
+                "The complete, fixed policy/query configuration for Stage 6."
+            )
+            has_additive_batch_fields = True
+    memory_configuration = definitions.get("MemoryConfiguration")
+    if memory_configuration is None:
+        return projected, has_additive_batch_fields
+
+    properties = memory_configuration.get("properties", {})
+    observed_property = properties.get("observed_world_policy")
+    if observed_property is not None:
+        assert observed_property == {
+            "anyOf": [
+                {"const": "observed-pattern-summary-v1@1.0", "type": "string"},
+                {"type": "null"},
+            ],
+            "default": None,
+            "title": "Observed World Policy",
+        }
+        assert "observed_world_policy" not in memory_configuration.get("required", [])
+        properties.pop("observed_world_policy")
+    recall_property = properties.get("episodic_recall")
+    if recall_property is None:
+        return projected, has_additive_batch_fields
+
+    expected_property = {
+        "anyOf": [
+            {"$ref": "#/$defs/EpisodicRecallSettings"},
+            {"type": "null"},
+        ],
+        "default": None,
+    }
+    assert recall_property == expected_property
+    assert "episodic_recall" not in memory_configuration.get("required", [])
+
+    recall_definition = definitions.get("EpisodicRecallSettings")
+    assert recall_definition is not None
+    assert recall_definition == {
+        "additionalProperties": False,
+        "description": (
+            "Explicit opt-in to finalized non-successful raw episode recall.\n\n"
+            "``None`` in ``MemoryConfiguration`` retains the Stage 4 completed-only\n"
+            "policy.  Presence of this declaration is the versioned opt-in; the\n"
+            "allowed statuses are deliberately fixed so a caller cannot quietly\n"
+            "broaden or weaken the recall boundary through a free-form list."
+        ),
+        "properties": {
+            "policy_ref": {
+                "const": "episodic-raw-recall-v1@1.0",
+                "default": "episodic-raw-recall-v1@1.0",
+                "title": "Policy Ref",
+                "type": "string",
+            },
+            "schema_version": {
+                "default": "1.0",
+                "pattern": "^[1-9][0-9]*\\.[0-9]+$",
+                "title": "Schema Version",
+                "type": "string",
+            },
+        },
+        "title": "EpisodicRecallSettings",
+        "type": "object",
+    }
+
+    properties.pop("episodic_recall")
+    definitions.pop("EpisodicRecallSettings")
+    return projected, True
 
 
 def test_all_non_composition_layers_keep_their_dependency_direction() -> None:
@@ -340,18 +464,17 @@ def test_non_composition_memory_boundary_rejects_new_implementation_modules() ->
     """A new memory implementation cannot become a hidden generic dependency."""
 
     execute = PACKAGE_ROOT / "runs" / "execute.py"
-    bypass_import = ast.parse(
-        "from uptick_agent.memory import deletion, future_module"
-    ).body[0]
+    bypass_import = ast.parse("from uptick_agent.memory import deletion, future_module").body[0]
     assert isinstance(bypass_import, ast.ImportFrom)
-    imports_after_unreviewed_change = _imports(execute) | _resolved_from_imports(
-        bypass_import, ["uptick_agent", "runs", "execute"]
-    ) | {"uptick_agent.memory.future_module"}
+    imports_after_unreviewed_change = (
+        _imports(execute)
+        | _resolved_from_imports(bypass_import, ["uptick_agent", "runs", "execute"])
+        | {"uptick_agent.memory.future_module"}
+    )
     violations = sorted(
         imported
         for imported in imports_after_unreviewed_change
-        if imported.startswith("uptick_agent.memory.")
-        and imported not in _GENERIC_MEMORY_CONTRACTS
+        if imported.startswith("uptick_agent.memory.") and imported not in _GENERIC_MEMORY_CONTRACTS
     )
 
     assert violations == [
@@ -363,12 +486,8 @@ def test_non_composition_memory_boundary_rejects_new_implementation_modules() ->
 def test_relative_imports_are_resolved_to_their_real_package() -> None:
     """A relative import must not evade the dependency fitness check."""
 
-    assert "uptick_agent.memory.candidate_validation" in _imports(
-        MEMORY_ROOT / "patterns.py"
-    )
-    assert "uptick_agent.decisions.runtime" in _imports(
-        PACKAGE_ROOT / "decisions" / "contracts.py"
-    )
+    assert "uptick_agent.memory.candidate_validation" in _imports(MEMORY_ROOT / "patterns.py")
+    assert "uptick_agent.decisions.runtime" in _imports(PACKAGE_ROOT / "decisions" / "contracts.py")
     assert "uptick_agent.environment.contracts" in _imports(
         PACKAGE_ROOT / "environment" / "prestarted.py"
     )
@@ -442,15 +561,44 @@ def test_historical_contract_schemas_and_qualified_names_are_unchanged() -> None
     baseline = json.loads(SCHEMA_BASELINE.read_text(encoding="utf-8"))
     assert len(baseline) == 56
 
+    additive_schema_names: set[str] = set()
     for qualified_name, expected in baseline.items():
         module_name, class_name = qualified_name.split(":", maxsplit=1)
         model = getattr(importlib.import_module(module_name), class_name)
         assert model.__module__ == expected["module"]
         assert model.__qualname__ == expected["qualname"]
+        schema_document, has_additive_schema = _project_historical_schema(model.model_json_schema())
+        if has_additive_schema:
+            additive_schema_names.add(qualified_name)
         schema = json.dumps(
-            model.model_json_schema(), ensure_ascii=True, sort_keys=True, separators=(",", ":")
+            schema_document, ensure_ascii=True, sort_keys=True, separators=(",", ":")
         )
         assert hashlib.sha256(schema.encode("utf-8")).hexdigest() == expected["schema_sha256"]
+
+    assert additive_schema_names == {
+        "uptick_agent.memory.audit:AuditTraceWrite",
+        "uptick_agent.memory.audit:AuditTraceEvent",
+        "uptick_agent.evaluation:V2Condition",
+        "uptick_agent.evaluation:V2EvaluationProfile",
+        "uptick_agent.evaluation:V2Manifest",
+        "uptick_agent.models:AgentConfig",
+        "uptick_agent.models:RunResult",
+        "uptick_agent.models:ExperimentResult",
+    }
+
+
+def test_default_episodic_configuration_matches_pre_feature_baseline() -> None:
+    """The optional declaration must not alter the historical default config."""
+
+    frozen = json.loads(EPISODIC_DEFAULT_BASELINE.read_text(encoding="utf-8"))
+    from uptick_agent.memory.config import MemoryConfiguration
+
+    current = MemoryConfiguration.episodic_only()
+    assert current.canonical_json() == frozen["canonical"]
+    assert current.fingerprint == frozen["fingerprint"]
+    assert frozen["provenance"]["source_capsule_sha256"] == (
+        "bca4f28aa2e2fa21e4c8728336ebe671803d3bd720f3f35f6fa9d2b20d28b448"
+    )
 
 
 def _fresh_process_modules(import_statement: str) -> set[str]:
