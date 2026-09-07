@@ -1,0 +1,262 @@
+"""Generic persistence boundary for structured memory records and snapshots."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from datetime import UTC, datetime
+from typing import Protocol
+
+from pydantic import Field, JsonValue, ValidationError, field_validator
+from pydantic_core import PydanticSerializationError
+
+from uptick_agent.memory.contracts import (
+    ContractModel,
+    MemoryPermanentError,
+    MemoryValidationError,
+    require_finite_json,
+)
+from uptick_agent.redaction import redact_text, sanitize_json
+
+_NAMESPACE_MAX_LENGTH = 256
+_RECORD_ID_MAX_LENGTH = 256
+_RECORD_TYPE_MAX_LENGTH = 128
+_OPERATION_MAX_LENGTH = 128
+_IDEMPOTENCY_KEY_MAX_LENGTH = 256
+_SNAPSHOT_ID_MAX_LENGTH = 256
+
+
+def canonical_json(value: object) -> str:
+    """Stable JSON used for content and input fingerprints."""
+
+    return json.dumps(
+        value,
+        allow_nan=False,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+
+def sha256_json(value: object) -> str:
+    return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+
+
+class RecordWrite(ContractModel):
+    namespace: str = Field(min_length=1, max_length=_NAMESPACE_MAX_LENGTH)
+    record_id: str = Field(min_length=1, max_length=_RECORD_ID_MAX_LENGTH)
+    record_type: str = Field(min_length=1, max_length=_RECORD_TYPE_MAX_LENGTH)
+    payload: dict[str, JsonValue] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    @field_validator("payload", mode="before")
+    @classmethod
+    def _require_finite_payload(cls, value: object) -> object:
+        return require_finite_json(value)
+
+
+class StoredRecord(RecordWrite):
+    content_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
+
+    @classmethod
+    def from_write(cls, write: RecordWrite) -> StoredRecord:
+        body = write.model_dump(mode="json")
+        return cls(**write.model_dump(), content_hash=sha256_json(body))
+
+    @classmethod
+    def validate_integrity(cls, value: object) -> StoredRecord:
+        """Validate a stored record and recompute its content hash."""
+
+        try:
+            if not isinstance(value, cls):
+                raise TypeError("stored record must be a StoredRecord")
+            serialized = value.model_dump(mode="python", round_trip=True, warnings="error")
+            record = cls.model_validate(serialized)
+            # StoredRecord inherits every RecordWrite field and validator.
+            # Validate once, then hash exactly the original write fields; building
+            # two more equivalent Pydantic objects only repeats that validation.
+            body = record.model_dump(
+                mode="json", include=set(RecordWrite.model_fields), warnings="error"
+            )
+            expected_hash = sha256_json(body)
+
+        except (
+            KeyError,
+            PydanticSerializationError,
+            TypeError,
+            ValueError,
+            ValidationError,
+        ) as error:
+            raise MemoryPermanentError("stored record is invalid") from error
+        if record.content_hash != expected_hash:
+            raise MemoryPermanentError("stored record content hash mismatch")
+        return record
+
+
+class WriteReceipt(ContractModel):
+    operation: str = Field(min_length=1, max_length=_OPERATION_MAX_LENGTH)
+    idempotency_key: str = Field(min_length=1, max_length=_IDEMPOTENCY_KEY_MAX_LENGTH)
+    input_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
+    record: StoredRecord
+
+
+class SnapshotMember(ContractModel):
+    record_id: str = Field(min_length=1, max_length=_RECORD_ID_MAX_LENGTH)
+    content_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
+
+
+class MemorySnapshot(ContractModel):
+    snapshot_id: str = Field(min_length=1, max_length=_SNAPSHOT_ID_MAX_LENGTH)
+    namespace: str = Field(min_length=1, max_length=_NAMESPACE_MAX_LENGTH)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    members: list[SnapshotMember] = Field(default_factory=list)
+    content_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
+
+    @classmethod
+    def create(
+        cls, *, snapshot_id: str, namespace: str, members: list[SnapshotMember]
+    ) -> MemorySnapshot:
+        body = {"namespace": namespace, "members": [member.model_dump() for member in members]}
+        return cls(
+            snapshot_id=snapshot_id,
+            namespace=namespace,
+            members=members,
+            content_hash=sha256_json(body),
+        )
+
+    @classmethod
+    def validate_integrity(cls, value: object) -> MemorySnapshot:
+        """Validate a stored snapshot and recompute its content hash."""
+
+        try:
+            if not isinstance(value, cls):
+                raise TypeError("stored snapshot must be a MemorySnapshot")
+            serialized = value.model_dump(mode="python", round_trip=True, warnings="error")
+            snapshot = cls.model_validate(serialized)
+            expected = cls.create(
+                snapshot_id=snapshot.snapshot_id,
+                namespace=snapshot.namespace,
+                members=snapshot.members,
+            )
+        except (
+            PydanticSerializationError,
+            TypeError,
+            ValueError,
+            ValidationError,
+        ) as error:
+            raise MemoryPermanentError("stored snapshot is invalid") from error
+        if snapshot.content_hash != expected.content_hash:
+            raise MemoryPermanentError("stored snapshot content hash mismatch")
+        return snapshot
+
+
+class SnapshotReceipt(ContractModel):
+    operation: str = Field(min_length=1, max_length=_OPERATION_MAX_LENGTH)
+    idempotency_key: str = Field(min_length=1, max_length=_IDEMPOTENCY_KEY_MAX_LENGTH)
+    input_hash: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
+    snapshot: MemorySnapshot
+
+
+class StructuredMemoryStore(Protocol):
+    async def append(
+        self, write: RecordWrite, *, operation: str, idempotency_key: str
+    ) -> WriteReceipt: ...
+
+    async def get(self, *, namespace: str, record_id: str) -> StoredRecord | None: ...
+
+    async def list(self, *, namespace: str) -> list[StoredRecord]: ...
+
+    async def create_snapshot(
+        self, *, namespace: str, snapshot_id: str, operation: str, idempotency_key: str
+    ) -> SnapshotReceipt: ...
+
+    async def get_snapshot(self, *, snapshot_id: str) -> MemorySnapshot | None: ...
+
+
+def validate_identifier(value: object, *, name: str, max_length: int) -> str:
+    """Validate a string identifier before it reaches a store implementation."""
+
+    if not isinstance(value, str):
+        raise MemoryValidationError(f"{name} must be a string")
+    if not value:
+        raise MemoryValidationError(f"{name} must not be empty")
+    if len(value) > max_length:
+        raise MemoryValidationError(f"{name} must be at most {max_length} characters")
+    if redact_text(value) != value:
+        raise MemoryValidationError(f"{name} must not contain credential-shaped content")
+    return value
+
+
+def validate_record_write(value: object) -> RecordWrite:
+    """Round-trip a write so model_copy-bypassed invalid values cannot cross the boundary."""
+
+    if not isinstance(value, RecordWrite):
+        raise MemoryValidationError("write must be a RecordWrite")
+    try:
+        serialized = value.model_dump(mode="python", round_trip=True, warnings="error")
+        serialized["payload"] = sanitize_json(serialized["payload"])
+        owned = RecordWrite.model_validate(serialized)
+        validate_identifier(owned.namespace, name="namespace", max_length=_NAMESPACE_MAX_LENGTH)
+        validate_identifier(owned.record_id, name="record_id", max_length=_RECORD_ID_MAX_LENGTH)
+        validate_identifier(
+            owned.record_type,
+            name="record_type",
+            max_length=_RECORD_TYPE_MAX_LENGTH,
+        )
+        return owned
+    except (PydanticSerializationError, TypeError, ValueError, ValidationError) as error:
+        raise MemoryValidationError("write contains invalid data") from error
+
+
+def validate_append_call(
+    write: object, *, operation: object, idempotency_key: object
+) -> tuple[RecordWrite, str, str]:
+    """Validate all caller-controlled inputs to append."""
+
+    return (
+        validate_record_write(write),
+        validate_identifier(operation, name="operation", max_length=_OPERATION_MAX_LENGTH),
+        validate_identifier(
+            idempotency_key,
+            name="idempotency_key",
+            max_length=_IDEMPOTENCY_KEY_MAX_LENGTH,
+        ),
+    )
+
+
+def validate_snapshot_call(
+    *,
+    namespace: object,
+    snapshot_id: object,
+    operation: object,
+    idempotency_key: object,
+) -> tuple[str, str, str, str]:
+    """Validate all caller-controlled inputs to create_snapshot."""
+
+    return (
+        validate_identifier(namespace, name="namespace", max_length=_NAMESPACE_MAX_LENGTH),
+        validate_identifier(snapshot_id, name="snapshot_id", max_length=_SNAPSHOT_ID_MAX_LENGTH),
+        validate_identifier(operation, name="operation", max_length=_OPERATION_MAX_LENGTH),
+        validate_identifier(
+            idempotency_key,
+            name="idempotency_key",
+            max_length=_IDEMPOTENCY_KEY_MAX_LENGTH,
+        ),
+    )
+
+
+def validate_record_lookup(*, namespace: object, record_id: object) -> tuple[str, str]:
+    """Validate all caller-controlled inputs to get and list-record operations."""
+
+    return (
+        validate_identifier(namespace, name="namespace", max_length=_NAMESPACE_MAX_LENGTH),
+        validate_identifier(record_id, name="record_id", max_length=_RECORD_ID_MAX_LENGTH),
+    )
+
+
+def validate_namespace(value: object) -> str:
+    return validate_identifier(value, name="namespace", max_length=_NAMESPACE_MAX_LENGTH)
+
+
+def validate_snapshot_lookup(value: object) -> str:
+    return validate_identifier(value, name="snapshot_id", max_length=_SNAPSHOT_ID_MAX_LENGTH)

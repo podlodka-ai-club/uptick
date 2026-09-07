@@ -1,0 +1,293 @@
+"""Provider-neutral contracts for language-model capabilities.
+
+No type in this module is owned by a provider SDK.  Callers express the desired
+capability and schema; adapters are solely responsible for authentication,
+serialization, retries, and translating their SDK responses.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+from dataclasses import dataclass, field
+from typing import Any, Literal, Protocol
+
+MessageRole = Literal["system", "user", "assistant"]
+ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+_REASONING_EFFORTS = frozenset({"none", "minimal", "low", "medium", "high", "xhigh"})
+
+
+class LlmError(RuntimeError):
+    """Base error exposed by the provider-neutral LLM boundary."""
+
+
+class LlmConfigurationError(LlmError, ValueError):
+    """A provider cannot be configured from the supplied neutral config."""
+
+
+class LlmProviderError(LlmError):
+    """A provider request, authentication check, or response failed."""
+
+
+class LlmAuthenticationError(LlmProviderError):
+    """Provider credentials or the selected account mode are invalid; do not retry."""
+
+
+class LlmTransientError(LlmProviderError):
+    """A bounded retry may succeed after a connection, timeout, limit, or server failure."""
+
+
+class LlmRateLimitError(LlmTransientError):
+    """The provider rejected the request because of a temporary rate limit."""
+
+
+class LlmPermanentProviderError(LlmProviderError):
+    """A non-retryable provider request or response failure."""
+
+
+class LlmStructuredOutputError(LlmPermanentProviderError):
+    """A structured response was absent, refused, malformed, or unsafe."""
+
+
+class LlmUnsupportedCapabilityError(LlmError):
+    """The selected provider honestly does not implement a requested capability."""
+
+
+@dataclass(frozen=True, slots=True)
+class LlmMessage:
+    role: MessageRole
+    content: str
+
+    def __post_init__(self) -> None:
+        if self.role not in {"system", "user", "assistant"}:
+            raise ValueError(f"unsupported LLM message role {self.role!r}")
+        if not self.content.strip():
+            raise ValueError("LLM message content must not be blank")
+
+
+@dataclass(frozen=True, slots=True)
+class GenerationSettings:
+    """Portable generation controls supported by a provider when it can honor them."""
+
+    temperature: float | None = None
+    max_output_tokens: int | None = None
+    reasoning_effort: ReasoningEffort | None = None
+
+    def __post_init__(self) -> None:
+        if self.temperature is not None and not 0 <= self.temperature <= 2:
+            raise ValueError("temperature must be between 0 and 2")
+        if self.max_output_tokens is not None and self.max_output_tokens < 1:
+            raise ValueError("max_output_tokens must be positive")
+        if self.reasoning_effort is not None and (
+            not isinstance(self.reasoning_effort, str)
+            or self.reasoning_effort not in _REASONING_EFFORTS
+        ):
+            raise ValueError(
+                "reasoning_effort must be one of none, minimal, low, medium, high, xhigh"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class LlmCallTelemetry:
+    """Provider-neutral measurements for one logical generation call.
+
+    ``request_count`` and ``retry_count`` cover calls visible to this adapter.
+    A provider SDK's internal transport retries are not observable here.
+    """
+
+    elapsed_seconds: float
+    request_count: int
+    retry_count: int
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+    cached_tokens: int | None = None
+    reasoning_tokens: int | None = None
+    cost_minor: int | None = None
+    cost_currency: str | None = None
+    usage_reported_requests: int = 0
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.elapsed_seconds) or self.elapsed_seconds < 0:
+            raise ValueError("elapsed_seconds must be finite and non-negative")
+        if (
+            isinstance(self.request_count, bool)
+            or not isinstance(self.request_count, int)
+            or self.request_count < 0
+            or isinstance(self.retry_count, bool)
+            or not isinstance(self.retry_count, int)
+            or self.retry_count < 0
+        ):
+            raise ValueError("request and retry counts must be non-negative")
+        if self.retry_count > self.request_count:
+            raise ValueError("retry_count cannot exceed request_count")
+        if (
+            isinstance(self.usage_reported_requests, bool)
+            or not isinstance(self.usage_reported_requests, int)
+            or self.usage_reported_requests < 0
+            or self.usage_reported_requests > self.request_count
+        ):
+            raise ValueError("usage_reported_requests must be between zero and request_count")
+        for name in (
+            "input_tokens",
+            "output_tokens",
+            "total_tokens",
+            "cached_tokens",
+            "reasoning_tokens",
+            "cost_minor",
+        ):
+            value = getattr(self, name)
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or value < 0
+            ):
+                raise ValueError(f"{name} must be a non-negative integer when reported")
+        if self.cost_currency is not None and self.cost_minor is None:
+            raise ValueError("cost_currency requires a reported cost")
+        if self.cost_minor is not None and self.cost_currency is None:
+            raise ValueError("reported cost requires a currency")
+
+
+@dataclass(frozen=True, slots=True)
+class StructuredGenerationRequest[T]:
+    """A request for one locally validated value of ``response_model``.
+
+    ``response_model`` must expose Pydantic's ``model_validate`` and/or
+    ``model_validate_json`` methods. Keeping the schema type at this boundary
+    avoids leaking a provider's JSON-schema or parsing object to callers.
+    """
+
+    messages: tuple[LlmMessage, ...]
+    response_model: type[T]
+    model: str | None = None
+    settings: GenerationSettings = field(default_factory=GenerationSettings)
+
+    def __post_init__(self) -> None:
+        if not self.messages:
+            raise ValueError("structured generation requires at least one message")
+        required_methods = ("model_validate", "model_validate_json", "model_json_schema")
+        if not isinstance(self.response_model, type) or not all(
+            callable(getattr(self.response_model, name, None)) for name in required_methods
+        ):
+            raise ValueError("response_model must be a Pydantic model class")
+
+
+def serialize_structured_generation_request(
+    request: StructuredGenerationRequest[Any],
+) -> dict[str, Any]:
+    """Return a deterministic, provider-neutral representation of a request.
+
+    The returned value deliberately describes the request before any provider
+    adapter translates it into SDK arguments.  In particular, it contains no
+    provider request/response objects and keeps the exact message order and
+    content supplied by the caller.
+    """
+    response_model = request.response_model
+    payload = {
+        "messages": [
+            {"role": message.role, "content": message.content} for message in request.messages
+        ],
+        "model": request.model,
+        "settings": {
+            "temperature": request.settings.temperature,
+            "max_output_tokens": request.settings.max_output_tokens,
+            "reasoning_effort": request.settings.reasoning_effort,
+        },
+        "response_model": {
+            "module": response_model.__module__,
+            "qualname": response_model.__qualname__,
+        },
+        "response_schema": response_model.model_json_schema(),
+    }
+
+    # JSON round-tripping both proves the boundary is JSON-safe and gives all
+    # mapping keys a deterministic order without retaining SDK/model objects.
+    return json.loads(
+        json.dumps(
+            payload,
+            allow_nan=False,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class TextGenerationRequest:
+    messages: tuple[LlmMessage, ...]
+    model: str | None = None
+    settings: GenerationSettings = field(default_factory=GenerationSettings)
+
+    def __post_init__(self) -> None:
+        if not self.messages:
+            raise ValueError("text generation requires at least one message")
+
+
+@dataclass(frozen=True, slots=True)
+class StructuredGenerationResult[T]:
+    value: T
+    provider: str
+    model: str | None
+    telemetry: LlmCallTelemetry | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TextGenerationResult:
+    text: str
+    provider: str
+    model: str | None
+    telemetry: LlmCallTelemetry | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class LlmCapabilities:
+    structured_generation: bool
+    text_generation: bool
+
+
+class LlmClient(Protocol):
+    """Capability-oriented LLM boundary consumed by reasoning and memory code."""
+
+    @property
+    def capabilities(self) -> LlmCapabilities: ...
+
+    @property
+    def last_telemetry(self) -> LlmCallTelemetry | None: ...
+
+    async def generate_structured[T](
+        self, request: StructuredGenerationRequest[T]
+    ) -> StructuredGenerationResult[T]: ...
+
+    async def generate_text(self, request: TextGenerationRequest) -> TextGenerationResult: ...
+
+    async def aclose(self) -> None: ...
+
+
+def validate_structured_value[T](response_model: type[T], value: Any) -> T:
+    """Locally validate a parsed provider value and fail closed otherwise."""
+    validator = getattr(response_model, "model_validate", None)
+    if not callable(validator):
+        raise LlmStructuredOutputError(
+            "structured response model must expose Pydantic model_validate"
+        )
+    try:
+        return validator(value)
+    except Exception as error:
+        raise LlmStructuredOutputError(
+            f"provider returned an invalid structured response: {error}"
+        ) from error
+
+
+def validate_structured_json[T](response_model: type[T], value: str) -> T:
+    """Locally validate JSON returned by a provider without exposing its parser."""
+    validator = getattr(response_model, "model_validate_json", None)
+    if not callable(validator):
+        raise LlmStructuredOutputError(
+            "structured response model must expose Pydantic model_validate_json"
+        )
+    try:
+        return validator(value)
+    except Exception as error:
+        raise LlmStructuredOutputError(
+            f"provider returned an invalid structured response: {error}"
+        ) from error

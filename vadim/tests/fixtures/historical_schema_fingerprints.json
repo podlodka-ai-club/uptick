@@ -1,0 +1,282 @@
+{
+  "uptick_agent.evaluation:EvaluationModel": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "EvaluationModel",
+    "schema_sha256": "2cfcef0b59c9fd10a33e351a729cc6cd2be74e5a244b1c96e75e3ee41e9d49bd"
+  },
+  "uptick_agent.evaluation:FrozenEvaluationBinding": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "FrozenEvaluationBinding",
+    "schema_sha256": "705887f87b0e804badcc3857c105e7f6187a7726762c1c200d554a345371c0bb"
+  },
+  "uptick_agent.evaluation:MemoryTelemetry": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "MemoryTelemetry",
+    "schema_sha256": "187589b7dd65c7f94fe1a57fecc9e23d08528b674cf926d34fbd034c82044ac7"
+  },
+  "uptick_agent.evaluation:ProviderTelemetry": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "ProviderTelemetry",
+    "schema_sha256": "a809cd78245d03f475c77a4192577216f14649318d503085d6dad4010cee2f90"
+  },
+  "uptick_agent.evaluation:V2AttemptRecord": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2AttemptRecord",
+    "schema_sha256": "1f6b8aa397df598bff180f8568b2848d162977e61c7c4a537a9e0f703206e688"
+  },
+  "uptick_agent.evaluation:V2Budget": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2Budget",
+    "schema_sha256": "39628128de0723150ebcd55deec32a1d30f24a99163cf9cc974e052def08d5fd"
+  },
+  "uptick_agent.evaluation:V2Condition": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2Condition",
+    "schema_sha256": "282b879e6523e495a4ac9cb3fdf9bc78ad47c4313c44bfff8122788c82237724"
+  },
+  "uptick_agent.evaluation:V2ConditionReport": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2ConditionReport",
+    "schema_sha256": "fd1dcc8e7f19b602d37a49c43efb83ceede3f8efa211af67f13d4f9fdb3bf704"
+  },
+  "uptick_agent.evaluation:V2Coverage": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2Coverage",
+    "schema_sha256": "6a0d7981a636c824116375af81593c88beac1186c6bdd144f9973031558eb5fb"
+  },
+  "uptick_agent.evaluation:V2EnvironmentPin": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2EnvironmentPin",
+    "schema_sha256": "52c205536d2c6cbebed13f1403d0e1930c69e49a764f8c2b1e97a6f2fb8b28eb"
+  },
+  "uptick_agent.evaluation:V2EvaluationProfile": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2EvaluationProfile",
+    "schema_sha256": "b7475eb36f71f6e604e7f63b00a0de325d53e2442707c54c287a65223ba4540e"
+  },
+  "uptick_agent.evaluation:V2FailurePolicy": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2FailurePolicy",
+    "schema_sha256": "cd1fa1aa54f767f3932af1fe56984e5aa374d9583155ba957bf5993fc839c9a2"
+  },
+  "uptick_agent.evaluation:V2Manifest": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2Manifest",
+    "schema_sha256": "6e920e61535730062fc929ecae62c8da7487aa2e22782b684267ca2bae9f6521"
+  },
+  "uptick_agent.evaluation:V2MetricDistribution": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2MetricDistribution",
+    "schema_sha256": "10533933c9eec373f5250f50df13b3b85f289595d0ebe5750de498f56d3889cf"
+  },
+  "uptick_agent.evaluation:V2OutcomeMetrics": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2OutcomeMetrics",
+    "schema_sha256": "980a4ed90c87ef47bdb1c14d7b64cf82d1b9fec4452808e2ca77ab5d3a6be157"
+  },
+  "uptick_agent.evaluation:V2PairwiseReport": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2PairwiseReport",
+    "schema_sha256": "75912fee35096e6f0f415a889b2eb40abf0332ba1e51c6b141708e98c92495b4"
+  },
+  "uptick_agent.evaluation:V2PlannedContrast": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2PlannedContrast",
+    "schema_sha256": "f0da94cff14d817864d0b2f4d4d012d1967cba7340946e1290c6521a714c1ccf"
+  },
+  "uptick_agent.evaluation:V2ProviderPin": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2ProviderPin",
+    "schema_sha256": "12c7f1728dd02c4ce1ad9bf0fa5f41ec5c6e694d211f516c985aa5878952013b"
+  },
+  "uptick_agent.evaluation:V2Report": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2Report",
+    "schema_sha256": "c777481aa47ac6ae7ad0aca951a689962823dcb0aebcf7e9a5ad679bba0d8b2b"
+  },
+  "uptick_agent.evaluation:V2RunMatrixBlock": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2RunMatrixBlock",
+    "schema_sha256": "46b91b81ee0d9bc0f5a42003d7c4fdd565be7aee22be7b839aa03a141ba504c2"
+  },
+  "uptick_agent.evaluation:V2SnapshotRef": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2SnapshotRef",
+    "schema_sha256": "c0ed2210448c066893052ef508aa15147df5ff7add0aba0f79f9f75e6e5df4fe"
+  },
+  "uptick_agent.evaluation:V2SourcePin": {
+    "module": "uptick_agent.evaluation",
+    "qualname": "V2SourcePin",
+    "schema_sha256": "f4690c4c382b8310d523a710d5927d147ebebcad1b08a7e4585c26a8350ff2bd"
+  },
+  "uptick_agent.memory.audit:AuditTraceEvent": {
+    "module": "uptick_agent.memory.audit",
+    "qualname": "AuditTraceEvent",
+    "schema_sha256": "06211190b2027dfc62c445c0f526d8ad7ba0404c37c4276a0522882e2bdf484c"
+  },
+  "uptick_agent.memory.audit:AuditTraceWrite": {
+    "module": "uptick_agent.memory.audit",
+    "qualname": "AuditTraceWrite",
+    "schema_sha256": "f85251fb0cfc5e6353fcaf70d9f10ea6cb703040c6700dcf63d9bec6cafb3b46"
+  },
+  "uptick_agent.memory.audit:RawBodyCapture": {
+    "module": "uptick_agent.memory.audit",
+    "qualname": "RawBodyCapture",
+    "schema_sha256": "38cf68dfe110f92dfc3eb57a12357ccae5e4881eefe1f602f138c3c3b8987fd9"
+  },
+  "uptick_agent.models:AdvanceTime": {
+    "module": "uptick_agent.models",
+    "qualname": "AdvanceTime",
+    "schema_sha256": "3670bd1771716af9f3e416723f0ba15c3571925f8baab1d1e2b2222fc803db78"
+  },
+  "uptick_agent.models:AdvanceTimeStopCondition": {
+    "module": "uptick_agent.models",
+    "qualname": "AdvanceTimeStopCondition",
+    "schema_sha256": "8fd29b22496e460da04dcb4f3872aee8cb2d1f1d648c5d7a8c2729ed2edbbee2"
+  },
+  "uptick_agent.models:AgentConfig": {
+    "module": "uptick_agent.models",
+    "qualname": "AgentConfig",
+    "schema_sha256": "ca8478481e83f720763d23ee2d8d45e4e62ac0e25efdae972c60574a5eb36dce"
+  },
+  "uptick_agent.models:ApplyFix": {
+    "module": "uptick_agent.models",
+    "qualname": "ApplyFix",
+    "schema_sha256": "2a311d7cb9b3b5718988b8b5c20a3b634810ea4f90a147e178f32a8f724e8296"
+  },
+  "uptick_agent.models:DecisionContext": {
+    "module": "uptick_agent.models",
+    "qualname": "DecisionContext",
+    "schema_sha256": "19f73c3629c5dd71ef2e3e251727dad078b71d2024de5a686092b5c52a25b225"
+  },
+  "uptick_agent.models:ExperimentResult": {
+    "module": "uptick_agent.models",
+    "qualname": "ExperimentResult",
+    "schema_sha256": "b41ba1b62f8695b4f61384fb3e226d88bb9af2cfe15d0d396e39f86411ee8870"
+  },
+  "uptick_agent.models:FinishRun": {
+    "module": "uptick_agent.models",
+    "qualname": "FinishRun",
+    "schema_sha256": "ac96f75b86cc12afa1daa666e77fcac5162c0ff1e70e9e7d51077f9d9aa63743"
+  },
+  "uptick_agent.models:GetDeployments": {
+    "module": "uptick_agent.models",
+    "qualname": "GetDeployments",
+    "schema_sha256": "96748a62f83c585b1f95b24bb5c1f8ae623016e94b1460b298b783615f5ea4bb"
+  },
+  "uptick_agent.models:GetLogs": {
+    "module": "uptick_agent.models",
+    "qualname": "GetLogs",
+    "schema_sha256": "584f2122002fabbeb96edac56ce1259a9e27dba997160d248e02e47b93c3ebbe"
+  },
+  "uptick_agent.models:GetMetrics": {
+    "module": "uptick_agent.models",
+    "qualname": "GetMetrics",
+    "schema_sha256": "0eb66d86b253d7a011994560cba2fb792dc2a6151d002953e0dfba37140da0e1"
+  },
+  "uptick_agent.models:GetOperation": {
+    "module": "uptick_agent.models",
+    "qualname": "GetOperation",
+    "schema_sha256": "5c8dac7d621887d620d4f3d3a92f52c11c6396f427bec6dd797132596520a4dd"
+  },
+  "uptick_agent.models:GetOverview": {
+    "module": "uptick_agent.models",
+    "qualname": "GetOverview",
+    "schema_sha256": "8dca62d7d364bef041a908e60728b415c452eda534087cc8a564bbf7056ddd6e"
+  },
+  "uptick_agent.models:GetResources": {
+    "module": "uptick_agent.models",
+    "qualname": "GetResources",
+    "schema_sha256": "b795719662a37953ab88160659b8f73559f3dfed581127d87fd1a1b69510068d"
+  },
+  "uptick_agent.models:MemoryEntry": {
+    "module": "uptick_agent.models",
+    "qualname": "MemoryEntry",
+    "schema_sha256": "82effd3ce6f35815d08eec115e238b2424e7268fa89b06fbdc1a1ef756828ce7"
+  },
+  "uptick_agent.models:MemoryMatch": {
+    "module": "uptick_agent.models",
+    "qualname": "MemoryMatch",
+    "schema_sha256": "7a0fb01a88da5a99946349d52e166b3f202424fc703530881b9725482da430db"
+  },
+  "uptick_agent.models:MemoryQuery": {
+    "module": "uptick_agent.models",
+    "qualname": "MemoryQuery",
+    "schema_sha256": "c93549a18dd7f9b267c45bacb817d8f6b3deb1408aff9a1ba2834fcb8a81eb0e"
+  },
+  "uptick_agent.models:NextStep": {
+    "module": "uptick_agent.models",
+    "qualname": "NextStep",
+    "schema_sha256": "c6a820c832645a869179dbc87035c9d86b75eac3c6a56cb39594afd3bedca058"
+  },
+  "uptick_agent.models:ProbePage": {
+    "module": "uptick_agent.models",
+    "qualname": "ProbePage",
+    "schema_sha256": "160333ef0207a719bdd3ba1b52c1b4247b45d6c4d18a016cd49a8fad6595c5fd"
+  },
+  "uptick_agent.models:RecentStep": {
+    "module": "uptick_agent.models",
+    "qualname": "RecentStep",
+    "schema_sha256": "ead2f0c586ee1d05fba1a7a4aaec4f0c065c9f086aeadb0a5d364edd0f9dcbe8"
+  },
+  "uptick_agent.models:RunResult": {
+    "module": "uptick_agent.models",
+    "qualname": "RunResult",
+    "schema_sha256": "d72f1b165b53647a98e5c68a069c3f495d93c348307b54567d08001c518182b3"
+  },
+  "uptick_agent.models:RunState": {
+    "module": "uptick_agent.models",
+    "qualname": "RunState",
+    "schema_sha256": "3ceb78fd52d0915a34bccefb51e465411ba4baf97e906b311a4e597a4a329809"
+  },
+  "uptick_agent.models:ScaleBackend": {
+    "module": "uptick_agent.models",
+    "qualname": "ScaleBackend",
+    "schema_sha256": "84b603a18e0066f0a4a659946fe1b133279daaa7ba8dc7dd493d40217ec77efe"
+  },
+  "uptick_agent.models:StartDeployment": {
+    "module": "uptick_agent.models",
+    "qualname": "StartDeployment",
+    "schema_sha256": "5b29011deb6b0cb820937c13df926a05a99ab35bb3772839882c9d0e3f64e81e"
+  },
+  "uptick_agent.models:StepRecord": {
+    "module": "uptick_agent.models",
+    "qualname": "StepRecord",
+    "schema_sha256": "0177bf38af0843f0fc67144e9008653f650930bd58aa53f22eaf4556275fce82"
+  },
+  "uptick_agent.models:StrictModel": {
+    "module": "uptick_agent.models",
+    "qualname": "StrictModel",
+    "schema_sha256": "bf3309024ba1097196dd234c076016144cffbc6cb870bce0273ab47aaadecaef"
+  },
+  "uptick_agent.models:ToolResult": {
+    "module": "uptick_agent.models",
+    "qualname": "ToolResult",
+    "schema_sha256": "aef08a8856cf4dc2c3b1732b5b1a8936576a123a52ade048176024b48c0d8796"
+  },
+  "uptick_agent.models:V1GetLogs": {
+    "module": "uptick_agent.models",
+    "qualname": "V1GetLogs",
+    "schema_sha256": "e5d432d17f572b11982934e4de521afae9e29460df35752645b697e7b39ce246"
+  },
+  "uptick_agent.models:V1NextStep": {
+    "module": "uptick_agent.models",
+    "qualname": "V1NextStep",
+    "schema_sha256": "d06dabd8821fce33c3a4de632afdb62e647540983f37f8b4445a33ecb796aacb"
+  },
+  "uptick_agent.models:V2AdvanceTime": {
+    "module": "uptick_agent.models",
+    "qualname": "V2AdvanceTime",
+    "schema_sha256": "e557d3680606fb733ba75648834235b1971026da5dada904b588be95a60eee81"
+  },
+  "uptick_agent.models:V2NextStep": {
+    "module": "uptick_agent.models",
+    "qualname": "V2NextStep",
+    "schema_sha256": "17d2133ff3c2c6724aff803eabae6a6efbe2dd447c03fc1be165d4799c57ed17"
+  },
+  "uptick_agent.models:V2ProbePage": {
+    "module": "uptick_agent.models",
+    "qualname": "V2ProbePage",
+    "schema_sha256": "5d81930d69cac36e597f1e3801a475b816a325ae7ee4be1c2e1d9a9bb9bd126f"
+  }
+}

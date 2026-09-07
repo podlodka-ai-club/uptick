@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "profile_id": "stage0-baseline-v1",
+  "environment": {
+    "environment_id": "aigiz-hackersprint2-sim",
+    "environment_version": "public-api-v1",
+    "adapter_id": "uptick_agent.simulator",
+    "adapter_version": "baseline-current",
+    "scenario_id": "default"
+  },
+  "provider": {
+    "provider": "openai-compatible",
+    "model": "gpt-4.1-mini",
+    "token_estimator_id": "json-char-div4",
+    "token_estimator_version": "1",
+    "settings_fingerprint": null
+  },
+  "memory_conditions": [
+    {
+      "condition_id": "B0",
+      "memory_mode": "none",
+      "training_mode": "reset",
+      "evaluation_mode": "empty"
+    },
+    {
+      "condition_id": "B1",
+      "memory_mode": "legacy",
+      "training_mode": "carry",
+      "evaluation_mode": "frozen"
+    }
+  ],
+  "training_seeds": [1, 2, 3, 4, 5],
+  "evaluation_seeds": [101, 102, 103, 104, 105],
+  "replicate_indices": [0, 1, 2],
+  "canonical_metrics": [
+    "final_balance_minor",
+    "successful_purchases",
+    "lost_purchases",
+    "revenue_minor",
+    "lost_revenue_minor",
+    "server_cost_minor",
+    "deployment_cost_minor",
+    "steps",
+    "completion_status"
+  ],
+  "guardrail_metrics": [
+    "completion_status",
+    "lost_purchases",
+    "lost_revenue_minor",
+    "server_cost_minor",
+    "deployment_cost_minor"
+  ],
+  "failure_policy": {
+    "retained_statuses": [
+      "requested",
+      "running",
+      "completed",
+      "failed",
+      "interrupted",
+      "excluded"
+    ],
+    "distribution_denominator": "completed_attempts_with_metric",
+    "paired_denominator": "complete_blocks",
+    "excluded_attempts_are_not_retried_for_promotion": true,
+    "max_attempts_per_cell": 3
+  },
+  "policy_references": {
+    "candidate_validation_policy": "simulator-candidate-validation-v1@1.0",
+    "audit_retention_policy": "simulator-audit-retention-v1@1.0",
+    "raw_content": {
+      "policy_id": "simulator-raw-content-v1",
+      "policy_version": "1.0",
+      "prompts": true,
+      "observations": true,
+      "decision_traces": true,
+      "retention_policy_ref": "simulator-audit-retention-v1@1.0",
+      "mandatory_secret_handling": "redact_or_reject"
+    }
+  },
+  "notes": [
+    "Preregistration input only; it contains no run evidence or fabricated results.",
+    "The public simulator API exposes no scenario selector; default is an explicit profile identity, not a claim of multiple contexts.",
+    "B1 training memory must be snapshotted before read-only evaluation; evaluation writes, if any, belong only to a non-visible quarantine overlay.",
+    "Each B1 replicate gets its own memory namespace and operation order; frozen snapshots must record immutable ancestry and quarantine provenance.",
+    "Prompt, settings, and endpoint fingerprints are intentionally unresolved until a live runner resolves them; evidence completeness must fail closed."
+  ]
+}
