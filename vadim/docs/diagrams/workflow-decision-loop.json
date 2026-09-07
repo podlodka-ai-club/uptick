@@ -1,0 +1,259 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Цикл принятия решения агента",
+    "output": "docs/diagrams/workflow-decision-loop.html",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "runs",
+      "label": "Управление прогоном"
+    },
+    {
+      "id": "env",
+      "label": "Среда · симулятор v2"
+    },
+    {
+      "id": "model",
+      "label": "Модель решений"
+    },
+    {
+      "id": "memory",
+      "label": "Память"
+    }
+  ],
+  "phases": [
+    {
+      "id": "intake",
+      "label": "Наблюдение",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "decision",
+      "label": "Решение",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "execution",
+      "label": "Действие и запись",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "mainPath": [
+    "start",
+    "observe",
+    "recall",
+    "decide",
+    "execute",
+    "remember",
+    "finalize"
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "lane": "runs",
+      "col": 0,
+      "type": "backend",
+      "label": "Старт прогона",
+      "sublabel": "environment.start()",
+      "width": 128
+    },
+    {
+      "id": "observe",
+      "lane": "env",
+      "col": 1,
+      "type": "external",
+      "label": "Наблюдение",
+      "sublabel": "публичное состояние",
+      "width": 128
+    },
+    {
+      "id": "recall",
+      "lane": "memory",
+      "col": 2,
+      "type": "database",
+      "label": "Recall памяти",
+      "sublabel": "эпизоды · релевантность",
+      "width": 128
+    },
+    {
+      "id": "decide",
+      "lane": "model",
+      "col": 3,
+      "type": "backend",
+      "label": "SGR-решение",
+      "sublabel": "оценка → план → действие",
+      "tag": "LLM",
+      "width": 128
+    },
+    {
+      "id": "invalid",
+      "lane": "model",
+      "col": 4,
+      "type": "security",
+      "label": "Схема отклонена",
+      "sublabel": "починка ответа",
+      "width": 128
+    },
+    {
+      "id": "execute",
+      "lane": "env",
+      "col": 4,
+      "type": "messagebus",
+      "label": "Действие",
+      "sublabel": "типизированная команда",
+      "width": 128
+    },
+    {
+      "id": "busy",
+      "lane": "env",
+      "col": 5,
+      "type": "security",
+      "label": "Очередь · 409",
+      "sublabel": "RUN_BUSY",
+      "width": 128
+    },
+    {
+      "id": "remember",
+      "lane": "memory",
+      "col": 5,
+      "type": "database",
+      "label": "Запись перехода",
+      "sublabel": "record_transition",
+      "width": 128
+    },
+    {
+      "id": "finalize",
+      "lane": "runs",
+      "col": 5,
+      "type": "backend",
+      "label": "Финализация",
+      "sublabel": "RunOutcome + обучение",
+      "width": 128
+    }
+  ],
+  "edges": [
+    {
+      "id": "start-observe",
+      "from": "start",
+      "to": "observe",
+      "variant": "default"
+    },
+    {
+      "id": "observe-recall",
+      "from": "observe",
+      "to": "recall",
+      "label": "состояние мира",
+      "variant": "emphasis"
+    },
+    {
+      "id": "recall-decide",
+      "from": "recall",
+      "to": "decide",
+      "label": "DecisionMemoryContext",
+      "variant": "emphasis"
+    },
+    {
+      "id": "decide-execute",
+      "from": "decide",
+      "to": "execute",
+      "label": "валидное действие",
+      "variant": "emphasis"
+    },
+    {
+      "id": "decide-invalid",
+      "from": "decide",
+      "to": "invalid",
+      "label": "схема не прошла",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "invalid-retry",
+      "from": "invalid",
+      "to": "decide",
+      "label": "повтор",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "execute-busy",
+      "from": "execute",
+      "to": "busy",
+      "label": "занято",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "busy-retry",
+      "from": "busy",
+      "to": "execute",
+      "label": "повтор после очереди",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "execute-remember",
+      "from": "execute",
+      "to": "remember",
+      "label": "ActionResult",
+      "variant": "emphasis"
+    },
+    {
+      "id": "loop-recall",
+      "from": "remember",
+      "to": "recall",
+      "label": "следующая итерация",
+      "variant": "dashed",
+      "role": "return"
+    },
+    {
+      "id": "remember-finalize",
+      "from": "remember",
+      "to": "finalize",
+      "label": "бюджет исчерпан",
+      "variant": "default"
+    },
+    {
+      "id": "start-observe-return",
+      "from": "observe",
+      "to": "recall",
+      "variant": "default",
+      "role": "return"
+    }
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "start"
+    ],
+    "allowedTerminals": [
+      "finalize"
+    ]
+  },
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "SGR-петля",
+      "items": [
+        "Каждая итерация: наблюдение → контекст памяти → одно решение → одно действие",
+        "Схема решения объявляется средой и проверяется до выполнения"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Отказы",
+      "items": [
+        "Невалидная схема починяется и повторяется без потери шага",
+        "409 RUN_BUSY означает очередь симулятора, а не ошибку агента"
+      ]
+    }
+  ]
+}

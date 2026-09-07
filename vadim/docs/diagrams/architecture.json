@@ -1,0 +1,306 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Архитектура агента Uptick (SGR)",
+    "output": "docs/diagrams/architecture.html",
+    "viewBox": [
+      1000,
+      640
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "cli",
+      "type": "backend",
+      "label": "CLI",
+      "sublabel": "run · benchmark",
+      "pos": [
+        24,
+        320
+      ],
+      "size": [
+        100,
+        54
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "backend",
+      "label": "AgentRunner",
+      "sublabel": "цикл SGR",
+      "pos": [
+        216,
+        310
+      ],
+      "size": [
+        148,
+        72
+      ],
+      "tag": "runs/execute.py"
+    },
+    {
+      "id": "dmodel",
+      "type": "backend",
+      "label": "DecisionModel",
+      "sublabel": "одна схема",
+      "pos": [
+        440,
+        90
+      ],
+      "size": [
+        118,
+        54
+      ]
+    },
+    {
+      "id": "llm_gw",
+      "type": "backend",
+      "label": "LLM Gateway",
+      "sublabel": "decision_model.py",
+      "pos": [
+        630,
+        90
+      ],
+      "size": [
+        112,
+        54
+      ]
+    },
+    {
+      "id": "providers",
+      "type": "cloud",
+      "label": "Провайдеры",
+      "sublabel": "OpenAI · Codex",
+      "pos": [
+        850,
+        90
+      ],
+      "size": [
+        128,
+        54
+      ]
+    },
+    {
+      "id": "env",
+      "type": "backend",
+      "label": "Environment",
+      "sublabel": "адаптер v1/v2",
+      "pos": [
+        630,
+        230
+      ],
+      "size": [
+        130,
+        58
+      ]
+    },
+    {
+      "id": "simapi",
+      "type": "external",
+      "label": "SRE-симулятор",
+      "sublabel": "HTTP API v2",
+      "pos": [
+        850,
+        230
+      ],
+      "size": [
+        128,
+        56
+      ]
+    },
+    {
+      "id": "memory",
+      "type": "backend",
+      "label": "MemoryOrchestrator",
+      "sublabel": "контекст + запись",
+      "pos": [
+        400,
+        410
+      ],
+      "size": [
+        150,
+        62
+      ]
+    },
+    {
+      "id": "derived",
+      "type": "database",
+      "label": "Производные модули",
+      "sublabel": "уроки · мир (эксп.)",
+      "pos": [
+        600,
+        360
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "episodic",
+      "type": "database",
+      "label": "Episodic v1.2",
+      "sublabel": "эпизоды + исходы",
+      "pos": [
+        600,
+        470
+      ],
+      "size": [
+        130,
+        54
+      ]
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "SQLite Store",
+      "sublabel": "namespace · provenance",
+      "pos": [
+        820,
+        415
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "observer",
+      "type": "messagebus",
+      "label": "RunObserver",
+      "sublabel": "trace.jsonl",
+      "pos": [
+        216,
+        520
+      ],
+      "size": [
+        148,
+        54
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Порт AgentMemory",
+      "wraps": [
+        "memory",
+        "derived",
+        "episodic",
+        "sqlite"
+      ],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "from": "cli",
+      "to": "runner",
+      "label": "запуск",
+      "variant": "default"
+    },
+    {
+      "from": "runner",
+      "to": "dmodel",
+      "label": "контекст решения",
+      "variant": "emphasis"
+    },
+    {
+      "from": "dmodel",
+      "to": "llm_gw",
+      "label": "генерация",
+      "variant": "emphasis"
+    },
+    {
+      "from": "llm_gw",
+      "to": "providers",
+      "label": "HTTPS / SDK",
+      "variant": "default"
+    },
+    {
+      "from": "runner",
+      "to": "env",
+      "label": "действие",
+      "variant": "emphasis"
+    },
+    {
+      "from": "env",
+      "to": "simapi",
+      "label": "HTTP API v2",
+      "variant": "default"
+    },
+    {
+      "from": "runner",
+      "to": "memory",
+      "label": "контекст + переходы",
+      "variant": "emphasis",
+      "labelAt": [
+        440,
+        396
+      ]
+    },
+    {
+      "from": "memory",
+      "to": "derived",
+      "label": "модули",
+      "variant": "dashed"
+    },
+    {
+      "from": "memory",
+      "to": "episodic",
+      "label": "эпизоды",
+      "variant": "dashed"
+    },
+    {
+      "from": "episodic",
+      "to": "sqlite",
+      "label": "запись",
+      "variant": "default"
+    },
+    {
+      "from": "derived",
+      "to": "sqlite",
+      "label": "знания",
+      "variant": "dashed"
+    },
+    {
+      "from": "runner",
+      "to": "observer",
+      "label": "шаги и результаты",
+      "variant": "dashed",
+      "labelAt": [
+        290,
+        480
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Стабильные порты",
+      "items": [
+        "AgentMemory, DecisionModel, Environment и RunObserver — контракты в ports.py",
+        "Основной цикл AgentRunner не знает ни про OpenAI, ни про HTTP, ни про JSONL"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Подсистема памяти",
+      "items": [
+        "Рабочий профиль: episodic v1.2 + лексическое ранжирование в SQLite",
+        "Уроки, мир, паттерны и консолидация — опциональные экспериментальные модули"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Граница среды",
+      "items": [
+        "Схема решения обязательна и объявляется средой",
+        "Доступы к панели и серверам обрабатываются внутри HTTP-клиента"
+      ]
+    }
+  ]
+}

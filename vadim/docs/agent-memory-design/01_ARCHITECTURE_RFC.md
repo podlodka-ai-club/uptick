@@ -1,6 +1,11 @@
 # RFC — Modular Cognitive Memory Architecture
 
-Status: **Proposed**
+Status: **Proposed** (original design decision status).
+
+Implementation note, 2026-09-06: experimental implementations and evaluations
+now exist. This historical proposal is not the current execution-status source;
+see [the guide](EXPERIMENTAL_MEMORY_GUIDE.md) and [current handoff](../../HANDOFF.md).
+Implementation does not establish learning utility or default promotion.
 
 ## 1. Context
 

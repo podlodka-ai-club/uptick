@@ -1,0 +1,49 @@
+Use case: infographic-diagram.
+Create one beautiful editorial infographic in Russian about the Vadim SRE agent, portrait 2:3, high resolution, razor-sharp Cyrillic typography. This is a concise technical retrospective for sharing. Restrained Swiss editorial design, warm ivory background, near-black typography, cobalt blue accent, a small muted terracotta accent for limitations, precise grid, generous whitespace, fine rules, large clean numeric typography. Not a dashboard of rounded cards. No robots, brains, sparkles, gradients, 3D, fake logos, decorative tech circuits, marketing hype, excessive pictograms. Flat finished graphic, no mockup or surrounding frame.
+
+Layout: strong title; compact three-column stack strip; central paired horizontal bar comparison with exact numbers and honest caveat; bottom two-column findings; short full-width next-week line. Integrate visual hierarchy instead of rendering a document full of prose. All text below is verbatim Russian, clear and readable. Use only the following visible text, no invented facts.
+
+Title: «АГЕНТ VADIM»
+Subtitle: «SRE-симулятор · стек и результаты»
+
+Stack strip with three groups:
+«ОСНОВА»
+«Python · Pydantic · HTTPX»
+«Типизированные решения»
+«ПАМЯТЬ»
+«Свой движок · SQLite»
+«Эпизоды и лексический поиск»
+«МОДЕЛЬ»
+«gpt-5.6-terra»
+«Закрытая · reasoning medium»
+Below strip, one secondary line: «Без дообучения весов · опыт сохраняется в памяти»
+And a small line: «Отдельный эксперимент: открытая all-MiniLM-L6-v2 для поиска»
+
+Central section:
+«ОДНА ПАРА ПРОГОНОВ»
+«Оба варианта: 48 часов · 100 баллов»
+Two accurate horizontal bars from a common zero baseline, lengths proportional to 12.68 and 8.65. Label first «Память текущего запуска» and value «12,68 млн токенов». Label second «+ Опыт прошлых запусков» and value «8,65 млн токенов».
+Large nearby numeric annotation «−32%» with label «токенов».
+Second compact numeric annotation «−4,5%» with label «расходов симулятора».
+Directly below, conspicuous legible caveat, not microscopic: «Одна пара: причинный эффект памяти не доказан.»
+
+Bottom two columns, editorial rules separating:
+Left title «СТОИТ ПЕРЕИСПОЛЬЗОВАТЬ»
+Three concise rows:
+«Раздельные модель, память и среда»
+«Эпизоды с проверяемыми источниками»
+«Замороженный корпус для оценки»
+Right title «ПОКА НЕ ОКУПИЛОСЬ»
+Three concise rows:
+«Полный набор памяти: +31% токенов»
+«На простой задаче результат тот же»
+«Граф и переформулирование: без прироста точности*»
+Small immediately following footnote «* На небольшом тестовом наборе.»
+
+Bottom full width callout:
+«ЕЩЁ ОДНА НЕДЕЛЯ»
+«Надёжность длинных прогонов → повторяемые сравнения»
+Supporting line «В серии с цепочками: 5 из 6 попыток прерваны по таймауту решения.»
+
+Footer: «По материалам vadim · 07.09.2026»
+Keep the overall poster compact, legible and deliberate. Numbers refer to distinct experiments; visually separate the paired SRE result from the full-memory simple-task result. No claim of money saved on LLM billing.

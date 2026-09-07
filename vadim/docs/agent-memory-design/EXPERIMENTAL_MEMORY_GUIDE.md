@@ -4,7 +4,30 @@ All newly implemented memory mechanisms remain experimental. A completed
 implementation or passing integration test does not demonstrate better SRE
 behavior, generalisation, or eligibility for default promotion.
 
+Current user-selected decision model (2026-09-05): `gpt-5.6-terra`, reasoning
+`medium`, through the Codex subscription provider. The CLI Codex fallback and
+new integration/learning-cycle manifests use these defaults. Explicit CLI/model
+environment overrides still take precedence. Historical sealed Sol/low runs
+retain their original model and settings; model changes are a separate factor
+in any subsequent effectiveness comparison.
+
 ## Composition
+
+Optional raw episodic recall is declared with MemoryConfiguration schema1.4,
+`episodic.enabled=True` and `episodic_recall=EpisodicRecallSettings()` from
+`uptick_agent.memory.settings`. It cannot be enabled in a default profile.
+Omitting it preserves earlier canonical configurations and completed-only
+cross-run eligibility. The opt-in admits finalized `completed`, `failed` and
+`interrupted` runs, excluding cross-run `excluded` or absent outcomes. Same-run
+working memory remains available before finalization.
+
+Its untrusted episode view includes source execution status, finalization time,
+stop reason (256characters, explicit truncation marker), and an exact ordered
+prefix of public final objective metrics (1024serializedbytes, omitted count).
+Execution completion is not objective success. Missing outcomes explicitly have
+unknown terminality. Episodic version1.1 query-match excerpts compose with this
+setting. Derived-knowledge validation, source identity and promotion gates are
+unchanged. See [the development evidence](PERSISTENT_RECALL_RESULTS.md).
 
 `AgentRunner` still consumes one `AgentMemory` port. The experiment composition
 root in `experimental_runtime.py` builds the real enabled modules, with no
@@ -29,7 +52,9 @@ retrieval, and A8 minus tool knowledge. The minus-contradiction condition is
 explicitly unsupported: contradiction validation is mandatory acceptance
 infrastructure. The structured ablation removes structured features while
 retaining the same advanced lexical, diversity and deduplication controls.
-Semantic retrieval is unsupported and rejected explicitly when requested.
+The ordinary evaluation factory does not inject a semantic strategy and rejects
+semantic configuration without one. Explicit semantic/reasoned composition is
+available through the optional Stage 10 ports described below.
 
 Every implementation setting is part of the resolved configuration or the
 pinned implementation version/source. Experimental presets allocate 4000
@@ -37,6 +62,29 @@ estimated context units per module and 16000 globally. The estimator is a
 conservative UTF-8 byte upper bound, not provider-reported token usage. The
 smaller earlier module cap of 1000 rejected all 26 real episode views checked
 from development pilot 9. Generic legacy defaults are unchanged.
+
+An optional episodic implementation version `1.1` adds one bounded exact
+query-match window when ordinary prefixes hide a matching token. Select it via
+`MemoryConfiguration.episodic.version`; default `1.0` is unchanged. This is a
+mechanically tested evidence-visibility change, with no demonstrated behavioral
+utility. Its added bytes count toward existing context admission budgets. See
+[EPISODIC_EXCERPT_RESULTS.md](EPISODIC_EXCERPT_RESULTS.md) for limits and evidence.
+
+Experimental episodic version `1.2` retains the `1.1` selection and query-match
+windows, then spends unused existing context allowance on longer prefixes of
+the selected results. The module fetches only selected IDs and binds the full
+stored result to the original transition provenance and result hash. The
+orchestrator preserves selection identity and enforces the remaining module,
+artefact-type, and global byte limits. Source validation failure retains the
+admitted view with a visible warning; invalid returned identity or budget is an
+error. Defaults and version `1.1` remain unchanged.
+
+The offline nine-checkpoint replay retained every selected ID and stayed within
+8000 estimated bytes; only 3 of 18 results fit completely. Four short non-SRE
+tasks completed through the actual Terra/medium runner, but their results were
+already below 512 characters, so that check establishes compatibility only.
+Neither check establishes behavioral utility, smaller model context, or savings.
+Full-task evaluation remains required; no default promotion is implied.
 
 ## Evidence and visibility
 
@@ -202,8 +250,11 @@ must still match. Holds protect referenced records. Raw records and snapshots
 receive at least a 90-day floor from the post-training plan; audit and derived
 knowledge records follow project-lifetime retention.
 
-Physical deletion is not implemented. Supersession and age decay affect the
-operational episode retrieval view while retaining source records. Derived items
+Archive-preserving maintenance does not physically delete records. A separate
+physical-deletion CLI is implemented; its authorization, retention floors and
+source-reference checks are described in [Stage 12](STAGE12_RETENTION_GUIDE.md).
+Supersession and age decay affect the operational episode retrieval view while
+retaining source records. Derived items
 without a source-record identity are not age-decayed; their validity is controlled
 by revalidation and supersession. Extractive summaries
 remain candidate artifacts. Knowledge consolidation separately replays retained
@@ -224,3 +275,50 @@ activation and contradiction tests check contracts. Neither closes the final
 held-out learning-utility or default-promotion gates. A separate locked causal-
 family holdout, sufficient complete runs, and the required approval evidence
 are still necessary for those claims.
+
+## Optional retrieval and physical deletion
+
+Semantic embeddings and reasoned query formulation are explicit composition
+injections, not new default `evaluate-v2` factories. The sealed development
+comparison, exact API example and optional dependency/model pins are in
+[Stage 10 results](STAGE10_RETRIEVAL_RESULTS.md).
+
+For administrative retention, use the separate
+[Stage 12 guide](STAGE12_RETENTION_GUIDE.md). The existing maintenance command
+continues retaining source archives. Physical deletion requires a typed owner
+authorization and exact sealed plan; the online decision loop never invokes it.
+[Final assessment](FINAL_ASSESSMENT.md) distinguishes these mechanisms from
+held-out learning effectiveness and default promotion.
+
+
+## Optional complete views in run-local history
+
+The ordinary AgentRunner accepts `observation_complete_record_bytes=2000`.
+This is a constructor option, not a persisted AgentConfig field or CLI flag.
+The default `None` retains the original1000-byte record views. Each run creates
+fresh history before starting the environment; invalid limits fail before start.
+
+The history keeps the same baseline records and order under the existing8000-byte
+serialized context bound. With the option enabled, spare budget can replace a
+truncated view with its complete, immutable, redacted record up to the configured
+limit. It does not insert a longer arbitrary prefix or evict other baseline records
+to expand one. The complete-record bound is configurable;2000 is the tested choice.
+This mechanism is independent of the persistent-memory configuration fingerprint.
+Experiment manifests must record both settings explicitly.
+
+A fixed public-prefix replay restored omitted facts. Four ordinary-policy decisions
+on one old SRE context showed a consistent action difference; no environment
+actions ran in that probe, so full-task utility remains unproved. Integration tests
+cover unchanged defaults, fresh storage between runs, redaction and validation.
+See [persistent recall results](PERSISTENT_RECALL_RESULTS.md) for limits and evidence.
+
+
+The refreshed full SRE development attempts explicitly enable the 2000-byte
+complete-record option through the artifact harness, including attempt 4. It is
+therefore active in those runs, although it is not exposed as a general CLI flag.
+It does not prevent eviction by the overall 8000-byte history budget: exact
+prefix replay of attempt 4 matched all 40 contexts and showed two original
+error observations leaving history before later action reversals. Availability
+is distinct from utility; no causal benefit follows from these observations.
+See [external review disposition](EXTERNAL_REVIEW_2026-09-06.md) for current
+findings and the next bounded retrieval experiment.

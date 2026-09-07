@@ -1,9 +1,56 @@
+## Background calculation busy status compatibility (2026-09-06)
+
+The owner reports HTTP 429 while a background time advance is calculating. The
+public OpenAPI 0.8.1 fetched at 04:40 UTC still documents 409 RUN_BUSY and is identical
+to the attempt 4 contract. The adapter accepts either 409 or 429 **only with the
+explicit RUN_BUSY error code**, preserving the same validated operation_id and
+numeric Retry-After metadata. Other 429 errors are not treated as active time
+operations. No automatic action replay or simulator advancement is added.
+Policy 1.6 supplies the same existing operation-poll hint for either busy status.
+This compatibility behavior is tested offline; deployed 429 has not been observed.
+The already running attempt 4 remains on its frozen policy 1.5 capsule.
+
 # Simulator v2 boundary
+
+> Refresh 2026-09-06: the public deployment now reports API **0.7.1**,
+> SHA-256 `297574eddcb3f227cd8f3155ed4204b8f9a713af7e37f4fef6e34b2815f580d4`.
+> The 0.5.0 observations below describe the earlier deployment. New runs use
+> the public v13 generation contract and cost-bands.v1; identical seeds across
+> deployments do not establish identical worlds. See
+> [public tool coverage](agent-memory-design/PUBLIC_TOOL_COVERAGE.md).
+
 
 Implementation record, 2026-09-05. This is the live-simulator prerequisite for
 Stage 7, not evidence that a memory configuration improves performance.
 
-## Contract and compatibility
+## API 0.8.0 compatibility update (2026-09-06)
+
+The latest fetched public OpenAPI is **0.8.0** (SHA-256
+`d40dde070316bc15069aab13a08c6c5540587731dbc1fea2b653732b7d323472`).
+Its startup briefing hash is
+`71a29ea65353bac44f5012460dcde191fe82d9e3fcd58647ff919ccf714324ac`.
+The earlier version descriptions and experiments below remain historical.
+
+Only explicit time advancement now moves simulated time. Reads and model
+latency do not. Time advancement returns HTTP 202 with an operation ID; polling
+that `time.advance` operation returns its completed response under `result`.
+The adapter preserves this nesting, updates its clock only from a succeeded
+result, and distinguishes operation failure from run termination. Acceptance
+never establishes that time advanced. Legacy synchronous time responses and
+control-operation response shapes remain supported.
+
+During calculation, `RUN_BUSY` exposes only the validated public operation ID
+and numeric retry interval from the error. The adapter adds no implicit polling,
+mutation retries, or advances. The model follows the public startup protocol;
+policy 1.5 reads clocks from completed nested results and directs pending time
+operations to polling instead of blocked metric reads. Simulated control
+operations still need explicit time advancement to finish.
+
+Changing the simulator's clock semantics invalidates a controlled comparison
+with the earlier 0.7.1 runs. New runs must pin the new briefing and contract and
+report adapter/version changes separately from the experimental memory feature.
+
+## Historical contract and compatibility
 
 The deployed simulator at `http://81.176.229.58:8080` exposes v2. Its published
 `/openapi.yaml` identifies API version `0.5.0`; v1 `/start` returned HTTP 404 in

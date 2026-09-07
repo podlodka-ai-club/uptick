@@ -204,15 +204,20 @@ implementation work is delegated. All changes remain below `vadim/`.
   independent validation, immutable plans and idempotent application. Maintenance
   adds retained provenance links and summary/supersession deltas. This is a
   deterministic first implementation; it does not perform LLM dreaming.
-- Stage 10: replaceable lexical/structured ranking, diversity/deduplication and
-  operational decay. Semantic embeddings, graph expansion and learned query
-  formulation are unimplemented alternatives, not silently enabled features.
+- Stage 10: replaceable lexical/structured ranking, semantic embeddings, bounded
+  evidence-neighborhood scoring, confidence/recency/diversity and optional
+  reasoned query reformulation are implemented. The sealed 56-cell development
+  relevance comparison is in `STAGE10_RETRIEVAL_RESULTS.md`. Hybrid Hit@1 is
+  7/8 versus lexical 2/8; graph/reasoning adds no top-one gain on this fixture.
+  Extensions require explicit injection and are not promoted to defaults.
 - Stage 11: separate evidence-backed playbooks and tool knowledge.
-- Stage 12: retained-source summaries/links, duplicates, supersession, age decay,
-  holds and deletion eligibility policy. Age decay currently applies to source
-  episode IDs; derived knowledge is governed by validation/supersession. Physical
-  deletion is unimplemented;
-  retained storage can continue growing while the decision view is bounded.
+- Stage 12: retained-source summaries/links, duplicates, supersession and age
+  decay remain separate from the new administrative physical-deletion module.
+  Explicit sealed plans enforce raw retention, terminal-run completion floors,
+  holds, provenance, receipt payload removal and owner-attested snapshot
+  retirement. SQLite and in-memory apply paths recheck the complete inventory
+  atomically. See `STAGE12_RETENTION_GUIDE.md`; lifetime metadata remains
+  retained, and no constant total storage or secure-erasure claim is made.
 - Stage 13: A0–A9 plus four supported targeted configurations are executable.
   The completed matrix is recorded in `V2_LIVE_INTEGRATION_RESULTS.md`: 42/42
   cells have terminal records, with 41 completed and 1 interrupted; 0/42 passed
@@ -245,3 +250,11 @@ checks. The 600-second diagnostic remains incomplete (42 decisions, 14.4836%
 of the horizon); intermediate uptime is not an SLO result. Full evidence and the
 next bounded diagnosis experiment are in `OBSERVABILITY_RESULTS.md`.
 The immutable identity, held-out utility and promotion gates above remain open.
+
+## Current closeout
+
+`FINAL_ASSESSMENT.md` separates implementation coverage from the outstanding
+held-out learning gates. `ARCHITECTURE_HARDENING_RESULTS.md` records exact
+allowlists, SDK isolation and the tracked historical schema fixture.
+The latest SRE diagnostics and all provider failures are retained separately
+in `SRE_COMPLETION_RESULTS.md`; development runs do not replace Stage 13.

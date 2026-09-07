@@ -1,6 +1,10 @@
 # Architecture and plan audit — 2026-09-05
 
 The reviewed starting revision is `b3596cebb136bb2872c805dac527ca3f2407852b`.
+This is a historical assessment of the stated starting revision. Current
+follow-up evidence is in `ARCHITECTURE_HARDENING_RESULTS.md`,
+`STAGE10_RETRIEVAL_RESULTS.md` and `SRE_COMPLETION_RESULTS.md`.
+
 This assessment distinguishes implemented contracts, operational checks and
 measured agent effectiveness. It does not treat a large test suite or a large
 memory catalog as proof of better decisions.

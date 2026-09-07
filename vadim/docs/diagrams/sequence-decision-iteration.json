@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Одна итерация решения (v2)",
+    "output": "docs/diagrams/sequence-decision-iteration.html",
+    "viewBox": [
+      1000,
+      641
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    {
+      "id": "runner",
+      "type": "backend",
+      "label": "AgentRunner",
+      "sublabel": "runs/execute.py"
+    },
+    {
+      "id": "memory",
+      "type": "database",
+      "label": "Память",
+      "sublabel": "AgentMemory"
+    },
+    {
+      "id": "model",
+      "type": "backend",
+      "label": "DecisionModel",
+      "sublabel": "SGR"
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "LLM",
+      "sublabel": "gpt-5.6-terra"
+    },
+    {
+      "id": "sim",
+      "type": "external",
+      "label": "Симулятор v2",
+      "sublabel": "HTTP API"
+    },
+    {
+      "id": "trace",
+      "type": "messagebus",
+      "label": "RunObserver",
+      "sublabel": "trace.jsonl"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 300,
+      "label": "Наблюдение"
+    },
+    {
+      "from": 315,
+      "to": 470,
+      "label": "Память + решение"
+    },
+    {
+      "from": 485,
+      "to": 588,
+      "label": "Действие и запись"
+    }
+  ],
+  "messages": [
+    {
+      "id": "observe",
+      "from": "runner",
+      "to": "sim",
+      "y": 185,
+      "label": "публичный обзор",
+      "variant": "default"
+    },
+    {
+      "id": "observation",
+      "from": "sim",
+      "to": "runner",
+      "y": 215,
+      "label": "Observation",
+      "variant": "return"
+    },
+    {
+      "id": "build-context",
+      "from": "runner",
+      "to": "memory",
+      "y": 255,
+      "label": "build_context(state)",
+      "variant": "default"
+    },
+    {
+      "id": "context",
+      "from": "memory",
+      "to": "runner",
+      "y": 285,
+      "label": "DecisionMemoryContext",
+      "variant": "return"
+    },
+    {
+      "id": "decide",
+      "from": "runner",
+      "to": "model",
+      "y": 325,
+      "label": "decide(DecisionInput)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "sgr-request",
+      "from": "model",
+      "to": "llm",
+      "y": 355,
+      "label": "структурированная генерация",
+      "variant": "default"
+    },
+    {
+      "id": "sgr-response",
+      "from": "llm",
+      "to": "model",
+      "y": 385,
+      "label": "NextStep · схема ок",
+      "variant": "return"
+    },
+    {
+      "id": "execute",
+      "from": "runner",
+      "to": "sim",
+      "y": 430,
+      "label": "execute(типизированное действие)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "result",
+      "from": "sim",
+      "to": "runner",
+      "y": 460,
+      "label": "ActionResult",
+      "variant": "return"
+    },
+    {
+      "id": "record",
+      "from": "runner",
+      "to": "memory",
+      "y": 500,
+      "label": "record_transition(ExperienceTransition)",
+      "variant": "default"
+    },
+    {
+      "id": "trace-step",
+      "from": "runner",
+      "to": "trace",
+      "y": 535,
+      "label": "шаг в trace.jsonl",
+      "variant": "dashed"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "runner",
+      "from": 180,
+      "to": 575,
+      "type": "backend"
+    },
+    {
+      "participant": "memory",
+      "from": 250,
+      "to": 510,
+      "type": "database"
+    },
+    {
+      "participant": "model",
+      "from": 320,
+      "to": 395,
+      "type": "backend"
+    },
+    {
+      "participant": "llm",
+      "from": 350,
+      "to": 390,
+      "type": "cloud"
+    },
+    {
+      "participant": "sim",
+      "from": 180,
+      "to": 225,
+      "type": "external"
+    },
+    {
+      "participant": "sim",
+      "from": 425,
+      "to": 470,
+      "type": "external"
+    },
+    {
+      "participant": "trace",
+      "from": 530,
+      "to": 562,
+      "type": "messagebus"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Основной путь",
+      "items": [
+        "Одна итерация = наблюдение → контекст → решение → действие → запись",
+        "Модель всегда отвечает ровно одним действием по схеме среды"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Границы доверия",
+      "items": [
+        "Контекст памяти передаётся модели как untrusted-данные в фиксированном конверте",
+        "Секреты симулятора обрабатываются HTTP-клиентом и не попадают в промпт"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "Телеметрия",
+      "items": [
+        "Каждый шаг фиксируется в trace.jsonl с длительностью и результатом",
+        "Учитываются токены, кеш, запросы и повторы провайдера"
+      ]
+    }
+  ]
+}
