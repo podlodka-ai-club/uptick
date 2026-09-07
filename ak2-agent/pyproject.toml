@@ -1,0 +1,13 @@
+[project]
+name = "ak2-agent"
+version = "0.1.0"
+description = "World-independent Codex agent with self-adapting skills and isolated experience"
+requires-python = ">=3.12"
+dependencies = ["openai-codex==0.147.0", "pydantic>=2.12,<3", "httpx>=0.28.1,<0.29"]
+
+[project.scripts]
+ak2-agent = "ak2_agent.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"

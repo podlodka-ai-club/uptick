@@ -1,0 +1,53 @@
+[
+  {
+    "time_unix": 1788612188.642758,
+    "request_id": "ak2-56f2bb4c62574bb38bf8-d84df9e98b7b4a89b43023c1325f4b0d",
+    "method": "GET",
+    "path": "/v2/runs/8t8d1my1o5QXFrtBjoNPud8a/logs?from=2030-01-15T15%3A24%3A40Z&to=2030-01-15T15%3A25%3A44Z&limit=200",
+    "http_status": 200,
+    "body_complete": false,
+    "stage": "read_body",
+    "response_bytes": 2715,
+    "exception": "TimeoutError",
+    "elapsed_seconds": 10.627181,
+    "limits": {
+      "timeout_seconds": 10,
+      "budget_seconds": 15,
+      "max_response_bytes": 1048576
+    }
+  },
+  {
+    "time_unix": 1788612175.857471,
+    "request_id": "ak2-56f2bb4c62574bb38bf8-d84df9e98b7b4a89b43023c1325f4b0d",
+    "method": "GET",
+    "path": "/v2/runs/8t8d1my1o5QXFrtBjoNPud8a/logs?from=2030-01-15T15%3A24%3A40Z&to=2030-01-15T15%3A25%3A44Z&limit=200",
+    "http_status": 200,
+    "body_complete": false,
+    "stage": "read_body",
+    "response_bytes": 8259,
+    "exception": "TimeoutError",
+    "elapsed_seconds": 10.606592,
+    "limits": {
+      "timeout_seconds": 10,
+      "budget_seconds": 15,
+      "max_response_bytes": 1048576
+    }
+  },
+  {
+    "time_unix": 1788612164.0608761,
+    "request_id": "ak2-56f2bb4c62574bb38bf8-d84df9e98b7b4a89b43023c1325f4b0d",
+    "method": "GET",
+    "path": "/v2/runs/8t8d1my1o5QXFrtBjoNPud8a/logs?from=2030-01-15T15%3A24%3A40Z&to=2030-01-15T15%3A25%3A44Z&limit=200",
+    "http_status": 200,
+    "body_complete": false,
+    "stage": "read_body",
+    "response_bytes": 8259,
+    "exception": "TimeoutError",
+    "elapsed_seconds": 10.621594,
+    "limits": {
+      "timeout_seconds": 10,
+      "budget_seconds": 15,
+      "max_response_bytes": 1048576
+    }
+  }
+]

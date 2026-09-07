@@ -1,0 +1,102 @@
+[
+  {
+    "event_id": 4579,
+    "created": 1788625078.718795,
+    "mission": "Завершить Uptick run r3ysBAQe0Uxb3ZWZFV4JZS0q к 2030-09-15T21:00:00Z с uptime не ниже 99%, минимизируя стоимость инфраструктуры.",
+    "assessment": "Перегрузка сохраняется: свежий probe вернул SERVER_CAPACITY_EXCEEDED, нагрузка 5148 превышает мощность 3300. Простой достиг 4058.21 с; остаётся около 1989.79 с допустимого простоя полного запуска. Логи полностью покрыли выбранные 36 секунд, но не последующее время. Resources неполон, исторические операции не заменяют текущий снимок. Расширение необходимо; восстановление потребуется проверить отдельно.",
+    "plan": "Создать 34 backend.standard: ожидается 67 backend и мощность 6700. При равномерном распределении текущих 5148 units получится около 77 units на сервер, оставляя запас для запроса 22 units; распределение пока не подтверждено, один server.inspect показал нулевую нагрузку. Добавленная ставка 873800000 minor/ч, ожидаемая общая 1721903278 minor/ч. После отправки созданий продвинуть время на известные 300 с provisioning. Затем проверить все новые операции на succeeded, текущую мощность и оба маршрута, особенно product-003; сравнить downtime с 4058.205375631. При сохранении ошибки проверить сервер из свежих логов и распределение нагрузки. Новых удалений и длинного ожидания до восстановления не выбирать. БД server-aeoa6Xiv1XKATCn3OnSgli0a имеет достаточный диск. После восстановления оценить сокращение затрат по новой нагрузке.",
+    "tags": [
+      "uptick",
+      "capacity",
+      "incident",
+      "provisioning"
+    ],
+    "used_memory_ids": [
+      "uptick.per_backend_request_headroom",
+      "uptick.advance_provisioning_by_simulation_time"
+    ],
+    "lessons": [],
+    "actions": [
+      {
+        "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-overload-headroom\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+        "replay_safe": true,
+        "wait_for_completion": false,
+        "repeat_count": 34
+      },
+      {
+        "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":300}",
+        "replay_safe": true,
+        "wait_for_completion": true,
+        "repeat_count": 1
+      }
+    ],
+    "adaptation_request": null,
+    "pause_reason": null,
+    "accepted_lessons": [],
+    "learning_feedback": []
+  },
+  {
+    "event_id": 4371,
+    "created": 1788624425.933964,
+    "mission": "Завершить Uptick run r3ysBAQe0Uxb3ZWZFV4JZS0q к 2030-09-15T21:00:00Z с uptime не ниже 99%, минимизируя стоимость инфраструктуры.",
+    "assessment": "Причина установлена: product_page требует 22 единицы на одном backend, а каждый из 27 серверов имеет только 4 свободные. Общий запас 108 не обеспечивает выполнение запроса. БД ready, диск свободен. Свежие данные относятся к 21:55:29–37; прочитанный интервал ошибок до 21:55:28 исчерпан. Простой вырос на 52,93 с до 3655,96 с. При неизменной нагрузке 2592 минимально нужны 34 backend: добавляю семь.",
+    "plan": "Применяю operate и урок о provisioning. Создать семь backend.standard одновременно по симуляционному времени, затем продвинуть 300 с. Ожидаются 34 активных backend, capacity=3400 и около 24 свободных единиц на сервер при прежней нагрузке. Следующим наблюдением проверить succeeded новых операций и active ресурсов; затем проверить product_list и product_page/product-003, прекращение роста downtime и текущую нагрузку. До подтверждения восстановления не сокращать пул и не ждать длинный интервал. Общий допустимый простой 6048 с, остаток около 2392 с до этих действий. БД db-cfJecnBW59Lx4hOm3WGOF2vz исправна; миграция не требуется. После восстановления исследовать трафик для снижения расходов; WebCamera/1.0 сам по себе не основание блокировки.",
+    "tags": [
+      "uptick",
+      "capacity",
+      "incident-recovery"
+    ],
+    "used_memory_ids": [
+      "uptick.advance_provisioning_by_simulation_time"
+    ],
+    "lessons": [
+      {
+        "key": "uptick.per_backend_request_headroom",
+        "title": "Общий запас мощности не гарантирует выполнение отдельного запроса",
+        "body": "При распределении нагрузки между backend общий свободный ресурс пула может превышать стоимость запроса, но запрос всё равно завершается SERVER_CAPACITY_EXCEEDED, если выбранному серверу не хватает локального запаса. В таком случае оценивать достаточность мощности нужно также на уровне отдельного backend.",
+        "tags": [
+          "capacity",
+          "diagnosis",
+          "per-server"
+        ],
+        "procedure": [
+          "Сопоставить required и available из ошибки запроса с нагрузкой отдельных backend.",
+          "Проверить локальный запас для наиболее требовательного проверяемого маршрута.",
+          "После изменения мощности проверить маршрут и динамику простоя; общий запас сам по себе не считать восстановлением."
+        ],
+        "importance": 0.9,
+        "evidence_ids": [
+          1619
+        ],
+        "verdict": "supports",
+        "outcome": "failure",
+        "explanation": "Probe product_page завершился 500: required=22 available=4. Свежие ресурсы показывают 27 backend с нагрузкой 96 из 100 каждый, хотя суммарно свободно 108. Успех предлагаемого расширения ещё не установлен."
+      }
+    ],
+    "actions": [
+      {
+        "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-request-headroom\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+        "replay_safe": true,
+        "wait_for_completion": false,
+        "repeat_count": 7
+      },
+      {
+        "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":300}",
+        "replay_safe": true,
+        "wait_for_completion": true,
+        "repeat_count": 1
+      }
+    ],
+    "adaptation_request": null,
+    "pause_reason": null,
+    "accepted_lessons": [
+      "uptick.per_backend_request_headroom"
+    ],
+    "learning_feedback": [
+      {
+        "key": "uptick.per_backend_request_headroom",
+        "accepted": true
+      }
+    ]
+  }
+]

@@ -1,0 +1,74 @@
+{
+  "local_run": "ak2-8953e8b9a3574c559a50",
+  "request_id": "ak2-8953e8b9a3574c559a50-1101484be09841c58f9dfe3a3f35d532",
+  "action": {
+    "kind": "advance_time",
+    "duration_seconds": 1800,
+    "stop_when": {
+      "new_log_errors": 1
+    }
+  },
+  "error": {
+    "http_status": 409,
+    "response": {
+      "error": "CONCURRENT_RUN_REQUEST",
+      "message": "another request for this run is in progress"
+    },
+    "http_call": {
+      "method": "POST",
+      "path": "/v2/runs/r3ysBAQe0Uxb3ZWZFV4JZS0q/time/advance",
+      "limits": {
+        "timeout_seconds": 25,
+        "budget_seconds": 30,
+        "max_response_bytes": 4194304
+      },
+      "request_body": {
+        "request_id": "ak2-8953e8b9a3574c559a50-1101484be09841c58f9dfe3a3f35d532",
+        "duration_seconds": 1800,
+        "stop_when": {
+          "new_log_errors": 1
+        }
+      },
+      "response_headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "name": "Date",
+          "value": "Sat, 05 Sep 2026 16:09:24 GMT"
+        },
+        {
+          "name": "Content-Length",
+          "value": "91"
+        },
+        {
+          "name": "Connection",
+          "value": "close"
+        }
+      ],
+      "body_complete": true,
+      "json_complete": true,
+      "response_bytes": 91,
+      "read_chunks": 1,
+      "stage": "complete",
+      "network_attempted": true,
+      "http_status": 409,
+      "framing": {
+        "http_version": 11,
+        "content_length": "91",
+        "transfer_encoding": null,
+        "content_encoding": null,
+        "connection": "close",
+        "mode": "content_length",
+        "remaining_content_length": 0,
+        "remaining_chunk_bytes": "UNKNOWN",
+        "framing_complete": true
+      },
+      "first_body_bytes_seconds": 0.000209,
+      "last_body_bytes_seconds": 0.000209,
+      "elapsed_seconds": 0.497682
+    },
+    "advance_application": "unknown"
+  }
+}

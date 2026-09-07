@@ -1,0 +1,640 @@
+{
+  "status": "supervised_full_week_verified",
+  "recorded_at": "2026-09-05T16:47:31.180777+00:00",
+  "note": "Seed 67 completed 604800 simulated seconds with explicit SLO pass, independently verified by overview. All local experiment processes have terminated; seeds 23/42/89 have resumable checkpoints. This is not a fully unattended fixed-build evaluation.",
+  "runs": [
+    {
+      "id": "ak2-ba87989c910144ce884c",
+      "seed": 23,
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "status": "paused",
+      "step": 78,
+      "decisions": 81,
+      "knowledge_hash": "a665409a9895c7d486d2e980c62b3a35874c5c4eb7d4289afa42cb8211763c05",
+      "runtime_versions": [
+        {
+          "hash": "64f5dbb6393c2f311b3566f666983f9b0b83f8ce974935ed86c7982482f4bad9",
+          "started": 1788602958.485183
+        },
+        {
+          "hash": "4946c2f01e63d2a70609d48c9d001aa98517068a1fc0ee41ff4dfb297b47da5e",
+          "started": 1788604145.54565
+        },
+        {
+          "hash": "415d1be4d77dea12bc695b85981c69d429b37ba6b9e25728a4171d261864efc5",
+          "started": 1788604984.003192
+        },
+        {
+          "hash": "d0524d52107b541babc65c0c4526d6a956131d397ff79a41c2f47d32950a4ed0",
+          "started": 1788605394.239497
+        },
+        {
+          "hash": "45efb029be38dbe65b73cf6d29aa3d592c9104738d01fef14d7339b91c9ec83a",
+          "started": 1788605887.058621
+        },
+        {
+          "hash": "8748d4479d2002615613ff739a31801606143dd583b37440e9dcee6c37d09916",
+          "started": 1788606453.624583
+        },
+        {
+          "hash": "d047242e0fcfc3b43065ea207538ca75c0adaef4798c5ef0f362da401eeb7409",
+          "started": 1788606675.541759
+        },
+        {
+          "hash": "bbc878672ec36909a331915cdb16bce39363c9c06eefe3ef8d575fdcc18e1a3f",
+          "started": 1788606960.6324868
+        },
+        {
+          "hash": "0abcec948604f54455d216acfef98f75488c1fd757ced83fa58704b6a6f8c607",
+          "started": 1788612861.395539
+        },
+        {
+          "hash": "3e9141b9ab2e071098e7edb1b9ead2f654945f24b0258eab92afc8d098fca6aa",
+          "started": 1788613029.046889
+        },
+        {
+          "hash": "da6e9ed53ae4105fe0f7d43322b05bad10c3e3144dd8a540ff91f37dc7a491a3",
+          "started": 1788613278.905615
+        },
+        {
+          "hash": "852e9e4275a0d25b75dbc0a1e7ffce8ad464a732fe65e8e325e3ce6e981453e6",
+          "started": 1788614100.372295
+        }
+      ],
+      "error": "Action outcome is unknown; queue and request_id preserved. Resume retries the same request only when replay_safe",
+      "pause_reason": "Внешнее препятствие: GET /v2/runs/{run_id}/logs с исходными from=2030-07-30T12:37:00Z, to=2030-07-30T12:38:00Z и limit=1000 повторно не возвращает полный JSON. Последняя проверка получила HTTP 200 и 2715 байт, оборванных внутри строки, после чего истёк установленный socket timeout 10 секунд при общем бюджете 15 секунд. Две серии безопасных повторов не восстановили ответ; новых документированных средств его получения нет. Возобновление возможно после восстановления полной выдачи этой страницы сервером в заданных пределах либо появления документированного способа получить эквивалентный полный ответ. При возобновлении сохранить исходные параметры и прежний request_id; частичный ответ результатом не считать.",
+      "observation_seconds": 2.73,
+      "process_terminal": "exit_0",
+      "supervisor_note": "Agent requested pause after supervised read-only adapter review: exact logs page repeatedly returns incomplete HTTP 200 JSON; failure reflection saved, no new lessons.",
+      "done": false,
+      "success": null,
+      "clock": {
+        "simulation_time": "2030-07-30T12:48:56.189434299Z",
+        "simulation_ends_at": "2030-08-04T21:00:00Z",
+        "remaining_seconds": 461463.810565701,
+        "real_elapsed_seconds": 1.092884573,
+        "applied_advance_seconds": 1.092884573
+      },
+      "availability": {
+        "uptime_target": 0.99,
+        "observed_seconds": 143336.189434299,
+        "available_seconds": 137555.611068899,
+        "downtime_seconds": 5780.5783654,
+        "uptime_ratio": 0.9596711871006613,
+        "slo_passed": null
+      },
+      "metrics": {
+        "clock": {
+          "simulation_time": "2030-07-30T12:48:57.974201074Z",
+          "simulation_ends_at": "2030-08-04T21:00:00Z",
+          "remaining_seconds": 461462.025798926,
+          "real_elapsed_seconds": 0.585010631,
+          "applied_advance_seconds": 0.585010631
+        },
+        "current": {
+          "server_count": 2,
+          "capacity_units": 200,
+          "used_load_units": 39,
+          "capacity_utilization": 0.195,
+          "active_requests": 3,
+          "database_active_connections": 0,
+          "database_connection_limit": 100,
+          "disk_total_bytes": 75161927680,
+          "disk_system_bytes": 0,
+          "disk_database_bytes": 7289952653,
+          "disk_logs_bytes": 200295616,
+          "disk_free_bytes": 67671679411,
+          "responses_200": 35938,
+          "responses_403": 0,
+          "responses_500": 531,
+          "responses_503": 0,
+          "error_rate": 0.014560311497436178,
+          "latency_p50_ms": 52,
+          "latency_p95_ms": 67,
+          "server_cost_minor": 7401634773,
+          "backup_storage_cost_minor": 0,
+          "total_cost_minor": 7401634773,
+          "current_cost_per_hour_minor": 51403473,
+          "observed_seconds": 143337.974201074,
+          "available_seconds": 137557.395835674,
+          "downtime_seconds": 5780.5783654,
+          "uptime_ratio": 0.959671689253184,
+          "by_page": [
+            {
+              "page": "product_list",
+              "active_requests": 2,
+              "used_load_units": 20,
+              "responses_200": 19415,
+              "responses_403": 0,
+              "responses_500": 496,
+              "responses_503": 0,
+              "error_rate": 0.02491085329717242
+            },
+            {
+              "page": "product_page",
+              "active_requests": 1,
+              "used_load_units": 19,
+              "responses_200": 16523,
+              "responses_403": 0,
+              "responses_500": 35,
+              "responses_503": 0,
+              "error_rate": 0.002113781857712284
+            }
+          ]
+        },
+        "series": []
+      }
+    },
+    {
+      "id": "ak2-56f2bb4c62574bb38bf8",
+      "seed": 42,
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "status": "paused",
+      "step": 180,
+      "decisions": 182,
+      "knowledge_hash": "ddd3d403adf102d6744c3f9028a272c9ea5ae376ccfc129979e2f72eec7116eb",
+      "runtime_versions": [
+        {
+          "hash": "64f5dbb6393c2f311b3566f666983f9b0b83f8ce974935ed86c7982482f4bad9",
+          "started": 1788602957.992529
+        },
+        {
+          "hash": "c1086c06c1d4a56574d5299452ceecc4a0ee6592e76d5336da9bec4351328d02",
+          "started": 1788603805.3599129
+        },
+        {
+          "hash": "4946c2f01e63d2a70609d48c9d001aa98517068a1fc0ee41ff4dfb297b47da5e",
+          "started": 1788604077.240712
+        },
+        {
+          "hash": "415d1be4d77dea12bc695b85981c69d429b37ba6b9e25728a4171d261864efc5",
+          "started": 1788605007.355327
+        },
+        {
+          "hash": "d0524d52107b541babc65c0c4526d6a956131d397ff79a41c2f47d32950a4ed0",
+          "started": 1788605399.135027
+        },
+        {
+          "hash": "45efb029be38dbe65b73cf6d29aa3d592c9104738d01fef14d7339b91c9ec83a",
+          "started": 1788605890.994123
+        },
+        {
+          "hash": "8748d4479d2002615613ff739a31801606143dd583b37440e9dcee6c37d09916",
+          "started": 1788606457.788948
+        },
+        {
+          "hash": "d047242e0fcfc3b43065ea207538ca75c0adaef4798c5ef0f362da401eeb7409",
+          "started": 1788606719.590613
+        },
+        {
+          "hash": "bbc878672ec36909a331915cdb16bce39363c9c06eefe3ef8d575fdcc18e1a3f",
+          "started": 1788606992.4839768
+        },
+        {
+          "hash": "495e1a429745d5e878fc74572f481cb7e036735ea666953fbc9e516393db600a",
+          "started": 1788608235.49531
+        },
+        {
+          "hash": "268e5728f705fbd24f7c73930e7c7595e78fbbaef971808aa2ead907cb9ba40e",
+          "started": 1788608517.890402
+        },
+        {
+          "hash": "8ba32980ee11ec01ab2b8de5ef95c6a2df3727e32f758ccc0116bb6abb69b7d8",
+          "started": 1788608972.4616718
+        },
+        {
+          "hash": "bd70e11cf2dfd897c069a293277c803d32cfccfd5fa10997bb736afb3f3750af",
+          "started": 1788610301.0781498
+        },
+        {
+          "hash": "25bd6a84ce39d0bb332cbb1473aaa78e71dc32f12b78795b82f9585064131738",
+          "started": 1788611709.2607732
+        },
+        {
+          "hash": "0abcec948604f54455d216acfef98f75488c1fd757ced83fa58704b6a6f8c607",
+          "started": 1788612602.204326
+        },
+        {
+          "hash": "3e9141b9ab2e071098e7edb1b9ead2f654945f24b0258eab92afc8d098fca6aa",
+          "started": 1788613018.417768
+        },
+        {
+          "hash": "da6e9ed53ae4105fe0f7d43322b05bad10c3e3144dd8a540ff91f37dc7a491a3",
+          "started": 1788613213.344249
+        },
+        {
+          "hash": "852e9e4275a0d25b75dbc0a1e7ffce8ad464a732fe65e8e325e3ce6e981453e6",
+          "started": 1788614094.7332008
+        },
+        {
+          "hash": "57a36a328d8637fc6c81170ede0aef509ea411e3fcd0a97dd3a4697a5ba6357d",
+          "started": 1788619832.198813
+        }
+      ],
+      "error": "KeyboardInterrupt",
+      "pause_reason": null,
+      "observation_seconds": 3.228,
+      "process_terminal": "exit_130",
+      "supervisor_note": "Supervisor paused infeasible SLO experiment with SIGINT and saved checkpoint at step 180; downtime exceeded full-week 1% budget. World not terminal. Prioritize seeds67/89.",
+      "done": false,
+      "success": null,
+      "clock": {
+        "simulation_time": "2030-01-18T07:04:24.36836925Z",
+        "simulation_ends_at": "2030-01-20T21:00:00Z",
+        "remaining_seconds": 222935.63163075,
+        "real_elapsed_seconds": 0.87145073,
+        "applied_advance_seconds": 0.87145073
+      },
+      "availability": {
+        "uptime_target": 0.99,
+        "observed_seconds": 381864.36836925,
+        "available_seconds": 375771.135676354,
+        "downtime_seconds": 6093.232692896,
+        "uptime_ratio": 0.9840434636022284,
+        "slo_passed": null
+      },
+      "metrics": {
+        "clock": {
+          "simulation_time": "2030-01-18T07:04:25.201646495Z",
+          "simulation_ends_at": "2030-01-20T21:00:00Z",
+          "remaining_seconds": 222934.798353505,
+          "real_elapsed_seconds": 0.833277245,
+          "applied_advance_seconds": 0.833277245
+        },
+        "current": {
+          "server_count": 5,
+          "capacity_units": 500,
+          "used_load_units": 544,
+          "capacity_utilization": 1.088,
+          "active_requests": 2,
+          "database_active_connections": 0,
+          "database_connection_limit": 400,
+          "disk_total_bytes": 96636764160,
+          "disk_system_bytes": 0,
+          "disk_database_bytes": 12509701670,
+          "disk_logs_bytes": 0,
+          "disk_free_bytes": 84127062490,
+          "responses_200": 101870,
+          "responses_403": 0,
+          "responses_500": 1074,
+          "responses_503": 71,
+          "error_rate": 0.011114886181624036,
+          "latency_p50_ms": 61,
+          "latency_p95_ms": 175,
+          "server_cost_minor": 19634970553,
+          "backup_storage_cost_minor": 71200,
+          "total_cost_minor": 19635041753,
+          "current_cost_per_hour_minor": 128504378,
+          "observed_seconds": 381865.201646495,
+          "available_seconds": 375771.135676354,
+          "downtime_seconds": 6094.065970141,
+          "uptime_ratio": 0.9840413162973083,
+          "by_page": [
+            {
+              "page": "product_list",
+              "active_requests": 1,
+              "used_load_units": 526,
+              "responses_200": 55318,
+              "responses_403": 0,
+              "responses_500": 603,
+              "responses_503": 71,
+              "error_rate": 0.012037433919131304
+            },
+            {
+              "page": "product_page",
+              "active_requests": 1,
+              "used_load_units": 18,
+              "responses_200": 46552,
+              "responses_403": 0,
+              "responses_500": 471,
+              "responses_503": 0,
+              "error_rate": 0.010016374965442443
+            }
+          ]
+        },
+        "series": []
+      }
+    },
+    {
+      "id": "ak2-82171be0d39048e9bcea",
+      "seed": 67,
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "status": "finished",
+      "step": 305,
+      "decisions": 310,
+      "knowledge_hash": "cef5ab711914e35293524b12c76bc7dea10c419719b1b9291aaa383374714da0",
+      "runtime_versions": [
+        {
+          "hash": "4946c2f01e63d2a70609d48c9d001aa98517068a1fc0ee41ff4dfb297b47da5e",
+          "started": 1788604346.970285
+        },
+        {
+          "hash": "415d1be4d77dea12bc695b85981c69d429b37ba6b9e25728a4171d261864efc5",
+          "started": 1788604989.401866
+        },
+        {
+          "hash": "d0524d52107b541babc65c0c4526d6a956131d397ff79a41c2f47d32950a4ed0",
+          "started": 1788605405.226083
+        },
+        {
+          "hash": "45efb029be38dbe65b73cf6d29aa3d592c9104738d01fef14d7339b91c9ec83a",
+          "started": 1788605897.005441
+        },
+        {
+          "hash": "8748d4479d2002615613ff739a31801606143dd583b37440e9dcee6c37d09916",
+          "started": 1788606463.068827
+        },
+        {
+          "hash": "d047242e0fcfc3b43065ea207538ca75c0adaef4798c5ef0f362da401eeb7409",
+          "started": 1788606699.879929
+        },
+        {
+          "hash": "bbc878672ec36909a331915cdb16bce39363c9c06eefe3ef8d575fdcc18e1a3f",
+          "started": 1788606969.475304
+        },
+        {
+          "hash": "495e1a429745d5e878fc74572f481cb7e036735ea666953fbc9e516393db600a",
+          "started": 1788608268.684392
+        },
+        {
+          "hash": "268e5728f705fbd24f7c73930e7c7595e78fbbaef971808aa2ead907cb9ba40e",
+          "started": 1788608448.407466
+        },
+        {
+          "hash": "8ba32980ee11ec01ab2b8de5ef95c6a2df3727e32f758ccc0116bb6abb69b7d8",
+          "started": 1788608976.4058502
+        },
+        {
+          "hash": "bd70e11cf2dfd897c069a293277c803d32cfccfd5fa10997bb736afb3f3750af",
+          "started": 1788610269.080632
+        },
+        {
+          "hash": "0abcec948604f54455d216acfef98f75488c1fd757ced83fa58704b6a6f8c607",
+          "started": 1788612851.8529751
+        },
+        {
+          "hash": "3e9141b9ab2e071098e7edb1b9ead2f654945f24b0258eab92afc8d098fca6aa",
+          "started": 1788613014.3986502
+        },
+        {
+          "hash": "da6e9ed53ae4105fe0f7d43322b05bad10c3e3144dd8a540ff91f37dc7a491a3",
+          "started": 1788613208.786237
+        },
+        {
+          "hash": "852e9e4275a0d25b75dbc0a1e7ffce8ad464a732fe65e8e325e3ce6e981453e6",
+          "started": 1788614084.415841
+        },
+        {
+          "hash": "57a36a328d8637fc6c81170ede0aef509ea411e3fcd0a97dd3a4697a5ba6357d",
+          "started": 1788619822.661131
+        },
+        {
+          "hash": "a797e660f4c2b7420c542d85e36a84aa88e38514edeb7809ebfc34953829d602",
+          "started": 1788621017.721884
+        },
+        {
+          "hash": "f223ef6b630d8a3362b9c830cf7956fc259f1446cc866164099004cae9fe4591",
+          "started": 1788621754.506377
+        },
+        {
+          "hash": "ce400af563bd8e21fbf079cc921ad2b78fbdb9328edd53a2febb60b746fe9cba",
+          "started": 1788622572.235116
+        }
+      ],
+      "error": null,
+      "pause_reason": null,
+      "observation_seconds": 3.965,
+      "process_terminal": "exit_0",
+      "supervisor_note": "Completed full seven-day world; explicit SLO pass independently verified by GET overview; final reflection persisted, exit 0.",
+      "done": true,
+      "success": true,
+      "clock": {
+        "simulation_time": "2030-05-12T21:00:00Z",
+        "simulation_ends_at": "2030-05-12T21:00:00Z",
+        "remaining_seconds": 0,
+        "real_elapsed_seconds": 1.000317861,
+        "applied_advance_seconds": 0
+      },
+      "availability": {
+        "uptime_target": 0.99,
+        "observed_seconds": 604800,
+        "available_seconds": 602355.559854455,
+        "downtime_seconds": 2444.440145545,
+        "uptime_ratio": 0.9959582669551174,
+        "slo_passed": true
+      },
+      "metrics": {
+        "clock": {
+          "simulation_time": "2030-05-12T21:00:00Z",
+          "simulation_ends_at": "2030-05-12T21:00:00Z",
+          "remaining_seconds": 0,
+          "real_elapsed_seconds": 0.784959382,
+          "applied_advance_seconds": 0
+        },
+        "current": {
+          "server_count": 1,
+          "capacity_units": 100,
+          "used_load_units": 25,
+          "capacity_utilization": 0.25,
+          "active_requests": 2,
+          "database_active_connections": 0,
+          "database_connection_limit": 400,
+          "disk_total_bytes": 53687091200,
+          "disk_system_bytes": 0,
+          "disk_database_bytes": 12635242738,
+          "disk_logs_bytes": 1373469200,
+          "disk_free_bytes": 39678379262,
+          "responses_200": 184221,
+          "responses_403": 0,
+          "responses_500": 479,
+          "responses_503": 38,
+          "error_rate": 0.00279855795775639,
+          "latency_p50_ms": 111,
+          "latency_p95_ms": 151,
+          "server_cost_minor": 12310672251,
+          "backup_storage_cost_minor": 90300,
+          "total_cost_minor": 12310762551,
+          "current_cost_per_hour_minor": 25703478,
+          "observed_seconds": 604800,
+          "available_seconds": 602355.559854455,
+          "downtime_seconds": 2444.440145545,
+          "uptime_ratio": 0.9959582669551174,
+          "by_page": [
+            {
+              "page": "product_list",
+              "active_requests": 1,
+              "used_load_units": 9,
+              "responses_200": 99659,
+              "responses_403": 0,
+              "responses_500": 338,
+              "responses_503": 38,
+              "error_rate": 0.0037586844604388463
+            },
+            {
+              "page": "product_page",
+              "active_requests": 1,
+              "used_load_units": 16,
+              "responses_200": 84562,
+              "responses_403": 0,
+              "responses_500": 141,
+              "responses_503": 0,
+              "error_rate": 0.001664639977332562
+            }
+          ]
+        },
+        "series": []
+      }
+    },
+    {
+      "id": "ak2-8953e8b9a3574c559a50",
+      "seed": 89,
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "status": "paused",
+      "step": 200,
+      "decisions": 206,
+      "knowledge_hash": "00f97d231ccf1eb0ccfe7897e5e005bc3e78e6ed0497f9ecfaa401868078d06d",
+      "runtime_versions": [
+        {
+          "hash": "bbc878672ec36909a331915cdb16bce39363c9c06eefe3ef8d575fdcc18e1a3f",
+          "started": 1788607398.9007769
+        },
+        {
+          "hash": "495e1a429745d5e878fc74572f481cb7e036735ea666953fbc9e516393db600a",
+          "started": 1788608273.449075
+        },
+        {
+          "hash": "268e5728f705fbd24f7c73930e7c7595e78fbbaef971808aa2ead907cb9ba40e",
+          "started": 1788608524.1928582
+        },
+        {
+          "hash": "8ba32980ee11ec01ab2b8de5ef95c6a2df3727e32f758ccc0116bb6abb69b7d8",
+          "started": 1788609054.267452
+        },
+        {
+          "hash": "bd70e11cf2dfd897c069a293277c803d32cfccfd5fa10997bb736afb3f3750af",
+          "started": 1788610273.345527
+        },
+        {
+          "hash": "0abcec948604f54455d216acfef98f75488c1fd757ced83fa58704b6a6f8c607",
+          "started": 1788612856.266548
+        },
+        {
+          "hash": "3e9141b9ab2e071098e7edb1b9ead2f654945f24b0258eab92afc8d098fca6aa",
+          "started": 1788613023.56197
+        },
+        {
+          "hash": "da6e9ed53ae4105fe0f7d43322b05bad10c3e3144dd8a540ff91f37dc7a491a3",
+          "started": 1788613318.103675
+        },
+        {
+          "hash": "852e9e4275a0d25b75dbc0a1e7ffce8ad464a732fe65e8e325e3ce6e981453e6",
+          "started": 1788614088.55137
+        },
+        {
+          "hash": "57a36a328d8637fc6c81170ede0aef509ea411e3fcd0a97dd3a4697a5ba6357d",
+          "started": 1788619826.167134
+        },
+        {
+          "hash": "a797e660f4c2b7420c542d85e36a84aa88e38514edeb7809ebfc34953829d602",
+          "started": 1788621021.9962702
+        },
+        {
+          "hash": "f223ef6b630d8a3362b9c830cf7956fc259f1446cc866164099004cae9fe4591",
+          "started": 1788621758.071826
+        },
+        {
+          "hash": "ce400af563bd8e21fbf079cc921ad2b78fbdb9328edd53a2febb60b746fe9cba",
+          "started": 1788622576.213614
+        }
+      ],
+      "error": "KeyboardInterrupt",
+      "pause_reason": null,
+      "observation_seconds": 6.349,
+      "process_terminal": "exit_130",
+      "supervisor_note": "Supervisor paused remaining long experiment at step 200 with empty action queue and resumable adaptation checkpoint after seed 67 completed. World is not terminal.",
+      "done": false,
+      "success": null,
+      "clock": {
+        "simulation_time": "2030-09-12T01:22:20.066238941Z",
+        "simulation_ends_at": "2030-09-15T21:00:00Z",
+        "remaining_seconds": 329859.933761059,
+        "real_elapsed_seconds": 0.96044172,
+        "applied_advance_seconds": 0.96044172
+      },
+      "availability": {
+        "uptime_target": 0.99,
+        "observed_seconds": 274940.066238941,
+        "available_seconds": 270512.927550955,
+        "downtime_seconds": 4427.138687986,
+        "uptime_ratio": 0.9838978045341034,
+        "slo_passed": null
+      },
+      "metrics": {
+        "clock": {
+          "simulation_time": "2030-09-12T01:22:21.724144513Z",
+          "simulation_ends_at": "2030-09-15T21:00:00Z",
+          "remaining_seconds": 329858.275855487,
+          "real_elapsed_seconds": 0.78444235,
+          "applied_advance_seconds": 0.78444235
+        },
+        "current": {
+          "server_count": 65,
+          "capacity_units": 6500,
+          "used_load_units": 0,
+          "capacity_utilization": 0,
+          "active_requests": 0,
+          "database_active_connections": 0,
+          "database_connection_limit": 400,
+          "disk_total_bytes": 740881858560,
+          "disk_system_bytes": 0,
+          "disk_database_bytes": 12681053243,
+          "disk_logs_bytes": 1838789687,
+          "disk_free_bytes": 726362015630,
+          "responses_200": 73403,
+          "responses_403": 0,
+          "responses_500": 940,
+          "responses_503": 2,
+          "error_rate": 0.012670657071760037,
+          "latency_p50_ms": 47,
+          "latency_p95_ms": 126,
+          "server_cost_minor": 34746553247,
+          "backup_storage_cost_minor": 24500,
+          "total_cost_minor": 34746577747,
+          "current_cost_per_hour_minor": 1670503278,
+          "observed_seconds": 274941.724144513,
+          "available_seconds": 270514.585456527,
+          "downtime_seconds": 4427.138687986,
+          "uptime_ratio": 0.9838979016307505,
+          "by_page": [
+            {
+              "page": "product_list",
+              "active_requests": 0,
+              "used_load_units": 0,
+              "responses_200": 40041,
+              "responses_403": 0,
+              "responses_500": 179,
+              "responses_503": 2,
+              "error_rate": 0.004500024862015812
+            },
+            {
+              "page": "product_page",
+              "active_requests": 0,
+              "used_load_units": 0,
+              "responses_200": 33362,
+              "responses_403": 0,
+              "responses_500": 761,
+              "responses_503": 0,
+              "error_rate": 0.02230167335814553
+            }
+          ]
+        },
+        "series": []
+      }
+    }
+  ],
+  "tests_passed": 64
+}

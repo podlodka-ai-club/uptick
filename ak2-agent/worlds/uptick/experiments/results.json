@@ -1,0 +1,1054 @@
+{
+  "kind": "live_uptick_bounded_experiment",
+  "training": {
+    "world": "uptick",
+    "local_id": "ak2-ba87989c910144ce884c",
+    "external_id": null,
+    "seed": 23,
+    "model": "gpt-5.6-sol",
+    "status": "paused",
+    "done": false,
+    "success": null,
+    "metrics": {
+      "clock": {
+        "simulation_time": "2030-07-29T09:44:31.638200049Z",
+        "simulation_ends_at": "2030-08-04T21:00:00Z",
+        "remaining_seconds": 558928.361799951,
+        "real_elapsed_seconds": 0.51835053,
+        "applied_advance_seconds": 0.51835053
+      },
+      "current": {
+        "server_count": 14,
+        "capacity_units": 1400,
+        "used_load_units": 1200,
+        "capacity_utilization": 0.8571428571428571,
+        "active_requests": 1,
+        "database_active_connections": 0,
+        "database_connection_limit": 100,
+        "disk_total_bytes": 161061273600,
+        "disk_system_bytes": 0,
+        "disk_database_bytes": 2147483648,
+        "disk_logs_bytes": 2147483648,
+        "disk_free_bytes": 156766306304,
+        "responses_200": 7265,
+        "responses_403": 0,
+        "responses_500": 358,
+        "responses_503": 0,
+        "error_rate": 0.046963137872228784,
+        "latency_p50_ms": 52,
+        "latency_p95_ms": 67,
+        "server_cost_minor": 771008563,
+        "backup_storage_cost_minor": 0,
+        "total_cost_minor": 771008563,
+        "current_cost_per_hour_minor": 359800695,
+        "observed_seconds": 45871.638200049,
+        "available_seconds": 44682.391761034,
+        "downtime_seconds": 1189.246439015,
+        "uptime_ratio": 0.974074472033708,
+        "by_page": [
+          {
+            "page": "product_list",
+            "active_requests": 1,
+            "used_load_units": 1200,
+            "responses_200": 3933,
+            "responses_403": 0,
+            "responses_500": 356,
+            "responses_503": 0,
+            "error_rate": 0.08300303100955934
+          },
+          {
+            "page": "product_page",
+            "active_requests": 0,
+            "used_load_units": 0,
+            "responses_200": 3332,
+            "responses_403": 0,
+            "responses_500": 2,
+            "responses_503": 0,
+            "error_rate": 0.0005998800239952009
+          }
+        ]
+      },
+      "series": []
+    },
+    "decisions": 17,
+    "llm_seconds": 681.61,
+    "memory_enabled": true,
+    "learning_enabled": true,
+    "knowledge_hash": "74505fcc7d2148f7c03a39e456645a2ba18f5dd04d86414a858c8724557f6fa1",
+    "error": null
+  },
+  "evaluation": [
+    {
+      "world": "uptick",
+      "local_id": "ak2-aa700985cb0f4565ba58",
+      "external_id": null,
+      "seed": 101,
+      "model": "gpt-5.6-sol",
+      "status": "paused",
+      "done": false,
+      "success": null,
+      "metrics": {
+        "clock": {
+          "simulation_time": "2030-06-03T04:13:50.756004917Z",
+          "simulation_ends_at": "2030-06-09T21:00:00Z",
+          "remaining_seconds": 578769.243995083,
+          "real_elapsed_seconds": 0.484183033,
+          "applied_advance_seconds": 0.484183033
+        },
+        "current": {
+          "server_count": 1,
+          "capacity_units": 100,
+          "used_load_units": 58,
+          "capacity_utilization": 0.58,
+          "active_requests": 4,
+          "database_active_connections": 0,
+          "database_connection_limit": 100,
+          "disk_total_bytes": 21474836480,
+          "disk_system_bytes": 0,
+          "disk_database_bytes": 2147483648,
+          "disk_logs_bytes": 1073741824,
+          "disk_free_bytes": 18253611008,
+          "responses_200": 1286,
+          "responses_403": 0,
+          "responses_500": 1,
+          "responses_503": 0,
+          "error_rate": 0.000777000777000777,
+          "latency_p50_ms": 63,
+          "latency_p95_ms": 126,
+          "server_cost_minor": 205605021,
+          "backup_storage_cost_minor": 0,
+          "total_cost_minor": 205605021,
+          "current_cost_per_hour_minor": 25700695,
+          "observed_seconds": 26030.756004917,
+          "available_seconds": 26028.509298307,
+          "downtime_seconds": 2.24670661,
+          "uptime_ratio": 0.999913690305054,
+          "by_page": [
+            {
+              "page": "product_list",
+              "active_requests": 2,
+              "used_load_units": 26,
+              "responses_200": 700,
+              "responses_403": 0,
+              "responses_500": 0,
+              "responses_503": 0,
+              "error_rate": 0
+            },
+            {
+              "page": "product_page",
+              "active_requests": 2,
+              "used_load_units": 32,
+              "responses_200": 586,
+              "responses_403": 0,
+              "responses_500": 1,
+              "responses_503": 0,
+              "error_rate": 0.0017035775127768314
+            }
+          ]
+        },
+        "series": []
+      },
+      "decisions": 2,
+      "llm_seconds": 34.85,
+      "memory_enabled": true,
+      "learning_enabled": false,
+      "knowledge_hash": "74505fcc7d2148f7c03a39e456645a2ba18f5dd04d86414a858c8724557f6fa1",
+      "error": null
+    },
+    {
+      "world": "uptick",
+      "local_id": "ak2-ae86460b94d640fb99bc",
+      "external_id": null,
+      "seed": 101,
+      "model": "gpt-5.6-sol",
+      "status": "paused",
+      "done": false,
+      "success": null,
+      "metrics": {
+        "clock": {
+          "simulation_time": "2030-06-03T04:13:50.752457898Z",
+          "simulation_ends_at": "2030-06-09T21:00:00Z",
+          "remaining_seconds": 578769.247542102,
+          "real_elapsed_seconds": 0.502336527,
+          "applied_advance_seconds": 0.502336527
+        },
+        "current": {
+          "server_count": 1,
+          "capacity_units": 100,
+          "used_load_units": 58,
+          "capacity_utilization": 0.58,
+          "active_requests": 4,
+          "database_active_connections": 0,
+          "database_connection_limit": 100,
+          "disk_total_bytes": 21474836480,
+          "disk_system_bytes": 0,
+          "disk_database_bytes": 2147483648,
+          "disk_logs_bytes": 1073741824,
+          "disk_free_bytes": 18253611008,
+          "responses_200": 1286,
+          "responses_403": 0,
+          "responses_500": 1,
+          "responses_503": 0,
+          "error_rate": 0.000777000777000777,
+          "latency_p50_ms": 63,
+          "latency_p95_ms": 126,
+          "server_cost_minor": 205605021,
+          "backup_storage_cost_minor": 0,
+          "total_cost_minor": 205605021,
+          "current_cost_per_hour_minor": 25700695,
+          "observed_seconds": 26030.752457898,
+          "available_seconds": 26028.505751288,
+          "downtime_seconds": 2.24670661,
+          "uptime_ratio": 0.9999136902932931,
+          "by_page": [
+            {
+              "page": "product_list",
+              "active_requests": 2,
+              "used_load_units": 26,
+              "responses_200": 700,
+              "responses_403": 0,
+              "responses_500": 0,
+              "responses_503": 0,
+              "error_rate": 0
+            },
+            {
+              "page": "product_page",
+              "active_requests": 2,
+              "used_load_units": 32,
+              "responses_200": 586,
+              "responses_403": 0,
+              "responses_500": 1,
+              "responses_503": 0,
+              "error_rate": 0.0017035775127768314
+            }
+          ]
+        },
+        "series": []
+      },
+      "decisions": 2,
+      "llm_seconds": 34.1,
+      "memory_enabled": false,
+      "learning_enabled": false,
+      "knowledge_hash": "74505fcc7d2148f7c03a39e456645a2ba18f5dd04d86414a858c8724557f6fa1",
+      "error": null
+    }
+  ],
+  "experience": {
+    "lessons": [
+      {
+        "id": "uptick.transient_single_500_diagnosis",
+        "title": "Одиночный HTTP 500 не доказывает дефицит мощности",
+        "body": "Если единичный HTTP 500 сопровождается умеренной загрузкой, активным сервером, свободным диском и успешным probe того же маршрута, масштабирование не обосновано; следует продолжить наблюдение с остановкой по ресурсным ошибкам.",
+        "tags": [
+          "incident-diagnosis",
+          "capacity",
+          "cost-control"
+        ],
+        "procedure": [
+          "Проверить состояние и загрузку обслуживающего сервера.",
+          "Выполнить явный probe затронутого маршрута с валидными параметрами.",
+          "Если probe успешен и ресурсных ограничений нет, сохранить текущую конфигурацию и контролируемо продвинуть время.",
+          "При повторении ошибки проверить структурированный код и только затем выбирать исправление."
+        ],
+        "support": 1,
+        "against": 0,
+        "importance": 0.72,
+        "touched": 3,
+        "uses": 2,
+        "confidence": 0.6666666666666666,
+        "strength": 0.6192,
+        "level": "candidate",
+        "evidence": [
+          {
+            "identity": "ak2-ba87989c910144ce884c:action:ak2-ba87989c910144ce884c-ce9c574eb94c45e1a0de77634651cc8b",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":7,\"run\":\"ak2-ba87989c910144ce884c\",\"identity\":\"action:ak2-ba87989c910144ce884c-ce9c574eb94c45e1a0de77634651cc8b\",\"outcome\":\"success\",\"kind\":\"action\",\"detail\":\"{\\\"clock\\\":{\\\"applied_advance_seconds\\\":37.24501167,\\\"real_elapsed_seconds\\\":37.24501167,\\\"remaining_seconds\\\":578586.265146324,\\\"simulation_ends_at\\\":\\\"2030-08-04T21:00:00Z\\\",\\\"simulation_time\\\":\\\"2030-07-29T04:16:53.734853676Z\\\"},\\\"command\\\":\\\"server.inspect\\\",\\\"request_id\\\":\\\"ak2-ba87989c910144ce884c-ce9c574eb94c45e1a0de77634651cc8b\\\",\\\"result\\\":{\\\"server\\\":{\\\"capacity_units\\\":100,\\\"cost_per_hour_minor\\\":25700000,\\\"credential_id\\\":\\\"cred-648bc86b14d0e11f9724c05a\\\",\\\"database_ids\\\":[],\\\"disk\\\":{\\\"cleanable_bytes\\\":0,\\\"database_bytes\\\":0,\\\"free_bytes\\\":10737418240,\\\"logs_bytes\\\":0,\\\"server_id\\\":\\\"server-initial-1\\\",\\\"system_bytes\\\":0,\\\"total_bytes\\\":10737418240,\\\"used_bytes\\\":0},\\\"instance_type\\\":\\\"backend.standard\\\",\\\"name\\\":\\\"server-initial-1\\\",\\\"role\\\":\\\"backend\\\",\\\"server_id\\\":\\\"server-initial-1\\\",\\\"status\\\":\\\"active\\\",\\\"used_load_units\\\":10}}}\"},\"explanation\":\"Независимые проверки подтвердили активное состояние backend с низкой загрузкой и успешный ответ 200 на ранее затронутом маршруте. Это подтверждает диагностику кратковременного сбоя, но ещё не доказывает долгосрочное соблюдение SLO.\"}"
+          },
+          {
+            "identity": "ak2-ba87989c910144ce884c:action:ak2-ba87989c910144ce884c-2987f6cb58b54c1298d19db7cfed6d4f",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":8,\"run\":\"ak2-ba87989c910144ce884c\",\"identity\":\"action:ak2-ba87989c910144ce884c-2987f6cb58b54c1298d19db7cfed6d4f\",\"outcome\":\"success\",\"kind\":\"effect\",\"detail\":\"{\\\"clock\\\":{\\\"applied_advance_seconds\\\":0.60790463,\\\"real_elapsed_seconds\\\":0.60790463,\\\"remaining_seconds\\\":578585.657241694,\\\"simulation_ends_at\\\":\\\"2030-08-04T21:00:00Z\\\",\\\"simulation_time\\\":\\\"2030-07-29T04:16:54.342758306Z\\\"},\\\"firewall_rule_id\\\":null,\\\"latency_ms\\\":67,\\\"load_units\\\":19,\\\"page\\\":\\\"product_page\\\",\\\"product_id\\\":\\\"product-001\\\",\\\"region_code\\\":\\\"US\\\",\\\"request_id\\\":\\\"ak2-ba87989c910144ce884c-2987f6cb58b54c1298d19db7cfed6d4f\\\",\\\"source_ip\\\":\\\"198.18.22.108\\\",\\\"status\\\":200,\\\"user_agent\\\":\\\"HealthProbe/1.0\\\"}\"},\"explanation\":\"Независимые проверки подтвердили активное состояние backend с низкой загрузкой и успешный ответ 200 на ранее затронутом маршруте. Это подтверждает диагностику кратковременного сбоя, но ещё не доказывает долгосрочное соблюдение SLO.\"}"
+          }
+        ]
+      },
+      {
+        "id": "uptick.advance_provisioning_by_simulation_time",
+        "title": "Асинхронное provisioning эффективнее завершать продвижением симуляционного времени",
+        "body": "Если длительность provisioning задана в симуляционном времени, а операции выполняются без terminal error, контролируемое продвижение времени может завершить их эффективнее повторных коротких опросов.",
+        "tags": [
+          "async-operation",
+          "simulation-time",
+          "efficiency"
+        ],
+        "procedure": [
+          "Убедиться, что операции выполняются без terminal error.",
+          "Сопоставить интервал продвижения с длительностью provisioning.",
+          "Продвинуть симуляционное время на достаточный безопасный интервал.",
+          "Проверить терминальные статусы операций и фактическое active-состояние ресурсов."
+        ],
+        "support": 3,
+        "against": 0,
+        "importance": 0.74,
+        "touched": 14,
+        "uses": 6,
+        "confidence": 0.8,
+        "strength": 0.7933,
+        "level": "skill",
+        "evidence": [
+          {
+            "identity": "ak2-ba87989c910144ce884c:operation:laqwU9KEGyEsSOnHyKLx8Cza",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":26,\"run\":\"ak2-ba87989c910144ce884c\",\"identity\":\"operation:laqwU9KEGyEsSOnHyKLx8Cza\",\"outcome\":\"success\",\"kind\":\"operation\",\"detail\":\"{\\\"clock\\\":{\\\"applied_advance_seconds\\\":0.497043749,\\\"real_elapsed_seconds\\\":0.497043749,\\\"remaining_seconds\\\":559624.945686936,\\\"simulation_ends_at\\\":\\\"2030-08-04T21:00:00Z\\\",\\\"simulation_time\\\":\\\"2030-07-29T09:32:55.054313064Z\\\"},\\\"command\\\":\\\"server.create\\\",\\\"completed_at\\\":\\\"2030-07-29T09:32:25.569203983Z\\\",\\\"operation_id\\\":\\\"laqwU9KEGyEsSOnHyKLx8Cza\\\",\\\"progress\\\":1,\\\"request_id\\\":\\\"ak2-ba87989c910144ce884c-2c3c390e12644e6db6aee82ce1c4df02\\\",\\\"result\\\":{\\\"clock\\\":{\\\"applied_advance_seconds\\\":0.497043749,\\\"real_elapsed_seconds\\\":0.497043749,\\\"remaining_seconds\\\":559624.945686936,\\\"simulation_ends_at\\\":\\\"2030-08-04T21:00:00Z\\\",\\\"simulation_time\\\":\\\"2030-07-29T09:32:55.054313064Z\\\"},\\\"command\\\":\\\"server.create\\\",\\\"request_id\\\":\\\"ak2-ba87989c910144ce884c-2c3c390e12644e6db6aee82ce1c4df02\\\",\\\"result\\\":{\\\"server\\\":{\\\"capacity_units\\\":100,\\\"cost_per_hour_minor\\\":25700000,\\\"credential_id\\\":\\\"cred-bb165c83191a205b50eb09a7\\\",\\\"database_ids\\\":[],\\\"disk\\\":{\\\"cleanable_bytes\\\":0,\\\"database_bytes\\\":0,\\\"free_bytes\\\":10737418240,\\\"logs_bytes\\\":0,\\\"server_id\\\":\\\"server-7GT9ZEJepXSRDYnmj8lYspsr\\\",\\\"system_bytes\\\":0,\\\"total_bytes\\\":10737418240,\\\"used_bytes\\\":0},\\\"instance_type\\\":\\\"backend.standard\\\",\\\"name\\\":\\\"backend-capacity-12\\\",\\\"role\\\":\\\"backend\\\",\\\"server_id\\\":\\\"server-7GT9ZEJepXSRDYnmj8lYspsr\\\",\\\"status\\\":\\\"active\\\",\\\"used_load_units\\\":0}}},\\\"started_at\\\":\\\"2030-07-29T09:27:25.569203983Z\\\",\\\"status\\\":\\\"succeeded\\\",\\\"submitted_at\\\":\\\"2030-07-29T09:27:25.569203983Z\\\",\\\"type\\\":\\\"control_command\\\"}\"},\"explanation\":\"Продвижение симуляции на 300 секунд завершилось штатно, а новая операция создания backend достигла succeeded и ресурс стал active. Это подтверждает приём для исправно выполняющегося provisioning, но не гарантирует восстановление доступности сайта.\"}"
+          },
+          {
+            "identity": "ak2-ba87989c910144ce884c:action:ak2-ba87989c910144ce884c-88e28e0d3b614c3796e4591b41146b5c",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":17,\"run\":\"ak2-ba87989c910144ce884c\",\"identity\":\"action:ak2-ba87989c910144ce884c-88e28e0d3b614c3796e4591b41146b5c\",\"outcome\":\"success\",\"kind\":\"effect\",\"detail\":\"{\\\"clock\\\":{\\\"applied_advance_seconds\\\":300,\\\"real_elapsed_seconds\\\":0.621685799,\\\"remaining_seconds\\\":559654.430796017,\\\"simulation_ends_at\\\":\\\"2030-08-04T21:00:00Z\\\",\\\"simulation_time\\\":\\\"2030-07-29T09:32:25.569203983Z\\\"},\\\"logs_cursor\\\":\\\"djE6NzQ1NQ\\\",\\\"new_logs\\\":66,\\\"previous_simulation_time\\\":\\\"2030-07-29T09:27:25.569203983Z\\\",\\\"processed_events\\\":350,\\\"requested_duration_seconds\\\":300,\\\"stop_reason\\\":\\\"duration_elapsed\\\"}\"},\"explanation\":\"Продвижение симуляции на 300 секунд завершилось штатно, а новая операция создания backend достигла succeeded и ресурс стал active. Это подтверждает приём для исправно выполняющегося provisioning, но не гарантирует восстановление доступности сайта.\"}"
+          },
+          {
+            "identity": "ak2-ba87989c910144ce884c:operation:0z8afE1bCVf1uJlKD00Y5Yq4",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":14,\"run\":\"ak2-ba87989c910144ce884c\",\"identity\":\"operation:0z8afE1bCVf1uJlKD00Y5Yq4\",\"outcome\":\"success\",\"kind\":\"operation\",\"detail\":\"{\\\"clock\\\":{\\\"applied_advance_seconds\\\":0.491953732,\\\"real_elapsed_seconds\\\":0.491953732,\\\"remaining_seconds\\\":562111.663774381,\\\"simulation_ends_at\\\":\\\"2030-08-04T21:00:00Z\\\",\\\"simulation_time\\\":\\\"2030-07-29T08:51:28.336225619Z\\\"},\\\"command\\\":\\\"server.create\\\",\\\"completed_at\\\":\\\"2030-07-29T08:51:04.025898674Z\\\",\\\"operation_id\\\":\\\"0z8afE1bCVf1uJlKD00Y5Yq4\\\",\\\"progress\\\":1,\\\"request_id\\\":\\\"ak2-ba87989c910144ce884c-b56ba9821dc94f5c88c0fb73fa496c1c\\\",\\\"result\\\":{\\\"clock\\\":{\\\"applied_advance_seconds\\\":0.491953732,\\\"real_elapsed_seconds\\\":0.491953732,\\\"remaining_seconds\\\":562111.663774381,\\\"simulation_ends_at\\\":\\\"2030-08-04T21:00:00Z\\\",\\\"simulation_time\\\":\\\"2030-07-29T08:51:28.336225619Z\\\"},\\\"command\\\":\\\"server.create\\\",\\\"request_id\\\":\\\"ak2-ba87989c910144ce884c-b56ba9821dc94f5c88c0fb73fa496c1c\\\",\\\"result\\\":{\\\"server\\\":{\\\"capacity_units\\\":100,\\\"cost_per_hour_minor\\\":25700000,\\\"credential_id\\\":\\\"cred-755a9d59d8ab4f5c89016025\\\",\\\"database_ids\\\":[],\\\"disk\\\":{\\\"cleanable_bytes\\\":0,\\\"database_bytes\\\":0,\\\"free_bytes\\\":10737418240,\\\"logs_bytes\\\":0,\\\"server_id\\\":\\\"server-LUbrUckj6aeUAQd0gLITDDnN\\\",\\\"system_bytes\\\":0,\\\"total_bytes\\\":10737418240,\\\"used_bytes\\\":0},\\\"instance_type\\\":\\\"backend.standard\\\",\\\"name\\\":\\\"backend-capacity-3\\\",\\\"role\\\":\\\"backend\\\",\\\"server_id\\\":\\\"server-LUbrUckj6aeUAQd0gLITDDnN\\\",\\\"status\\\":\\\"active\\\",\\\"used_load_units\\\":0}}},\\\"started_at\\\":\\\"2030-07-29T08:45:39.28904267Z\\\",\\\"status\\\":\\\"succeeded\\\",\\\"submitted_at\\\":\\\"2030-07-29T08:45:39.28904267Z\\\",\\\"type\\\":\\\"control_command\\\"}\"},\"explanation\":\"Во втором независимом случае продвижение симуляции на длительность provisioning привело к терминальному успеху операции, а наблюдение подтвердило active-состояние нового backend. Это подтверждает приём для исправно выполняющихся операций, но не распространяется на операции с terminal error.\"}"
+          },
+          {
+            "identity": "ak2-ba87989c910144ce884c:action:ak2-ba87989c910144ce884c-42f8a0a672fa45369867ec53e5fca2c2",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":13,\"run\":\"ak2-ba87989c910144ce884c\",\"identity\":\"action:ak2-ba87989c910144ce884c-42f8a0a672fa45369867ec53e5fca2c2\",\"outcome\":\"success\",\"kind\":\"effect\",\"detail\":\"{\\\"clock\\\":{\\\"applied_advance_seconds\\\":300,\\\"real_elapsed_seconds\\\":12.822814669,\\\"remaining_seconds\\\":562135.974101326,\\\"simulation_ends_at\\\":\\\"2030-08-04T21:00:00Z\\\",\\\"simulation_time\\\":\\\"2030-07-29T08:51:04.025898674Z\\\"},\\\"logs_cursor\\\":\\\"djE6NjQ5OQ\\\",\\\"new_logs\\\":93,\\\"previous_simulation_time\\\":\\\"2030-07-29T08:46:04.025898674Z\\\",\\\"processed_events\\\":704,\\\"requested_duration_seconds\\\":300,\\\"stop_reason\\\":\\\"duration_elapsed\\\"}\"},\"explanation\":\"Во втором независимом случае продвижение симуляции на длительность provisioning привело к терминальному успеху операции, а наблюдение подтвердило active-состояние нового backend. Это подтверждает приём для исправно выполняющихся операций, но не распространяется на операции с terminal error.\"}"
+          }
+        ]
+      }
+    ],
+    "tags": {
+      "incident-diagnosis": 1,
+      "capacity": 1,
+      "cost-control": 1,
+      "async-operation": 3,
+      "simulation-time": 3,
+      "efficiency": 3
+    },
+    "forgetting": {
+      "epoch": 16,
+      "last_forgotten": [],
+      "total": 0
+    },
+    "limits": {
+      "lessons": 80,
+      "events_per_run": 150,
+      "facts_per_run": 200,
+      "completed_runs": 100
+    }
+  },
+  "run_ids": [
+    {
+      "local_id": "ak2-ba87989c910144ce884c",
+      "run_id": "Jv63Zln7ywXRk1sXP3jsos0N"
+    },
+    {
+      "local_id": "ak2-4aec5d8c7181406bb192",
+      "run_id": "ByazNTBg67kzI4QD23CC5b3c"
+    }
+  ],
+  "trace": [
+    {
+      "id": 5,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Сайт сейчас здоров, uptime 100%, ошибок и нагрузки нет, но backend.standard стоит 25 700 000 minor/час и почти полностью определяет расходы. Перед заменой нужно узнать доступные типы и проверить конфигурацию сайта; параллельно полезно зафиксировать состояние текущей БД и firewall. Продвигать время до выбора более дешёвой конфигурации невыгодно.",
+        "plan": "Сначала получить список типов серверов, конфигурацию сайта, состояние db-main и правила firewall. Затем выбрать самый дешёвый backend, достаточный для фактически наблюдаемой и ожидаемой нагрузки; создать его, дождаться готовности и только после проверки удалить дорогой server-initial-1. БД менять лишь при наличии подтверждённой экономии с допустимым простоем. После оптимизации продвигать время крупными интервалами с остановкой на новых инфраструктурных ошибках и реагировать до terminal state.",
+        "tags": [
+          "uptick",
+          "sre",
+          "cost-optimization",
+          "uptime",
+          "diagnostics"
+        ],
+        "used_memory_ids": [],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.types.list\",\"params\":{}}",
+            "replay_safe": true,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"site.config.get\",\"params\":{}}",
+            "replay_safe": true,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"database.inspect\",\"params\":{\"database_id\":\"db-main\"},\"credential_id\":\"cred-4da52dde39a98c9638d9b48b\"}",
+            "replay_safe": true,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"firewall.rules.list\",\"params\":{}}",
+            "replay_safe": true,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 6,
+      "kind": "adapted",
+      "data": {
+        "knowledge_hash": "74505fcc7d2148f7c03a39e456645a2ba18f5dd04d86414a858c8724557f6fa1",
+        "files": [
+          "prompts/world.md",
+          "references/protocol.md",
+          "scripts/adapter.py",
+          "skills/operate/SKILL.md"
+        ]
+      }
+    },
+    {
+      "id": 16,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Текущая конфигурация уже минимальна среди фактически доступных вариантов: каталог содержит только один backend-тип, а действующая БД использует самый дешёвый db.small. Удалить единственный backend нельзя, миграция БД не даст экономии, firewall пуст, сайт здоров и uptime 99,815%. Следует не создавать лишние ресурсы, а продвинуть симуляцию до ближайшей инфраструктурной ошибки или на шесть часов.",
+        "plan": "Продвинуть время на 21600 секунд с остановкой при первой новой инфраструктурной ошибке. После возврата проверить код ошибки, ресурсы, нагрузку, диск, credentials и состояние сайта; устранить подтверждённую причину минимально необходимым действием. Если ошибок нет, продолжать такими интервалами до terminal state, сокращая интервал около операций или инцидентов.",
+        "tags": [
+          "uptick",
+          "sre",
+          "uptime",
+          "cost-minimization",
+          "monitoring"
+        ],
+        "used_memory_ids": [],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":21600,\"stop_when\":{\"new_log_errors\":1}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 20,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "За последние шесть часов новых инфраструктурных ошибок не возникло: сайт healthy, error_rate равен 0, uptime 99,9624%, дискового и DB-запаса достаточно. Конфигурация остаётся минимальной из наблюдавшихся: один обязательный backend единственного доступного типа и БД на самом дешёвом db.small. Дополнительные ресурсы или профилактические операции сейчас лишь увеличат стоимость либо риск downtime.",
+        "plan": "Продвинуть симуляцию на 43200 секунд, остановившись при первой новой ошибке. Затем проверить stop_reason и свежие наблюдения; при log_error диагностировать структурированный код и применить минимальное исправление, а при duration_elapsed продолжить крупными интервалами до terminal state.",
+        "tags": [
+          "uptick",
+          "sre",
+          "uptime",
+          "cost-minimization",
+          "monitoring"
+        ],
+        "used_memory_ids": [],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":43200,\"stop_when\":{\"new_log_errors\":1}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 24,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Остановка по log_error подтверждена, но текущее наблюдение не показывает структурированный код свежей ошибки: виден лишь один ответ 500 на product_page, site_status degraded и умеренная загрузка 68%, без 503, переполнения диска или исчерпания DB-соединений. Создавать дорогой backend по одному сбою преждевременно. Нужно проверить состояние единственного backend и воспроизвести проблемный маршрут явным probe.",
+        "plan": "Инспектировать server-initial-1 и выполнить probe страницы product_page с фактически наблюдавшимся product_id. По результатам: если probe успешен и сервер исправен, считать сбой кратковременным и продолжить время с остановкой по новой ошибке; если обнаружен устойчивый код, применить минимальное адресное исправление. Не добавлять ресурсы без подтверждения дефицита мощности.",
+        "tags": [
+          "uptick",
+          "sre",
+          "incident-diagnosis",
+          "uptime",
+          "cost-minimization"
+        ],
+        "used_memory_ids": [],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.inspect\",\"params\":{\"server_id\":\"server-initial-1\"}}",
+            "replay_safe": true,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"probe\",\"params\":{\"page\":\"product_page\",\"product_id\":\"product-001\"}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 30,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Проверка показала, что единственный backend активен, почти не загружен и имеет свободный диск, а явный probe проблемного маршрута product_page вернул 200. Единственный 500 выглядит кратковременным и не подтверждает необходимость второго крайне дорогого backend. Uptime остаётся выше цели — 99,9156%, поэтому сохраняем минимальную конфигурацию и продолжаем наблюдение, останавливаясь только на известных ресурсных ошибках.",
+        "plan": "Продвинуть симуляцию на 21600 секунд с ранней остановкой при SERVER_CAPACITY_EXCEEDED или DISK_FULL. После выполнения проверить stop_reason, uptime, свежие метрики, ресурсы и inbox. При ресурсной ошибке применить минимальное адресное исправление; при duration_elapsed продолжить такими же контролируемыми интервалами до terminal state, не добавляя сервер без подтверждённого дефицита.",
+        "tags": [
+          "uptick",
+          "sre",
+          "uptime",
+          "cost-minimization",
+          "monitoring"
+        ],
+        "used_memory_ids": [],
+        "lessons": [
+          {
+            "key": "uptick.transient_single_500_diagnosis",
+            "title": "Одиночный HTTP 500 не доказывает дефицит мощности",
+            "body": "Если единичный HTTP 500 сопровождается умеренной загрузкой, активным сервером, свободным диском и успешным probe того же маршрута, масштабирование не обосновано; следует продолжить наблюдение с остановкой по ресурсным ошибкам.",
+            "tags": [
+              "incident-diagnosis",
+              "capacity",
+              "cost-control"
+            ],
+            "procedure": [
+              "Проверить состояние и загрузку обслуживающего сервера.",
+              "Выполнить явный probe затронутого маршрута с валидными параметрами.",
+              "Если probe успешен и ресурсных ограничений нет, сохранить текущую конфигурацию и контролируемо продвинуть время.",
+              "При повторении ошибки проверить структурированный код и только затем выбирать исправление."
+            ],
+            "importance": 0.72,
+            "evidence_ids": [
+              7,
+              8
+            ],
+            "verdict": "supports",
+            "outcome": "success",
+            "explanation": "Независимые проверки подтвердили активное состояние backend с низкой загрузкой и успешный ответ 200 на ранее затронутом маршруте. Это подтверждает диагностику кратковременного сбоя, но ещё не доказывает долгосрочное соблюдение SLO."
+          }
+        ],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":21600,\"stop_when\":{\"new_log_errors\":1,\"error_codes\":[\"SERVER_CAPACITY_EXCEEDED\",\"DISK_FULL\"]}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": [
+          "uptick.transient_single_500_diagnosis"
+        ]
+      }
+    },
+    {
+      "id": 34,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Продвижение остановилось по одной из двух заданных ресурсных ошибок. DISK_FULL исключается текущими ресурсами: свободно около 18,25 ГБ суммарно, backend-диск пуст, на DB-сервере свободно около 7,52 ГБ. Одновременно overview показывает site_status unavailable и пиковую загрузку 97% единственного backend. В отличие от прежнего одиночного 500, теперь есть подтверждённая ресурсная остановка и дополнительный backend необходим для восстановления запаса мощности. Доступен только наблюдавшийся тип backend.standard с provisioning 300 секунд.",
+        "plan": "Создать второй backend типа backend.standard и дождаться терминального результата асинхронной операции. После succeeded проверить автоматическое подключение к работающему сайту, site_status, суммарную capacity, новые 500/503 и uptime. Если операция pending, продолжить её отслеживание; если failed, диагностировать terminal error до повтора. После стабилизации продвигать время контролируемыми интервалами и не удалять дополнительный backend, пока профиль нагрузки не подтвердит устойчивую возможность экономии без риска SLO.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "uptime",
+          "incident-response"
+        ],
+        "used_memory_ids": [
+          "uptick.transient_single_500_diagnosis"
+        ],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-2\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 38,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Создание второго backend ещё не завершено: операция Qx8ULActW5VQz5ZkfGrUWd45 имеет статус running, прогресс около 8,1%, а сервер server-zcT3YgMWHoiUw0zjegl4sKMG остаётся provisioning. Зависимые проверки и продвижение времени следует отложить до терминального результата операции.",
+        "plan": "Дождаться терминального состояния операции Qx8ULActW5VQz5ZkfGrUWd45. При succeeded проверить, что server-zcT3YgMWHoiUw0zjegl4sKMG стал active, суммарная backend-capacity выросла до 200, сайт восстановился из degraded и новые ресурсные ошибки прекратились. При failed изучить terminal error до любых повторов. Затем продвигать время с ранней остановкой по SERVER_CAPACITY_EXCEEDED и DISK_FULL, контролируя uptime и стоимость.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "async-operation"
+        ],
+        "used_memory_ids": [],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"operation.get\",\"operation_id\":\"Qx8ULActW5VQz5ZkfGrUWd45\"}",
+            "replay_safe": true,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 42,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Операция создания второго backend всё ещё выполняется: прогресс около 21,5%, сервер остаётся provisioning. Uptime составляет около 99,815%, но сайт degraded; зависимые действия до терминального результата операции небезопасны.",
+        "plan": "Продолжить ожидание терминального состояния операции Qx8ULActW5VQz5ZkfGrUWd45. При succeeded проверить active-состояние server-zcT3YgMWHoiUw0zjegl4sKMG, capacity 200, состояние сайта и отсутствие новых ресурсных ошибок. При failed изучить terminal error. После стабилизации продвигать время с остановкой по SERVER_CAPACITY_EXCEEDED и DISK_FULL, контролируя uptime и стоимость.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "async-operation"
+        ],
+        "used_memory_ids": [],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"operation.get\",\"operation_id\":\"Qx8ULActW5VQz5ZkfGrUWd45\"}",
+            "replay_safe": true,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 46,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Повторные короткие чтения одной операции не приближают её к завершению достаточно быстро: provisioning рассчитан на 300 секунд симуляции, а прогресс достиг лишь 34,3%. Текущая нагрузка умеренная, uptime около 99,81%, поэтому рациональнее одним контролируемым шагом продвинуть симуляцию на время provisioning. Это завершит или существенно прояснит создание второго backend без дальнейшей серии одинаковых опросов.",
+        "plan": "Продвинуть время на 300 секунд. Затем проверить терминальный статус операции Qx8ULActW5VQz5ZkfGrUWd45, active-состояние server-zcT3YgMWHoiUw0zjegl4sKMG, суммарную backend-capacity, состояние сайта, прирост downtime и новые ошибки. Если backend активен и сайт стабилен, продолжать более крупными интервалами с ранней остановкой по SERVER_CAPACITY_EXCEEDED и DISK_FULL; при failed изучить terminal error до повтора.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "async-operation",
+          "review-mode"
+        ],
+        "used_memory_ids": [],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":300}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 50,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Второй backend успешно введён в эксплуатацию: оба backend активны, доступная ёмкость выросла до 200, сайт healthy, uptime около 99,80%, новых 403/503 нет. Удалять один backend сразу после ресурсного инцидента преждевременно; следует проверить устойчивость конфигурации на длительном интервале, прерывая ожидание при признаках дефицита мощности или заполнения диска.",
+        "plan": "Продвинуть симуляцию на 21600 секунд с ранней остановкой по SERVER_CAPACITY_EXCEEDED и DISK_FULL. После остановки проверить site_status, uptime и прирост downtime, пиковую загрузку двух backend, состояние диска БД и структурированный код новых ошибок. Если интервал пройдёт стабильно и последующая нагрузка окажется устойчиво ниже ёмкости одного backend, рассмотреть удаление лишнего backend ради снижения стоимости; при ресурсной ошибке сначала локализовать ограничение и не удалять ёмкость.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "cost-control",
+          "monitoring"
+        ],
+        "used_memory_ids": [
+          "uptick.transient_single_500_diagnosis"
+        ],
+        "lessons": [
+          {
+            "key": "uptick.advance_provisioning_by_simulation_time",
+            "title": "Асинхронное provisioning эффективнее завершать продвижением симуляционного времени",
+            "body": "Если длительность provisioning задана в симуляционном времени, а операция исправно прогрессирует, контролируемое продвижение времени может завершить её эффективнее повторных коротких опросов.",
+            "tags": [
+              "async-operation",
+              "simulation-time",
+              "efficiency"
+            ],
+            "procedure": [
+              "Убедиться, что операция выполняется и её прогресс растёт без terminal error.",
+              "Сопоставить оставшийся прогресс с документированной длительностью provisioning.",
+              "Продвинуть симуляционное время на достаточный безопасный интервал.",
+              "Проверить терминальный статус операции и фактическое состояние созданного ресурса."
+            ],
+            "importance": 0.74,
+            "evidence_ids": [
+              10,
+              11
+            ],
+            "verdict": "supports",
+            "outcome": "success",
+            "explanation": "После продвижения симуляции на 300 секунд операция создания backend завершилась успешно, а последующее наблюдение подтвердило active-состояние ресурса. Это подтверждает способ ожидания для исправно выполняющегося provisioning, но не гарантирует успех операций с terminal error."
+          }
+        ],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":21600,\"stop_when\":{\"new_log_errors\":1,\"error_codes\":[\"SERVER_CAPACITY_EXCEEDED\",\"DISK_FULL\"]}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": [
+          "uptick.advance_provisioning_by_simulation_time"
+        ]
+      }
+    },
+    {
+      "id": 54,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Контролируемое продвижение остановилось на ресурсной ошибке ровно в 08:45. Диск имеет большой запас, тогда как один backend загружен на 97 из 100, суммарная текущая нагрузка достигает 165 из 200, сайт unavailable, а число HTTP 500 резко выросло преимущественно на product_list. Это указывает на недостаточный запас backend-мощности при пике; удаление сервера исключено. Для восстановления устойчивости следует добавить третий backend стандартного типа.",
+        "plan": "Создать третий backend.standard с именем backend-capacity-3 и дождаться терминального результата операции. После succeeded проверить active-состояние нового сервера, суммарную ёмкость 300, site_status, uptime и прирост downtime; затем выполнить короткий probe и продвинуть время с остановкой по SERVER_CAPACITY_EXCEEDED и DISK_FULL. При failed изучить terminal error и не повторять создание вслепую.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "incident-response",
+          "uptime"
+        ],
+        "used_memory_ids": [],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-3\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 58,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Третий backend уже создан как ресурс, но ещё provisioning; операция 0z8afE1bCVf1uJlKD00Y5Yq4 выполняется без terminal error и требует около 300 секунд симуляционного времени. Пока он не активен, сайт остаётся degraded после подтверждённого пика мощности. Следует эффективно завершить provisioning контролируемым продвижением времени, не предпринимая зависимых действий раньше терминального результата.",
+        "plan": "Продвинуть симуляцию на 300 секунд. Затем проверить terminal status операции 0z8afE1bCVf1uJlKD00Y5Yq4 и active-состояние server-LUbrUckj6aeUAQd0gLITDDnN; ожидаем суммарную backend-ёмкость 300. После подтверждения выполнить probe product_list и проверить site_status, uptime, прирост downtime и ошибки. Далее продолжить время с ранней остановкой по SERVER_CAPACITY_EXCEEDED и DISK_FULL; при failed изучить terminal error до любых повторов.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "async-operation",
+          "incident-response"
+        ],
+        "used_memory_ids": [
+          "uptick.advance_provisioning_by_simulation_time"
+        ],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":300}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 62,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Третий backend успешно активирован: сайт снова healthy, backend-ёмкость составляет 300 при текущей загрузке 39, downtime не вырос после завершения provisioning, uptime держится около 99,86%. Перед длительным продвижением нужно подтвердить доступность затронутого маршрута явным probe, затем проверить устойчивость трёх backend на продолжительном интервале с ранней остановкой по ресурсным ошибкам.",
+        "plan": "Выполнить probe страницы product_list. При успехе продвинуть симуляцию на 86400 секунд с остановкой по SERVER_CAPACITY_EXCEEDED или DISK_FULL. После остановки проверить uptime, прирост downtime, site_status, загрузку backend, диск БД и точный код ошибки. При стабильном полном интервале продолжать крупными контролируемыми шагами; не удалять backend до прохождения пиков без дефицита мощности.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "uptime",
+          "monitoring"
+        ],
+        "used_memory_ids": [
+          "uptick.advance_provisioning_by_simulation_time"
+        ],
+        "lessons": [
+          {
+            "key": "uptick.advance_provisioning_by_simulation_time",
+            "title": "Асинхронное provisioning эффективнее завершать продвижением симуляционного времени",
+            "body": "Если длительность provisioning задана в симуляционном времени, а операция исправно прогрессирует, контролируемое продвижение времени может завершить её эффективнее повторных коротких опросов.",
+            "tags": [
+              "async-operation",
+              "simulation-time",
+              "efficiency"
+            ],
+            "procedure": [
+              "Убедиться, что операция выполняется и её прогресс растёт без terminal error.",
+              "Сопоставить оставшийся прогресс с документированной длительностью provisioning.",
+              "Продвинуть симуляционное время на достаточный безопасный интервал.",
+              "Проверить терминальный статус операции и фактическое состояние созданного ресурса."
+            ],
+            "importance": 0.76,
+            "evidence_ids": [
+              13,
+              14
+            ],
+            "verdict": "supports",
+            "outcome": "success",
+            "explanation": "Во втором независимом случае продвижение симуляции на длительность provisioning привело к терминальному успеху операции, а наблюдение подтвердило active-состояние нового backend. Это подтверждает приём для исправно выполняющихся операций, но не распространяется на операции с terminal error."
+          }
+        ],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"probe\",\"params\":{\"page\":\"product_list\"}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":86400,\"stop_when\":{\"new_log_errors\":1,\"error_codes\":[\"SERVER_CAPACITY_EXCEEDED\",\"DISK_FULL\"]}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": [
+          "uptick.advance_provisioning_by_simulation_time"
+        ]
+      }
+    },
+    {
+      "id": 68,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Продвижение остановилось на ресурсной ошибке при нагрузке 1185 и backend-ёмкости 300; сайт unavailable, а каждый из трёх backend перегружен до 395. Диск и БД имеют большой запас, поэтому наблюдение соответствует SERVER_CAPACITY_EXCEEDED. Для покрытия уже фактически наблюдённого пика требуется не менее 1200 единиц backend-ёмкости, то есть ещё 9 серверов по 100. В текущем пакете можно независимо запустить создание восьми серверов; девятый и ожидание provisioning следует выполнить следующим решением.",
+        "plan": "Параллельно запустить provisioning восьми backend.standard с уникальными именами. После получения operation_id проверить, что все восемь операций приняты без terminal error; следующим решением создать девятый backend, продвинуть время минимум на 300 секунд и дождаться terminal status всех операций. Ожидаем 12 активных backend и ёмкость 1200, затем выполнить probe product_list и повторно проверить site_status, uptime и отсутствие SERVER_CAPACITY_EXCEEDED. До подтверждения устойчивости ничего не удалять.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "incident-response",
+          "scaling"
+        ],
+        "used_memory_ids": [
+          "uptick.advance_provisioning_by_simulation_time"
+        ],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-4\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-5\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-6\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-7\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-8\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-9\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-10\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-11\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 86,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Текущие три активных backend дают только 300 units при нагрузке 1185, из-за чего сайт недоступен. Восемь уже принятых операций provisioning доведут backend-ёмкость лишь до 1100, поэтому нужен ещё один backend.standard. Затем следует продвинуть симуляцию на 300 секунд, чтобы все девять операций provisioning могли завершиться; только после наблюдения терминальных результатов можно проверять восстановление и оптимизировать стоимость.",
+        "plan": "Создать backend-capacity-12 без ожидания завершения ответа операции, затем продвинуть время на 300 секунд. Следующее решение: проверить terminal status операций o6fHAhMdtE2KZ33mGDuuPt8r, 3zkcsYxzjnD7TpMpW5RT8Mwg, AuugNafe2EsC6R8B08niUBNw, S97aO7DdQ8fbY9thY9LhBthx, fVj9y5dULQj2IOjwnletMpGA, 1BAfdQKbY8iaTSOIxhKCfXCG, G8qxJ6RtNamWSoMAwjKF7Ebu, y6aBcdaOkSv7apjn65YMCTji и новой операции; ожидать 12 активных backend, ёмкость 1200 и site_status available. Затем выполнить probe product_list и оценить uptime/error_rate. До подтверждения восстановления серверы не удалять.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "availability",
+          "async-operation"
+        ],
+        "used_memory_ids": [
+          "uptick.advance_provisioning_by_simulation_time"
+        ],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-12\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":300}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    },
+    {
+      "id": 92,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Все операции provisioning завершились успешно, но 12 backend дают лишь 1200 units при текущей нагрузке 1188: утилизация 99%, сайт остаётся недоступен, а uptime уже снизился до 98,97%. Требуется ещё один backend.standard для запаса мощности. После его provisioning нужно немедленно проверить product_list; удаление серверов сейчас недопустимо.",
+        "plan": "Создать backend-capacity-13, продвинуть симуляцию на 300 секунд для завершения provisioning, затем выполнить probe product_list. Следующее решение: подтвердить 13 активных backend, site_status available, успешный probe и снижение текущей утилизации примерно до 91,4%. Если восстановление подтверждено, продвигать время крупными интервалами с остановкой по новым инфраструктурным ошибкам до terminal run state; серверы не удалять, пока uptime не восстановится выше 99% с безопасным запасом.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "availability",
+          "async-operation"
+        ],
+        "used_memory_ids": [
+          "uptick.advance_provisioning_by_simulation_time"
+        ],
+        "lessons": [
+          {
+            "key": "uptick.advance_provisioning_by_simulation_time",
+            "title": "Асинхронное provisioning эффективнее завершать продвижением симуляционного времени",
+            "body": "Если длительность provisioning задана в симуляционном времени, а операции выполняются без terminal error, контролируемое продвижение времени может завершить их эффективнее повторных коротких опросов.",
+            "tags": [
+              "async-operation",
+              "simulation-time",
+              "efficiency"
+            ],
+            "procedure": [
+              "Убедиться, что операции выполняются без terminal error.",
+              "Сопоставить интервал продвижения с длительностью provisioning.",
+              "Продвинуть симуляционное время на достаточный безопасный интервал.",
+              "Проверить терминальные статусы операций и фактическое active-состояние ресурсов."
+            ],
+            "importance": 0.78,
+            "evidence_ids": [
+              17,
+              26
+            ],
+            "verdict": "supports",
+            "outcome": "success",
+            "explanation": "Продвижение симуляции на 300 секунд завершилось штатно, а новая операция создания backend достигла succeeded и ресурс стал active. Это подтверждает приём для исправно выполняющегося provisioning, но не гарантирует восстановление доступности сайта."
+          }
+        ],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-13\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":300}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"probe\",\"params\":{\"page\":\"product_list\"}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": [
+          "uptick.advance_provisioning_by_simulation_time"
+        ]
+      }
+    },
+    {
+      "id": 100,
+      "kind": "decision",
+      "data": {
+        "mission": "Завершить run Jv63Zln7ywXRk1sXP3jsos0N с uptime не ниже 99% и минимальной суммарной стоимостью инфраструктуры.",
+        "assessment": "Новый backend успешно активирован, но явный probe всё ещё получил SERVER_CAPACITY_EXCEEDED: для запроса требовалось 10 units, а доступно только 9. Показатель 91% из overview учитывает общую ёмкость, однако фактического запаса на обслуживающем backend недостаточно. Сайт остаётся unavailable, поэтому нужен ещё один backend.standard; сокращать инфраструктуру нельзя.",
+        "plan": "Создать backend-capacity-14, продвинуть симуляцию на 300 секунд до завершения provisioning и повторить probe product_list. После выполнения проверить terminal status операции, active-состояние нового сервера, ответ probe 200 и site_status. Если доступность восстановлена, продолжить продвижение времени с остановкой по SERVER_CAPACITY_EXCEEDED и другим новым инфраструктурным ошибкам до terminal run state; если probe снова вернёт нехватку мощности, пересчитать фактическую backend-ёмкость по наблюдаемой нагрузке и добавить минимально необходимый запас.",
+        "tags": [
+          "uptick",
+          "sre",
+          "capacity",
+          "availability",
+          "async-operation"
+        ],
+        "used_memory_ids": [
+          "uptick.advance_provisioning_by_simulation_time"
+        ],
+        "lessons": [],
+        "actions": [
+          {
+            "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-capacity-14\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+            "replay_safe": false,
+            "wait_for_completion": false,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":300}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          },
+          {
+            "payload_json": "{\"kind\":\"probe\",\"params\":{\"page\":\"product_list\"}}",
+            "replay_safe": false,
+            "wait_for_completion": true,
+            "repeat_count": 1
+          }
+        ],
+        "accepted_lessons": []
+      }
+    }
+  ],
+  "limitations": [
+    "Uptick runs paused at configured decision budgets; the full seven-day SLO is not established.",
+    "Integration was generated and repaired by the agent; core protocol bugs were fixed during development.",
+    "No causal performance benefit from memory is established by these short runs."
+  ]
+}

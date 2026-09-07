@@ -1,0 +1,229 @@
+{
+  "kind": "live_codex_experiment",
+  "model": "gpt-5.6-sol",
+  "training": [
+    {
+      "world": "pantry",
+      "local_id": "ak2-55d8e1024c964239a360",
+      "external_id": "8f04af10fb1945ea840881b5d7cdaacd",
+      "seed": 13,
+      "model": "gpt-5.6-sol",
+      "status": "finished",
+      "done": true,
+      "success": true,
+      "metrics": {
+        "health": 4,
+        "cycles_completed": 3,
+        "actions": 6
+      },
+      "decisions": 2,
+      "llm_seconds": 39.07,
+      "memory_enabled": true,
+      "learning_enabled": true,
+      "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+      "error": null
+    },
+    {
+      "world": "pantry",
+      "local_id": "ak2-18f418c4be604acabc91",
+      "external_id": "f34e8dc0d30a4994b90a3c358084f859",
+      "seed": 12,
+      "model": "gpt-5.6-sol",
+      "status": "finished",
+      "done": true,
+      "success": true,
+      "metrics": {
+        "health": 4,
+        "cycles_completed": 3,
+        "actions": 6
+      },
+      "decisions": 2,
+      "llm_seconds": 36.16,
+      "memory_enabled": true,
+      "learning_enabled": true,
+      "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+      "error": null
+    },
+    {
+      "world": "pantry",
+      "local_id": "ak2-162ddaa908e147c2be28",
+      "external_id": "3d121b162e274448a61dccd402c71b07",
+      "seed": 11,
+      "model": "gpt-5.6-sol",
+      "status": "finished",
+      "done": true,
+      "success": true,
+      "metrics": {
+        "health": 4,
+        "cycles_completed": 3,
+        "actions": 6
+      },
+      "decisions": 2,
+      "llm_seconds": 190.24,
+      "memory_enabled": true,
+      "learning_enabled": true,
+      "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+      "error": null
+    }
+  ],
+  "evaluation": [
+    {
+      "world": "pantry",
+      "local_id": "ak2-7b915b9492044696b2d4",
+      "external_id": "55367f0a63494c16b1ea297e14f1e0a8",
+      "seed": 101,
+      "model": "gpt-5.6-sol",
+      "status": "finished",
+      "done": true,
+      "success": true,
+      "metrics": {
+        "health": 4,
+        "cycles_completed": 3,
+        "actions": 6
+      },
+      "decisions": 2,
+      "llm_seconds": 32.18,
+      "memory_enabled": false,
+      "learning_enabled": false,
+      "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+      "error": null
+    },
+    {
+      "world": "pantry",
+      "local_id": "ak2-e5046dbb51614225badf",
+      "external_id": "ce51d00c530c43bc8b351ad0ceadff07",
+      "seed": 101,
+      "model": "gpt-5.6-sol",
+      "status": "finished",
+      "done": true,
+      "success": true,
+      "metrics": {
+        "health": 4,
+        "cycles_completed": 3,
+        "actions": 6
+      },
+      "decisions": 2,
+      "llm_seconds": 35.29,
+      "memory_enabled": true,
+      "learning_enabled": false,
+      "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+      "error": null
+    },
+    {
+      "world": "pantry",
+      "local_id": "ak2-21cd3681403a41148ee3",
+      "external_id": "89e211a171da4f5982bd3d68c76ec80a",
+      "seed": 102,
+      "model": "gpt-5.6-sol",
+      "status": "finished",
+      "done": true,
+      "success": true,
+      "metrics": {
+        "health": 4,
+        "cycles_completed": 3,
+        "actions": 6
+      },
+      "decisions": 2,
+      "llm_seconds": 32.56,
+      "memory_enabled": false,
+      "learning_enabled": false,
+      "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+      "error": null
+    },
+    {
+      "world": "pantry",
+      "local_id": "ak2-ec3c3a23bed646a189b6",
+      "external_id": "7a2e1180ffe54989900b1fe9187772ef",
+      "seed": 102,
+      "model": "gpt-5.6-sol",
+      "status": "finished",
+      "done": true,
+      "success": true,
+      "metrics": {
+        "health": 4,
+        "cycles_completed": 3,
+        "actions": 6
+      },
+      "decisions": 2,
+      "llm_seconds": 35.52,
+      "memory_enabled": true,
+      "learning_enabled": false,
+      "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+      "error": null
+    }
+  ],
+  "experience": {
+    "lessons": [
+      {
+        "id": "pantry.alternate-cook-eat-when-hungry",
+        "title": "Чередовать приготовление и приём пищи",
+        "body": "Если персонаж голоден и готовой еды нет, последовательность cook→eat завершает один цикл без потери здоровья. Для нескольких циклов её следует повторять до авторитетного done=true, проверяя состояние после каждого действия.",
+        "tags": [
+          "pantry",
+          "action-sequence",
+          "health",
+          "efficiency"
+        ],
+        "procedure": [
+          "Убедиться по текущему состоянию, что запуск не завершён, персонаж голоден и готовой еды нет.",
+          "Выполнить cook и проверить, что meal_ready=true и здоровье не уменьшилось.",
+          "Выполнить eat и проверить увеличение cycles_completed, исчезновение готовой еды и отсутствие потери здоровья.",
+          "Повторять только для незавершённого запуска; прекратить действия сразу после done=true и оценить success."
+        ],
+        "support": 3,
+        "against": 0,
+        "importance": 0.95,
+        "touched": 5,
+        "uses": 4,
+        "confidence": 0.8,
+        "strength": 0.797,
+        "level": "skill",
+        "evidence": [
+          {
+            "identity": "ak2-55d8e1024c964239a360:pantry-run:8f04af10fb1945ea840881b5d7cdaacd:completion",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":21,\"run\":\"ak2-55d8e1024c964239a360\",\"identity\":\"pantry-run:8f04af10fb1945ea840881b5d7cdaacd:completion\",\"outcome\":\"success\",\"kind\":\"completion\",\"detail\":\"World reported the run complete with success=true.\"},\"explanation\":\"Новый независимый запуск подтвердил урок: три пары cook→eat дали три завершённых цикла ровно за шесть действий, сохранили health=4 и привели к авторитетным done=true и success=true.\"}"
+          },
+          {
+            "identity": "ak2-55d8e1024c964239a360:ak2-55d8e1024c964239a360-fc0235ea133c4bb99af9a33f5c492b32",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":19,\"run\":\"ak2-55d8e1024c964239a360\",\"identity\":\"ak2-55d8e1024c964239a360-fc0235ea133c4bb99af9a33f5c492b32\",\"outcome\":\"success\",\"kind\":\"action\",\"detail\":\"cook\"},\"explanation\":\"Новый независимый запуск подтвердил урок: три пары cook→eat дали три завершённых цикла ровно за шесть действий, сохранили health=4 и привели к авторитетным done=true и success=true.\"}"
+          },
+          {
+            "identity": "ak2-55d8e1024c964239a360:ak2-55d8e1024c964239a360-cfae971f6fba4dac84bbeb2be3a8278a",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":17,\"run\":\"ak2-55d8e1024c964239a360\",\"identity\":\"ak2-55d8e1024c964239a360-cfae971f6fba4dac84bbeb2be3a8278a\",\"outcome\":\"success\",\"kind\":\"action\",\"detail\":\"cook\"},\"explanation\":\"Новый независимый запуск подтвердил урок: три пары cook→eat дали три завершённых цикла ровно за шесть действий, сохранили health=4 и привели к авторитетным done=true и success=true.\"}"
+          },
+          {
+            "identity": "ak2-55d8e1024c964239a360:ak2-55d8e1024c964239a360-ca51c35c764b49bda7d5aed99e078ab9",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":16,\"run\":\"ak2-55d8e1024c964239a360\",\"identity\":\"ak2-55d8e1024c964239a360-ca51c35c764b49bda7d5aed99e078ab9\",\"outcome\":\"success\",\"kind\":\"action\",\"detail\":\"eat\"},\"explanation\":\"Новый независимый запуск подтвердил урок: три пары cook→eat дали три завершённых цикла ровно за шесть действий, сохранили health=4 и привели к авторитетным done=true и success=true.\"}"
+          }
+        ]
+      }
+    ],
+    "tags": {
+      "pantry": 3,
+      "action-sequence": 3,
+      "health": 3,
+      "efficiency": 3
+    },
+    "forgetting": {
+      "epoch": 6,
+      "last_forgotten": [],
+      "total": 0
+    },
+    "limits": {
+      "lessons": 80,
+      "events_per_run": 150,
+      "facts_per_run": 200,
+      "completed_runs": 100
+    }
+  },
+  "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+  "limitations": [
+    "Pantry is a small deterministic test environment, not evidence of SRE performance.",
+    "Both evaluation arms succeeded equally; no benefit of experience was measured.",
+    "Initial training LLM time includes autonomous adapter generation; later runs reuse knowledge."
+  ]
+}

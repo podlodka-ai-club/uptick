@@ -1,0 +1,236 @@
+{
+  "recorded_at": "2026-09-05T12:07:50.413110+00:00",
+  "note": "Observed decoded HTTP refusals from the simulator. They do not prove whether simulation time advanced or why the server failed. Limited to retained episode history.",
+  "items": [
+    {
+      "local_run": "ak2-ba87989c910144ce884c",
+      "event_id": 1134,
+      "action": {
+        "kind": "advance_time",
+        "duration_seconds": 300,
+        "stop_when": {
+          "new_log_errors": 1
+        }
+      },
+      "request_id": "ak2-ba87989c910144ce884c-ba763f7e25c84b6f8eecb38de4577053",
+      "error": {
+        "http_status": 500,
+        "response": {
+          "error": "INTERNAL_ERROR",
+          "message": "Internal simulator error"
+        }
+      }
+    },
+    {
+      "local_run": "ak2-ba87989c910144ce884c",
+      "event_id": 1144,
+      "action": {
+        "kind": "advance_time",
+        "duration_seconds": 300,
+        "stop_when": {
+          "new_log_errors": 1,
+          "error_codes": [
+            "SERVER_CAPACITY_EXCEEDED",
+            "DB_CONNECTION_LIMIT_EXCEEDED",
+            "DISK_FULL",
+            "SITE_UNAVAILABLE",
+            "DB_UNAVAILABLE"
+          ]
+        }
+      },
+      "request_id": "ak2-ba87989c910144ce884c-47b87b4bd72742a090ce96884894dde7",
+      "error": {
+        "http_status": 500,
+        "response": {
+          "error": "INTERNAL_ERROR",
+          "message": "Internal simulator error"
+        }
+      }
+    },
+    {
+      "local_run": "ak2-82171be0d39048e9bcea",
+      "event_id": 1462,
+      "action": {
+        "kind": "advance_time",
+        "duration_seconds": 7200,
+        "stop_when": {
+          "new_log_errors": 1
+        }
+      },
+      "request_id": "ak2-82171be0d39048e9bcea-43ba01dd6ffa490aa23d4674c4976871",
+      "error": {
+        "http_status": 500,
+        "response": {
+          "error": "INTERNAL_ERROR",
+          "message": "Internal simulator error"
+        }
+      }
+    },
+    {
+      "local_run": "ak2-82171be0d39048e9bcea",
+      "event_id": 1540,
+      "action": {
+        "kind": "advance_time",
+        "duration_seconds": 7200,
+        "stop_when": {
+          "new_log_errors": 1
+        }
+      },
+      "request_id": "ak2-82171be0d39048e9bcea-b8a07acd24f24d20a88f1e1814118bd2",
+      "error": {
+        "http_status": 500,
+        "response": {
+          "error": "INTERNAL_ERROR",
+          "message": "Internal simulator error"
+        }
+      }
+    },
+    {
+      "local_run": "ak2-82171be0d39048e9bcea",
+      "event_id": 1563,
+      "action": {
+        "kind": "advance_time",
+        "duration_seconds": 3600,
+        "stop_when": {
+          "new_log_errors": 1
+        }
+      },
+      "request_id": "ak2-82171be0d39048e9bcea-61bb47083ee04d1391a8302dcb9d94ea",
+      "error": {
+        "http_status": 500,
+        "response": {
+          "error": "INTERNAL_ERROR",
+          "message": "Internal simulator error"
+        }
+      }
+    },
+    {
+      "local_run": "ak2-8953e8b9a3574c559a50",
+      "event_id": 1720,
+      "action": {
+        "kind": "advance_time",
+        "duration_seconds": 1800,
+        "stop_when": {
+          "new_log_errors": 1
+        }
+      },
+      "request_id": "ak2-8953e8b9a3574c559a50-f9e120a279f24d1a951728f46c56e0d3",
+      "error": {
+        "http_status": 500,
+        "response": {
+          "error": "INTERNAL_ERROR",
+          "message": "Internal simulator error"
+        }
+      }
+    },
+    {
+      "local_run": "ak2-8953e8b9a3574c559a50",
+      "event_id": 1782,
+      "action": {
+        "kind": "advance_time",
+        "duration_seconds": 900,
+        "stop_when": {
+          "new_log_errors": 1
+        }
+      },
+      "request_id": "ak2-8953e8b9a3574c559a50-971b3fa9f46f482ebd6a64fb5ed44c7b",
+      "error": {
+        "http_status": 500,
+        "response": {
+          "error": "INTERNAL_ERROR",
+          "message": "Internal simulator error"
+        }
+      }
+    },
+    {
+      "local_run": "ak2-82171be0d39048e9bcea",
+      "event_id": 1793,
+      "action": {
+        "kind": "advance_time",
+        "duration_seconds": 900,
+        "stop_when": {
+          "new_log_errors": 1
+        }
+      },
+      "request_id": "ak2-82171be0d39048e9bcea-3f0db1428042463d9d9ee07ec19edd67",
+      "error": {
+        "http_status": 500,
+        "response": {
+          "error": "INTERNAL_ERROR",
+          "message": "Internal simulator error"
+        },
+        "http_call": {
+          "method": "POST",
+          "path": "/v2/runs/3mePPbDMoIh8WxKe7hnhqQWC/time/advance",
+          "request_body": {
+            "request_id": "ak2-82171be0d39048e9bcea-3f0db1428042463d9d9ee07ec19edd67",
+            "duration_seconds": 900,
+            "stop_when": {
+              "new_log_errors": 1
+            }
+          },
+          "response_headers": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "name": "Date",
+              "value": "Sat, 05 Sep 2026 12:07:01 GMT"
+            },
+            {
+              "name": "Content-Length",
+              "value": "64"
+            }
+          ],
+          "body_complete": true,
+          "http_status": 500,
+          "response_bytes": 64,
+          "elapsed_seconds": 0.564124
+        }
+      }
+    },
+    {
+      "local_run": "ak2-82171be0d39048e9bcea",
+      "event_id": 1800,
+      "action": {
+        "kind": "advance_time",
+        "duration_seconds": 900
+      },
+      "request_id": "ak2-82171be0d39048e9bcea-9ee208a7b435413485441faad29ba866",
+      "error": {
+        "http_status": 500,
+        "response": {
+          "error": "INTERNAL_ERROR",
+          "message": "Internal simulator error"
+        },
+        "http_call": {
+          "method": "POST",
+          "path": "/v2/runs/3mePPbDMoIh8WxKe7hnhqQWC/time/advance",
+          "request_body": {
+            "request_id": "ak2-82171be0d39048e9bcea-9ee208a7b435413485441faad29ba866",
+            "duration_seconds": 900
+          },
+          "response_headers": [
+            {
+              "name": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            },
+            {
+              "name": "Date",
+              "value": "Sat, 05 Sep 2026 12:07:34 GMT"
+            },
+            {
+              "name": "Content-Length",
+              "value": "64"
+            }
+          ],
+          "body_complete": true,
+          "http_status": 500,
+          "response_bytes": 64,
+          "elapsed_seconds": 0.540491
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,181 @@
+{
+  "run_id": "HSDPGk5QdzhI9Gj6A5UpEPZZ",
+  "local_id": "ak2-898120255c4e475d93f6",
+  "core_tests_passed": 71,
+  "model": "gpt-5.6-sol",
+  "effort": "low",
+  "before_observed_decision": {
+    "seconds": 877.38,
+    "context_reads": 24
+  },
+  "decisions": [
+    {
+      "seconds": 37.94,
+      "context_reads": 1,
+      "context_chars": 128663,
+      "original_context_chars": 227284,
+      "counts": {
+        "cache_write_input": 0,
+        "cached_input": 44544,
+        "input": 92971,
+        "output": 1324,
+        "reasoning_output": 353,
+        "total": 94295
+      }
+    },
+    {
+      "seconds": 17.19,
+      "context_reads": 0,
+      "context_chars": 116652,
+      "original_context_chars": 242899,
+      "counts": {
+        "cache_write_input": 0,
+        "cached_input": 0,
+        "input": 46349,
+        "output": 563,
+        "reasoning_output": 60,
+        "total": 46912
+      }
+    },
+    {
+      "seconds": 31.72,
+      "context_reads": 2,
+      "context_chars": 121077,
+      "original_context_chars": 244144,
+      "counts": {
+        "cache_write_input": 0,
+        "cached_input": 12800,
+        "input": 140950,
+        "output": 813,
+        "reasoning_output": 177,
+        "total": 141763
+      }
+    },
+    {
+      "seconds": 15.55,
+      "context_reads": 0,
+      "context_chars": 115915,
+      "original_context_chars": 239431,
+      "counts": {
+        "cache_write_input": 0,
+        "cached_input": 12800,
+        "input": 46128,
+        "output": 473,
+        "reasoning_output": 110,
+        "total": 46601
+      }
+    },
+    {
+      "seconds": 32.94,
+      "context_reads": 2,
+      "context_chars": 131243,
+      "original_context_chars": 249542,
+      "counts": {
+        "cache_write_input": 0,
+        "cached_input": 38400,
+        "input": 142230,
+        "output": 881,
+        "reasoning_output": 153,
+        "total": 143111
+      }
+    },
+    {
+      "seconds": 17.69,
+      "context_reads": 0,
+      "context_chars": 116323,
+      "original_context_chars": 253985,
+      "counts": {
+        "cache_write_input": 0,
+        "cached_input": 12800,
+        "input": 46422,
+        "output": 586,
+        "reasoning_output": 90,
+        "total": 47008
+      }
+    },
+    {
+      "seconds": 17.87,
+      "context_reads": 0,
+      "context_chars": 112447,
+      "original_context_chars": 248778,
+      "counts": {
+        "cache_write_input": 0,
+        "cached_input": 12800,
+        "input": 45361,
+        "output": 598,
+        "reasoning_output": 125,
+        "total": 45959
+      }
+    },
+    {
+      "seconds": 39.0,
+      "context_reads": 2,
+      "context_chars": 124280,
+      "original_context_chars": 234567,
+      "counts": {
+        "cache_write_input": 0,
+        "cached_input": 38400,
+        "input": 144474,
+        "output": 1150,
+        "reasoning_output": 316,
+        "total": 145624
+      }
+    }
+  ],
+  "mean_seconds": 26.2375,
+  "actions": 8,
+  "action_errors": [
+    {
+      "event": "action",
+      "local_id": "ak2-898120255c4e475d93f6",
+      "request_id": "ak2-898120255c4e475d93f6-80a1b7fa603b430a985f97ede01c2732",
+      "error": {
+        "code": "INVALID_ACTION",
+        "message": "Unknown action kind: None"
+      },
+      "pending": false,
+      "metrics": {}
+    }
+  ],
+  "final_overview": {
+    "evaluation": {
+      "policy_version": "cost-bands.v1",
+      "max_score": 100,
+      "score": null,
+      "grade": null,
+      "max_achievable_score": 100,
+      "next_cost_threshold_minor": 5000000000,
+      "cost_margin_minor": 4614492090
+    },
+    "costs": {
+      "currency": "RUB",
+      "server_cost_minor": 385507910,
+      "backup_storage_cost_minor": 0,
+      "total_cost_minor": 385507910,
+      "current_cost_per_hour_minor": 51400695
+    },
+    "availability": {
+      "uptime_target": 0.99,
+      "observed_seconds": 38273.447166959,
+      "available_seconds": 38237.878878108,
+      "downtime_seconds": 35.568288851,
+      "uptime_ratio": 0.9990706797666842,
+      "slo_passed": null
+    },
+    "clock": {
+      "simulation_time": "2030-02-11T07:37:53.447166959Z",
+      "simulation_ends_at": "2030-02-17T21:00:00Z",
+      "remaining_seconds": 566526.552833041,
+      "real_elapsed_seconds": 0,
+      "applied_advance_seconds": 0
+    },
+    "run_id": "HSDPGk5QdzhI9Gj6A5UpEPZZ",
+    "status": "running",
+    "site_status": "degraded",
+    "server_count": 2,
+    "capacity_utilization": 0,
+    "error_rate": 0.004742401379607674
+  },
+  "local_process_status": "paused_at_test_step_limit",
+  "note": "Eight supervised decisions, no world-specific scripts edited. This is a runtime regression check, not a controlled full-world success comparison."
+}

@@ -1,0 +1,126 @@
+{
+  "recorded_at_unix": 1788620106.818814,
+  "change": "Reorder existing fields: task, knowledge, observation, observation_outline; identical data retained.",
+  "offline_common_prefix_chars": {
+    "seed42": {
+      "before": [
+        513,
+        508,
+        510
+      ],
+      "after": [
+        75116,
+        75116,
+        75115
+      ]
+    },
+    "seed67": {
+      "before": [
+        621,
+        625,
+        622
+      ],
+      "after": [
+        200019,
+        200018,
+        200019
+      ]
+    },
+    "seed89": {
+      "before": [
+        622,
+        624,
+        625
+      ],
+      "after": [
+        207248,
+        207247,
+        207248
+      ]
+    }
+  },
+  "sdk_samples": {
+    "seed42": [
+      {
+        "seconds": 37.78,
+        "input": 158983,
+        "cached_input": 13056
+      },
+      {
+        "seconds": 27.89,
+        "input": 153082,
+        "cached_input": 0
+      },
+      {
+        "seconds": 29.52,
+        "input": 152058,
+        "cached_input": 0
+      },
+      {
+        "seconds": 41.48,
+        "input": 158333,
+        "cached_input": 13056
+      },
+      {
+        "seconds": 26.21,
+        "input": 154603,
+        "cached_input": 13056
+      }
+    ],
+    "seed67": [
+      {
+        "seconds": 25.17,
+        "input": 128819,
+        "cached_input": 13056
+      },
+      {
+        "seconds": 26.68,
+        "input": 125175,
+        "cached_input": 13056
+      },
+      {
+        "seconds": 30.41,
+        "input": 128538,
+        "cached_input": 0
+      },
+      {
+        "seconds": 52.32,
+        "input": 124907,
+        "cached_input": 13056
+      },
+      {
+        "seconds": 25.68,
+        "input": 128845,
+        "cached_input": 13056
+      }
+    ],
+    "seed89": [
+      {
+        "seconds": 38.55,
+        "input": 113435,
+        "cached_input": 13056
+      },
+      {
+        "seconds": 39.3,
+        "input": 113910,
+        "cached_input": 13056
+      },
+      {
+        "seconds": 46.47,
+        "input": 117581,
+        "cached_input": 0
+      },
+      {
+        "seconds": 28.21,
+        "input": 118463,
+        "cached_input": 13056
+      },
+      {
+        "seconds": 32.42,
+        "input": 118736,
+        "cached_input": 13056
+      }
+    ]
+  },
+  "result": "Longer common serialized prefix verified offline. Increased SDK caching or reduced usage was NOT observed in these real calls; no efficiency gain claimed."
+}

@@ -1,0 +1,36 @@
+{
+  "local_run": "ak2-82171be0d39048e9bcea",
+  "note": "Independent sequential checks after agent process terminated. No other requests to this run were in flight.",
+  "checks": [
+    {
+      "recorded_at": "2026-09-05T12:17:59.483954+00:00",
+      "method": "GET",
+      "url": "http://81.176.229.58:8080/v2/runs/3mePPbDMoIh8WxKe7hnhqQWC/overview",
+      "status": 500,
+      "body": {
+        "error": "INTERNAL_ERROR",
+        "message": "Internal simulator error"
+      }
+    },
+    {
+      "recorded_at": "2026-09-05T12:18:01.022051+00:00",
+      "method": "GET",
+      "url": "http://81.176.229.58:8080/v2/runs/3mePPbDMoIh8WxKe7hnhqQWC/overview",
+      "status": 500,
+      "body": {
+        "error": "INTERNAL_ERROR",
+        "message": "Internal simulator error"
+      }
+    },
+    {
+      "recorded_at": "2026-09-05T12:18:02.576071+00:00",
+      "method": "GET",
+      "url": "http://81.176.229.58:8080/v2/runs/3mePPbDMoIh8WxKe7hnhqQWC/overview",
+      "status": 500,
+      "body": {
+        "error": "INTERNAL_ERROR",
+        "message": "Internal simulator error"
+      }
+    }
+  ]
+}

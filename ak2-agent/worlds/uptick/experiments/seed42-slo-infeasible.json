@@ -1,0 +1,16 @@
+{
+  "recorded_at_unix": 1788620579.470011,
+  "local_id": "ak2-56f2bb4c62574bb38bf8",
+  "seed": 42,
+  "state": "paused",
+  "step": 180,
+  "world_done": false,
+  "world_success": null,
+  "simulation_duration_seconds": 604800.0,
+  "target": 0.99,
+  "downtime_seconds": 6094.065970141,
+  "allowed_downtime_seconds": 6048.0000000000055,
+  "best_possible_final_uptime_at_checkpoint": 0.9899238327213277,
+  "reason": "Supervisor paused an experiment whose final uptime goal is mathematically unreachable; prioritize still-viable runs. This is not a terminal server result.",
+  "checkpoint_saved": true
+}

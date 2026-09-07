@@ -1,0 +1,17 @@
+{
+  "local_run": "ak2-8953e8b9a3574c559a50",
+  "request_id": "ak2-8953e8b9a3574c559a50-6994d27629194c55b0e06a651ca595e5",
+  "method": "GET",
+  "path": "/v2/runs/r3ysBAQe0Uxb3ZWZFV4JZS0q/logs?from=2030-09-10T14%3A45%3A23Z&to=2030-09-10T14%3A50%3A23Z&limit=1000",
+  "http_status": 200,
+  "received_bytes": 12602,
+  "body_complete": false,
+  "exception": "TimeoutError",
+  "elapsed_seconds": 8.762881,
+  "limits": {
+    "timeout_seconds": 8,
+    "budget_seconds": 10,
+    "max_response_bytes": 1048576
+  },
+  "note": "Observed by actual agent; HTTP200 with incomplete JSON, not server HTTP500. Curl approximates total budget, not Python per-socket read timeout."
+}

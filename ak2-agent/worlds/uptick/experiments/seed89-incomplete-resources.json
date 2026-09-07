@@ -1,0 +1,75 @@
+{
+  "event_id": 4002,
+  "local_run": "ak2-8953e8b9a3574c559a50",
+  "source": {
+    "source": "network",
+    "fresh": false,
+    "complete": false,
+    "elapsed_seconds": 3.522,
+    "error": {
+      "source": "resources",
+      "exception": "TimeoutError",
+      "message": "timed out",
+      "elapsed_seconds": 3.522,
+      "http_call": {
+        "method": "GET",
+        "path": "/v2/runs/r3ysBAQe0Uxb3ZWZFV4JZS0q/resources",
+        "limits": {
+          "timeout_seconds": 3,
+          "budget_seconds": 4,
+          "max_response_bytes": 1048576
+        },
+        "request_body": null,
+        "response_headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json; charset=utf-8"
+          },
+          {
+            "name": "Date",
+            "value": "Sat, 05 Sep 2026 15:51:28 GMT"
+          },
+          {
+            "name": "Connection",
+            "value": "close"
+          },
+          {
+            "name": "Transfer-Encoding",
+            "value": "chunked"
+          }
+        ],
+        "body_complete": false,
+        "json_complete": false,
+        "response_bytes": 6811,
+        "read_chunks": 2,
+        "stage": "read_body",
+        "network_attempted": true,
+        "http_status": 200,
+        "framing": {
+          "http_version": 11,
+          "content_length": null,
+          "transfer_encoding": "chunked",
+          "content_encoding": null,
+          "connection": "close",
+          "mode": "chunked",
+          "remaining_content_length": null,
+          "remaining_chunk_bytes": 7576,
+          "framing_complete": null
+        },
+        "first_body_bytes_seconds": 4.1e-05,
+        "last_body_bytes_seconds": 0.00033,
+        "last_json_error": {
+          "exception": "JSONDecodeError",
+          "message": "Unterminated string starting at",
+          "position": 6810
+        },
+        "exception": "TimeoutError",
+        "elapsed_seconds": 3.521453,
+        "gate_wait_seconds": 1e-06
+      }
+    },
+    "requested_params": {},
+    "age_seconds_at_return": 0.024
+  },
+  "note": "Historical incomplete HTTP200 response from actual agent; curl is a reproduction request, server recovery is not assumed."
+}

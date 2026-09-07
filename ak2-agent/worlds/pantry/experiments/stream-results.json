@@ -1,0 +1,115 @@
+{
+  "kind": "live_jsonl_stream",
+  "results": [
+    {
+      "world": "pantry",
+      "local_id": "ak2-3dfcac7ebaa6412f8477",
+      "external_id": "8ee7c4b1f0514544a132e88a2b268c4f",
+      "seed": 32,
+      "model": "gpt-5.6-sol",
+      "status": "finished",
+      "done": true,
+      "success": true,
+      "metrics": {
+        "health": 4,
+        "cycles_completed": 3,
+        "actions": 6
+      },
+      "decisions": 2,
+      "llm_seconds": 30.43,
+      "memory_enabled": true,
+      "learning_enabled": true,
+      "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+      "error": null
+    },
+    {
+      "world": "pantry",
+      "local_id": "ak2-15d94a2ef58243a0b10f",
+      "external_id": "fe1fb8c4529a47e7b7a7ffa985c3d561",
+      "seed": 31,
+      "model": "gpt-5.6-sol",
+      "status": "finished",
+      "done": true,
+      "success": true,
+      "metrics": {
+        "health": 4,
+        "cycles_completed": 3,
+        "actions": 6
+      },
+      "decisions": 2,
+      "llm_seconds": 28.67,
+      "memory_enabled": true,
+      "learning_enabled": true,
+      "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+      "error": null
+    }
+  ],
+  "after_stream_experience": {
+    "lessons": [
+      {
+        "id": "pantry.alternate-cook-eat-when-hungry",
+        "title": "Чередовать приготовление и приём пищи",
+        "body": "Если персонаж голоден и готовой еды нет, последовательность cook→eat завершает один цикл без потери здоровья. Для нескольких циклов её следует повторять до авторитетного done=true, проверяя состояние после каждого действия.",
+        "tags": [
+          "pantry",
+          "action-sequence",
+          "health",
+          "efficiency"
+        ],
+        "procedure": [
+          "Убедиться по текущему состоянию, что запуск не завершён, персонаж голоден и готовой еды нет.",
+          "Выполнить cook и проверить, что еда готова, а здоровье не уменьшилось.",
+          "Выполнить eat и проверить увеличение числа завершённых циклов и отсутствие потери здоровья.",
+          "Повторять только до терминального состояния; после done=true прекратить действия и проверить success."
+        ],
+        "support": 5,
+        "against": 0,
+        "importance": 0.95,
+        "touched": 9,
+        "uses": 8,
+        "confidence": 0.8571428571428571,
+        "strength": 0.8545,
+        "level": "skill",
+        "evidence": [
+          {
+            "identity": "ak2-3dfcac7ebaa6412f8477:pantry-run:8ee7c4b1f0514544a132e88a2b268c4f:completion",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":35,\"run\":\"ak2-3dfcac7ebaa6412f8477\",\"identity\":\"pantry-run:8ee7c4b1f0514544a132e88a2b268c4f:completion\",\"outcome\":\"success\",\"kind\":\"completion\",\"detail\":\"World reported the run complete with success=true.\"},\"explanation\":\"Новый независимый запуск завершился с success=true: три цикла выполнены ровно за шесть действий, здоровье осталось равным 4. Это подтверждает результативность и эффективность последовательности cook→eat для указанного начального состояния.\"}"
+          },
+          {
+            "identity": "ak2-15d94a2ef58243a0b10f:pantry-run:fe1fb8c4529a47e7b7a7ffa985c3d561:completion",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":28,\"run\":\"ak2-15d94a2ef58243a0b10f\",\"identity\":\"pantry-run:fe1fb8c4529a47e7b7a7ffa985c3d561:completion\",\"outcome\":\"success\",\"kind\":\"completion\",\"detail\":\"World reported the run complete with success=true.\"},\"explanation\":\"Новый независимый запуск завершился с success=true: три цикла выполнены ровно за шесть действий, здоровье осталось равным 4. Это подтверждает эффективность чередования cook→eat для данного начального состояния.\"}"
+          },
+          {
+            "identity": "ak2-55d8e1024c964239a360:pantry-run:8f04af10fb1945ea840881b5d7cdaacd:completion",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":21,\"run\":\"ak2-55d8e1024c964239a360\",\"identity\":\"pantry-run:8f04af10fb1945ea840881b5d7cdaacd:completion\",\"outcome\":\"success\",\"kind\":\"completion\",\"detail\":\"World reported the run complete with success=true.\"},\"explanation\":\"Новый независимый запуск подтвердил урок: три пары cook→eat дали три завершённых цикла ровно за шесть действий, сохранили health=4 и привели к авторитетным done=true и success=true.\"}"
+          },
+          {
+            "identity": "ak2-55d8e1024c964239a360:ak2-55d8e1024c964239a360-fc0235ea133c4bb99af9a33f5c492b32",
+            "verdict": "supports",
+            "detail": "{\"fact\":{\"id\":19,\"run\":\"ak2-55d8e1024c964239a360\",\"identity\":\"ak2-55d8e1024c964239a360-fc0235ea133c4bb99af9a33f5c492b32\",\"outcome\":\"success\",\"kind\":\"action\",\"detail\":\"cook\"},\"explanation\":\"Новый независимый запуск подтвердил урок: три пары cook→eat дали три завершённых цикла ровно за шесть действий, сохранили health=4 и привели к авторитетным done=true и success=true.\"}"
+          }
+        ]
+      }
+    ],
+    "tags": {
+      "pantry": 5,
+      "action-sequence": 5,
+      "health": 5,
+      "efficiency": 5
+    },
+    "forgetting": {
+      "epoch": 10,
+      "last_forgotten": [],
+      "total": 0
+    },
+    "limits": {
+      "lessons": 80,
+      "events_per_run": 150,
+      "facts_per_run": 200,
+      "completed_runs": 100
+    }
+  }
+}

@@ -1,0 +1,205 @@
+{
+  "captured_at": "2026-09-07T18:19:45.683228+00:00",
+  "source": "hackathon-server-runs.json",
+  "count": 191,
+  "completed": 85,
+  "summary_matches_journal_metadata": 191,
+  "groups": [
+    {
+      "agent_id": "af-sgr",
+      "scheduled_hours": 48.0,
+      "runs": 5,
+      "completed": 4,
+      "completed_slo_passed": 4,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 4,
+      "unfinished": 1
+    },
+    {
+      "agent_id": "af-sgr",
+      "scheduled_hours": 168.0,
+      "runs": 18,
+      "completed": 4,
+      "completed_slo_passed": 1,
+      "completed_slo_failed": 3,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 14
+    },
+    {
+      "agent_id": "ak-agent",
+      "scheduled_hours": 168.0,
+      "runs": 10,
+      "completed": 5,
+      "completed_slo_passed": 4,
+      "completed_slo_failed": 1,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 5
+    },
+    {
+      "agent_id": "ak2-agent",
+      "scheduled_hours": 48.0,
+      "runs": 11,
+      "completed": 7,
+      "completed_slo_passed": 4,
+      "completed_slo_failed": 3,
+      "completed_slo_passed_under_50m_rub": 4,
+      "unfinished": 4
+    },
+    {
+      "agent_id": "ak2-agent",
+      "scheduled_hours": 168.0,
+      "runs": 13,
+      "completed": 3,
+      "completed_slo_passed": 3,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 10
+    },
+    {
+      "agent_id": "deployment-smoke",
+      "scheduled_hours": 48.0,
+      "runs": 1,
+      "completed": 0,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 1
+    },
+    {
+      "agent_id": "deployment-smoke",
+      "scheduled_hours": 168.0,
+      "runs": 3,
+      "completed": 0,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 3
+    },
+    {
+      "agent_id": "http-framing-diagnostic",
+      "scheduled_hours": 168.0,
+      "runs": 1,
+      "completed": 0,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 1
+    },
+    {
+      "agent_id": "human-ui",
+      "scheduled_hours": 48.0,
+      "runs": 1,
+      "completed": 0,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 1
+    },
+    {
+      "agent_id": "human-ui",
+      "scheduled_hours": 168.0,
+      "runs": 1,
+      "completed": 0,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 1
+    },
+    {
+      "agent_id": "observability-tools-smoke",
+      "scheduled_hours": 168.0,
+      "runs": 2,
+      "completed": 0,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 2
+    },
+    {
+      "agent_id": "sre-agent",
+      "scheduled_hours": 168.0,
+      "runs": 4,
+      "completed": 1,
+      "completed_slo_passed": 1,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 3
+    },
+    {
+      "agent_id": "sre-explorer",
+      "scheduled_hours": 168.0,
+      "runs": 1,
+      "completed": 0,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 1
+    },
+    {
+      "agent_id": "uptick-sre-agent",
+      "scheduled_hours": 168.0,
+      "runs": 5,
+      "completed": 0,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 5
+    },
+    {
+      "agent_id": "uptick-v2-evaluation",
+      "scheduled_hours": 168.0,
+      "runs": 54,
+      "completed": 49,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 49,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 5
+    },
+    {
+      "agent_id": "uptick-v2-integration",
+      "scheduled_hours": 168.0,
+      "runs": 3,
+      "completed": 0,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 3
+    },
+    {
+      "agent_id": "uptick-v2-smoke",
+      "scheduled_hours": 168.0,
+      "runs": 1,
+      "completed": 0,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 1
+    },
+    {
+      "agent_id": "uptick-vadim-sre",
+      "scheduled_hours": 48.0,
+      "runs": 26,
+      "completed": 6,
+      "completed_slo_passed": 6,
+      "completed_slo_failed": 0,
+      "completed_slo_passed_under_50m_rub": 6,
+      "unfinished": 20
+    },
+    {
+      "agent_id": "uptick-vadim-sre",
+      "scheduled_hours": 168.0,
+      "runs": 31,
+      "completed": 6,
+      "completed_slo_passed": 0,
+      "completed_slo_failed": 6,
+      "completed_slo_passed_under_50m_rub": 0,
+      "unfinished": 25
+    }
+  ],
+  "limitations": [
+    "Development history, not a controlled benchmark.",
+    "Separate 48-hour and 168-hour worlds; seeds, model prompts, runtime and protocol changed.",
+    "Server running status does not prove a client agent process is running.",
+    "100-point cost band is derived from current cost-bands.v2: completed, SLO passed, RUB cost below 50 million."
+  ]
+}

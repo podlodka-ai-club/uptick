@@ -1,0 +1,53 @@
+{
+  "checked_at_unix": 1788614133.2755141,
+  "backup": ".local/experience-before-claim-versions-1788613906.sqlite3",
+  "all_prior_lessons_present": true,
+  "all_prior_claims_preserved": true,
+  "lessons": [
+    {
+      "id": "uptick.transient_single_500_diagnosis",
+      "prior_support": 25,
+      "prior_against": 1,
+      "legacy_support": 25,
+      "legacy_against": 1,
+      "verified_support": 0,
+      "verified_against": 0
+    },
+    {
+      "id": "uptick.advance_provisioning_by_simulation_time",
+      "prior_support": 18,
+      "prior_against": 0,
+      "legacy_support": 18,
+      "legacy_against": 0,
+      "verified_support": 0,
+      "verified_against": 0
+    },
+    {
+      "id": "uptick.command_params_follow_live_schema",
+      "prior_support": 1,
+      "prior_against": 0,
+      "legacy_support": 1,
+      "legacy_against": 0,
+      "verified_support": 0,
+      "verified_against": 0
+    },
+    {
+      "id": "uptick.verify_migration_before_source_deletion",
+      "prior_support": 3,
+      "prior_against": 0,
+      "legacy_support": 3,
+      "legacy_against": 0,
+      "verified_support": 0,
+      "verified_against": 0
+    },
+    {
+      "id": "uptick.aggregate_headroom_does_not_prove_route_capacity",
+      "prior_support": 1,
+      "prior_against": 0,
+      "legacy_support": 1,
+      "legacy_against": 0,
+      "verified_support": 0,
+      "verified_against": 0
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+[
+  {
+    "attempt": 1,
+    "at": "2026-09-05T11:21:40.167400+00:00",
+    "http_status": 500,
+    "response": {
+      "error": "INTERNAL_ERROR",
+      "message": "Internal simulator error"
+    }
+  },
+  {
+    "attempt": 2,
+    "at": "2026-09-05T11:21:42.690964+00:00",
+    "http_status": 500,
+    "response": {
+      "error": "INTERNAL_ERROR",
+      "message": "Internal simulator error"
+    }
+  },
+  {
+    "attempt": 3,
+    "at": "2026-09-05T11:21:45.202325+00:00",
+    "http_status": 500,
+    "response": {
+      "error": "INTERNAL_ERROR",
+      "message": "Internal simulator error"
+    }
+  }
+]

@@ -1,0 +1,1711 @@
+{
+  "captured_at": "2026-09-07T18:20:08.595552+00:00",
+  "source": "Read-only SQLite snapshots from local AK2 worlds",
+  "worlds": {
+    "pantry": {
+      "runs": [
+        {
+          "local_id": "ak2-3dfcac7ebaa6412f8477",
+          "seed": 32,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788601292.108524,
+          "status": "finished",
+          "step": 1,
+          "decisions": 2,
+          "llm_seconds": 30.43,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [],
+          "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-15d94a2ef58243a0b10f",
+          "seed": 31,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788601262.53014,
+          "status": "finished",
+          "step": 1,
+          "decisions": 2,
+          "llm_seconds": 28.67,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [],
+          "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-55d8e1024c964239a360",
+          "seed": 13,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788600223.193856,
+          "status": "finished",
+          "step": 1,
+          "decisions": 2,
+          "llm_seconds": 39.07,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [],
+          "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-18f418c4be604acabc91",
+          "seed": 12,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788600223.190922,
+          "status": "finished",
+          "step": 1,
+          "decisions": 2,
+          "llm_seconds": 36.16,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [],
+          "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-162ddaa908e147c2be28",
+          "seed": 11,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788599954.499904,
+          "status": "finished",
+          "step": 1,
+          "decisions": 2,
+          "llm_seconds": 190.24,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [],
+          "knowledge_hash": "58de38871799b3e6df557d362e1221e476c30a95b722652b4f4f4c2484cded1f",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        }
+      ],
+      "lessons": [
+        {
+          "id": "pantry.alternate-cook-eat-when-hungry",
+          "title": "Чередовать приготовление и приём пищи",
+          "body": "Если персонаж голоден и готовой еды нет, последовательность cook→eat завершает один цикл без потери здоровья. Для нескольких циклов её следует повторять до авторитетного done=true, проверяя состояние после каждого действия.",
+          "tags": [
+            "pantry",
+            "action-sequence",
+            "health",
+            "efficiency"
+          ],
+          "procedure": [
+            "Убедиться по текущему состоянию, что запуск не завершён, персонаж голоден и готовой еды нет.",
+            "Выполнить cook и проверить, что еда готова, а здоровье не уменьшилось.",
+            "Выполнить eat и проверить увеличение числа завершённых циклов и отсутствие потери здоровья.",
+            "Повторять только до терминального состояния; после done=true прекратить действия и проверить success."
+          ],
+          "support": 5,
+          "against": 0,
+          "importance": 0.95,
+          "uses": 8
+        }
+      ]
+    },
+    "uptick": {
+      "runs": [
+        {
+          "local_id": "ak2-b464475ee6d7411aa6f9",
+          "seed": 939280,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788801465.548127,
+          "status": "finished",
+          "step": 66,
+          "decisions": 67,
+          "llm_seconds": 3460.41,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "a2a358cdff0f29276091a7c289c01aa6443cd6a04da08b7093f3b36515744b6b",
+              "started": 1788801465.5499
+            }
+          ],
+          "knowledge_hash": "86298c61a563bfb43a93dab7923754d05115ad3d290f288471ea782caa4cc28f",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": "KfRgiEVUNuTv0SUNlcWOJUgn",
+            "status": "completed",
+            "clock": {
+              "simulation_time": "2030-06-02T21:00:00Z",
+              "simulation_ends_at": "2030-06-02T21:00:00Z",
+              "remaining_seconds": 0,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 172800,
+              "available_seconds": 172659.950582324,
+              "downtime_seconds": 140.049417676,
+              "uptime_ratio": 0.9991895288328935,
+              "slo_passed": true
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 2158840082,
+              "backup_storage_cost_minor": 10000,
+              "total_cost_minor": 2158850082,
+              "current_cost_per_hour_minor": 25702389
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v2",
+              "max_score": 100,
+              "score": 100,
+              "grade": "excellent",
+              "max_achievable_score": 100,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 2841149918
+            },
+            "server_count": 1
+          },
+          "retrospective_status": "running",
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-01fcdfbe0d5f47b0b105",
+          "seed": 10,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788772995.0709388,
+          "status": "finished",
+          "step": 147,
+          "decisions": 148,
+          "llm_seconds": 6757.719999999997,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "a2a358cdff0f29276091a7c289c01aa6443cd6a04da08b7093f3b36515744b6b",
+              "started": 1788772995.0722759
+            }
+          ],
+          "knowledge_hash": "86298c61a563bfb43a93dab7923754d05115ad3d290f288471ea782caa4cc28f",
+          "done": true,
+          "success": false,
+          "overview": {
+            "run_id": "rDboa9fRjRXAnWz0wBQngks2",
+            "status": "completed",
+            "clock": {
+              "simulation_time": "2030-04-16T00:00:00+03:00",
+              "simulation_ends_at": "2030-04-15T21:00:00Z",
+              "remaining_seconds": 0,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 172800,
+              "available_seconds": 126625.409730527,
+              "downtime_seconds": 46174.590269473,
+              "uptime_ratio": 0.7327859359405497,
+              "slo_passed": false
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 1567733333,
+              "backup_storage_cost_minor": 0,
+              "total_cost_minor": 1567733333,
+              "current_cost_per_hour_minor": 25700695
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v2",
+              "max_score": 100,
+              "score": 0,
+              "grade": "unsatisfactory",
+              "max_achievable_score": 0,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 3432266667
+            },
+            "server_count": 1
+          },
+          "retrospective_status": "completed",
+          "retrospective_assessment": "Мир завершён, но цель провалена: итоговый uptime 73,28% значительно ниже требуемых 99%, сайт недоступен, оценка — 0. Накоплено 46 174,59 секунды простоя при общей стоимости 1 567 733 333 minor RUB. Особенно заметны 262 333 ответа 403 на product_list и 4 936 ответов 500. В финале диск backend полностью заполнен журналами, а на сервере БД осталось около 282 МБ. Успешное завершение отдельных операций продвижения времени, создания и удаления серверов не подтверждает восстановления доступности."
+        },
+        {
+          "local_id": "ak2-4ee5b736d2ee4dc9b8d4",
+          "seed": 102,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788763839.450061,
+          "status": "finished",
+          "step": 106,
+          "decisions": 107,
+          "llm_seconds": 4878.98,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "a2a358cdff0f29276091a7c289c01aa6443cd6a04da08b7093f3b36515744b6b",
+              "started": 1788763839.451732
+            }
+          ],
+          "knowledge_hash": "86298c61a563bfb43a93dab7923754d05115ad3d290f288471ea782caa4cc28f",
+          "done": true,
+          "success": false,
+          "overview": {
+            "run_id": "qKQAusTLWMzxhdDIMjUfEHcN",
+            "status": "completed",
+            "clock": {
+              "simulation_time": "2030-07-15T21:00:00Z",
+              "simulation_ends_at": "2030-07-15T21:00:00Z",
+              "remaining_seconds": 0,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 172800,
+              "available_seconds": 135959.262620967,
+              "downtime_seconds": 36840.737379033,
+              "uptime_ratio": 0.7868012883157812,
+              "slo_passed": false
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 1362132258,
+              "backup_storage_cost_minor": 0,
+              "total_cost_minor": 1362132258,
+              "current_cost_per_hour_minor": 25700695
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v2",
+              "max_score": 100,
+              "score": 0,
+              "grade": "unsatisfactory",
+              "max_achievable_score": 0,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 3637867742
+            },
+            "server_count": 1
+          },
+          "retrospective_status": "completed",
+          "retrospective_assessment": "Мир завершён неуспешно: итоговый uptime 78,68% существенно ниже цели 99%, при общей стоимости 1 362 132 258 minor RUB и итоговой оценке 0. Зафиксировано 264 232 ответа 403; отдельный контрольный запрос product_list получил FIREWALL_DENIED от широкого правила /16. Это подтверждает вред правила для полезного трафика, но имеющихся разобранных данных недостаточно, чтобы приписать ему весь простой или точно оценить вклад серверных изменений."
+        },
+        {
+          "local_id": "ak2-6ca32bc224104f5f9408",
+          "seed": 1,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788755313.105238,
+          "status": "finished",
+          "step": 104,
+          "decisions": 106,
+          "llm_seconds": 3644.0100000000007,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "3682b92951e85d8bae0e361a1d0b430090fdbd8ce3c4f9874ba9f0112065374b",
+              "started": 1788755313.1064498
+            }
+          ],
+          "knowledge_hash": "86298c61a563bfb43a93dab7923754d05115ad3d290f288471ea782caa4cc28f",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": "SSivLkFdZvZ4czmTqQulgE8H",
+            "status": "completed",
+            "clock": {
+              "simulation_time": "2030-02-20T21:00:00Z",
+              "simulation_ends_at": "2030-02-20T21:00:00Z",
+              "remaining_seconds": 0,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 172800,
+              "available_seconds": 172285.509467442,
+              "downtime_seconds": 514.490532558,
+              "uptime_ratio": 0.9970226242328819,
+              "slo_passed": true
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 1799042960,
+              "backup_storage_cost_minor": 10000,
+              "total_cost_minor": 1799052960,
+              "current_cost_per_hour_minor": 51402389
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v2",
+              "max_score": 100,
+              "score": 100,
+              "grade": "excellent",
+              "max_achievable_score": 100,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 3200947040
+            },
+            "server_count": 2
+          },
+          "retrospective_status": "completed",
+          "retrospective_assessment": "Мир фактически завершён успешно. Терминальное состояние подтверждает 48 часов наблюдения, uptime 99,7023% при цели 99%, итоговую стоимость 17 990 529,60 ₽ при лимите 20 млн ₽ и максимальную оценку 100. Миграция БД завершена: резервная копия была создана, восстановлена на новом сервере как ready с сохранённой версией данных, сайт был переключён на мигрированную БД, а исходный сервер БД затем успешно удалён. Поздний DDoS сдерживался узким deny-правилом, совмещающим один /24 и точный User-Agent. Проверенная историческая агрегация за интервал от применения правила до конца мира показала 49 645 ответов 403, все они были отнесены к этому правилу и одному /24. Это подтверждает точную техническую атрибуцию блокировок, но само по себе не доказывает, что каждый заблокированный запрос был вредоносным. Несмотря на высокий итоговый error_rate, SLO пройден: метрика в основном отражает firewall-deny, а не эквивалентный объём простоя."
+        },
+        {
+          "local_id": "ak2-ab6c7e783b5844fcb0e2",
+          "seed": 1,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788755227.130284,
+          "status": "paused",
+          "step": 0,
+          "decisions": 0,
+          "llm_seconds": 0,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "3682b92951e85d8bae0e361a1d0b430090fdbd8ce3c4f9874ba9f0112065374b",
+              "started": 1788755227.131762
+            }
+          ],
+          "knowledge_hash": null,
+          "done": null,
+          "success": null,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": "paused",
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-30babb543c934a5bb2e5",
+          "seed": 1,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788726163.197053,
+          "status": "finished",
+          "step": 134,
+          "decisions": 136,
+          "llm_seconds": 4530.649999999999,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "bee73bb0b03134b495369a01547ec62a459b2f82a88955850957d3daaaa27054",
+              "started": 1788726163.198869
+            }
+          ],
+          "knowledge_hash": "53876143e108cf976927e15fb2b99bfaa361d8802d3c0f6c17fdcc274afc1d24",
+          "done": true,
+          "success": false,
+          "overview": {
+            "run_id": "i3DeiIf8iN2lkCyDqGy7izYW",
+            "status": "completed",
+            "clock": {
+              "simulation_time": "2030-02-20T21:00:00Z",
+              "simulation_ends_at": "2030-02-20T21:00:00Z",
+              "remaining_seconds": 0,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 172800,
+              "available_seconds": 170615.423238255,
+              "downtime_seconds": 2184.576761745,
+              "uptime_ratio": 0.9873577733695312,
+              "slo_passed": false
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 2133150207,
+              "backup_storage_cost_minor": 10000,
+              "total_cost_minor": 2133160207,
+              "current_cost_per_hour_minor": 51403084
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v2",
+              "max_score": 100,
+              "score": 0,
+              "grade": "unsatisfactory",
+              "max_achievable_score": 0,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 2866839793
+            },
+            "server_count": 2
+          },
+          "retrospective_status": "completed",
+          "retrospective_assessment": "Мир завершён неуспешно: итоговая оценка 0, uptime 98,7358% при требовании 99%, SLO не выполнен, max_achievable_score=0. Управляющая операция успешно установила deny-правило по User-Agent, но к завершению накопилось 49 598 ответов 403, главным образом на product_list, а сайт имел статус unavailable. Факты подтверждают провал цели, но доступные данные не устанавливают, какая доля 403 относилась к атакующему или легитимному трафику и было ли firewall-правило единственной причиной недоступности."
+        },
+        {
+          "local_id": "ak2-f6e6f1de78214236be09",
+          "seed": 42,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788723243.792756,
+          "status": "finished",
+          "step": 49,
+          "decisions": 50,
+          "llm_seconds": 1672.83,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "bee73bb0b03134b495369a01547ec62a459b2f82a88955850957d3daaaa27054",
+              "started": 1788723243.794177
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": "UvxKlEjTHw0MW1WgRLOTCTIn",
+            "status": "completed",
+            "clock": {
+              "simulation_time": "2030-04-15T21:00:00Z",
+              "simulation_ends_at": "2030-04-15T21:00:00Z",
+              "remaining_seconds": 0,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 172800,
+              "available_seconds": 172490.111595988,
+              "downtime_seconds": 309.888404012,
+              "uptime_ratio": 0.9982066643286343,
+              "slo_passed": true
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 2235937183,
+              "backup_storage_cost_minor": 6000,
+              "total_cost_minor": 2235943183,
+              "current_cost_per_hour_minor": 51402389
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v2",
+              "max_score": 100,
+              "score": 100,
+              "grade": "excellent",
+              "max_achievable_score": 100,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 2764056817
+            },
+            "server_count": 2
+          },
+          "retrospective_status": "completed",
+          "retrospective_assessment": "Мир успешно завершён. Терминальное состояние подтверждено свежими overview и metrics: status=completed, success=true, score=100, uptime_ratio=0.9982066643 при целевом 0.99, slo_passed=true. Последняя операция продвижения времени завершилась успешно со stop_reason=run_completed. Требования пользователя выполнены с существенным запасом по оценке и доступности."
+        },
+        {
+          "local_id": "ak2-96702e557542409e97ee",
+          "seed": 42,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788722082.89328,
+          "status": "paused",
+          "step": 1,
+          "decisions": 1,
+          "llm_seconds": 360.39000000000004,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "280b0678697b3c2acdd63d88e6da264eabb736b409b8d628f5ea045bee16e753",
+              "started": 1788722082.894378
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": "n4m8zjDUYmBYSlN2rdiDJmXm",
+            "status": "running",
+            "clock": {
+              "simulation_time": "2030-04-13T21:00:00Z",
+              "simulation_ends_at": "2030-04-15T21:00:00Z",
+              "remaining_seconds": 172800,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 0,
+              "available_seconds": 0,
+              "downtime_seconds": 0,
+              "uptime_ratio": null,
+              "slo_passed": null
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 0,
+              "backup_storage_cost_minor": 0,
+              "total_cost_minor": 0,
+              "current_cost_per_hour_minor": 25700695
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v2",
+              "max_score": 100,
+              "score": null,
+              "grade": null,
+              "max_achievable_score": 100,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 5000000000
+            },
+            "server_count": 1
+          },
+          "retrospective_status": "completed",
+          "retrospective_assessment": "Мир не завершён: run остался в состоянии running, симуляционное время не продвинулось от начальной отметки, uptime и итоговая оценка ещё не рассчитаны. Два наблюдения подтвердили здоровое начальное состояние без простоя и расходов, но оба были неполными из-за тайм-аута каталога команд. Затем агент подготовил ограниченный time_cycle на 16 часовых интервалов, однако в сохранённой истории нет результата его исполнения и нет evidence о применённом продвижении времени. termination=interrupted не является ни победой, ни поражением."
+        },
+        {
+          "local_id": "ak2-79083dab50ce409db5c6",
+          "seed": 12,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788719366.048874,
+          "status": "finished",
+          "step": 39,
+          "decisions": 40,
+          "llm_seconds": 1616.2000000000003,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "ac205208219587a4a517e842cb0562235ab8ede1f7488affca0b76d9cc341e87",
+              "started": 1788719366.050281
+            },
+            {
+              "hash": "6f0646880e7e2e08b7dbf101806d6a7f85947bd76b430636fa64257c78721192",
+              "started": 1788719671.627937
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": "vjY6KNcYYnk8TKt8ShSmPMAU",
+            "status": "completed",
+            "clock": {
+              "simulation_time": "2030-07-05T00:00:00+03:00",
+              "simulation_ends_at": "2030-07-04T21:00:00Z",
+              "remaining_seconds": 0,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 172800,
+              "available_seconds": 172737,
+              "downtime_seconds": 63,
+              "uptime_ratio": 0.9996354166666667,
+              "slo_passed": true
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 2210246074,
+              "backup_storage_cost_minor": 11000,
+              "total_cost_minor": 2210257074,
+              "current_cost_per_hour_minor": 51403084
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v2",
+              "max_score": 100,
+              "score": 100,
+              "grade": "excellent",
+              "max_achievable_score": 100,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 2789742926
+            },
+            "server_count": 2
+          },
+          "retrospective_status": "completed",
+          "retrospective_assessment": "Мир завершён успешно: итоговая оценка 100 баллов, uptime 99,9635% при требовании не ниже 99%, SLO выполнен, суммарный простой составил 63 секунды. Обязательная миграция БД подтверждена успешными операциями резервного копирования, восстановления на целевой БД, переключения сайта и последующего запуска. Терминальный статус — completed, success=true. В проверенном историческом окне после миграции запросы посетителей и контрольная проба возвращали HTTP 200; признаков срабатывания firewall в этом окне нет."
+        },
+        {
+          "local_id": "ak2-b05303a18cd746b6ab52",
+          "seed": 12,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788717448.873885,
+          "status": "paused",
+          "step": 5,
+          "decisions": 5,
+          "llm_seconds": 124.39,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "6b1a2f0a22d27fb916d315259acc1e23421812c25db9a5dab59116f6e6cc2104",
+              "started": 1788717448.875416
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": "EeOSn9hD1uUH1HqlC1c8MXMH",
+            "status": "running",
+            "clock": {
+              "simulation_time": "2030-07-03T10:33:00+03:00",
+              "simulation_ends_at": "2030-07-04T21:00:00Z",
+              "remaining_seconds": 134820,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 37980,
+              "available_seconds": 37980,
+              "downtime_seconds": 0,
+              "uptime_ratio": 1,
+              "slo_passed": null
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 282707090,
+              "backup_storage_cost_minor": 0,
+              "total_cost_minor": 282707090,
+              "current_cost_per_hour_minor": 25700695
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v2",
+              "max_score": 100,
+              "score": null,
+              "grade": null,
+              "max_achievable_score": 100,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 4717292910
+            },
+            "server_count": 1
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-ee961cdd455146e98283",
+          "seed": 93,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788712692.029598,
+          "status": "paused",
+          "step": 29,
+          "decisions": 29,
+          "llm_seconds": 2411.29,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "6b1a2f0a22d27fb916d315259acc1e23421812c25db9a5dab59116f6e6cc2104",
+              "started": 1788712692.030889
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": "q4LPwtNS5tN4tNkyOpc2njwx",
+            "status": "running",
+            "clock": {
+              "simulation_time": "2030-10-01T13:21:36.481251978Z",
+              "simulation_ends_at": "2030-10-01T21:00:00Z",
+              "remaining_seconds": 27503.518748022,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 145296.481251978,
+              "available_seconds": 144983.201863535,
+              "downtime_seconds": 313.279388443,
+              "uptime_ratio": 0.9978438611469214,
+              "slo_passed": null
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 1927527728,
+              "backup_storage_cost_minor": 0,
+              "total_cost_minor": 1927527728,
+              "current_cost_per_hour_minor": 77100695
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v2",
+              "max_score": 100,
+              "score": null,
+              "grade": null,
+              "max_achievable_score": 100,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 3072472272
+            },
+            "server_count": 3
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-8086ed154aae4b55940a",
+          "seed": 93,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788712147.51264,
+          "status": "paused",
+          "step": 0,
+          "decisions": 1,
+          "llm_seconds": 92.33,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "6b1a2f0a22d27fb916d315259acc1e23421812c25db9a5dab59116f6e6cc2104",
+              "started": 1788712147.514074
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-52dca003b9464bc9b6b7",
+          "seed": 93,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788712048.543097,
+          "status": "paused",
+          "step": 0,
+          "decisions": 1,
+          "llm_seconds": 14.87,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "6b1a2f0a22d27fb916d315259acc1e23421812c25db9a5dab59116f6e6cc2104",
+              "started": 1788712048.544939
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-6e2da0d61961449aaeb8",
+          "seed": 91,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788682766.790737,
+          "status": "paused",
+          "step": 19,
+          "decisions": 19,
+          "llm_seconds": 964.2,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "d2339b95eeb13067dc580167e4fc9af6b8bed59c4d0dcf9ce80b4dc95207788b",
+              "started": 1788682766.791821
+            },
+            {
+              "hash": "6b1a2f0a22d27fb916d315259acc1e23421812c25db9a5dab59116f6e6cc2104",
+              "started": 1788683048.803679
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-0caf57fa5eba491f8fe3",
+          "seed": 91,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788680173.060142,
+          "status": "error",
+          "step": 21,
+          "decisions": 21,
+          "llm_seconds": 620.34,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "51d50d0cf213d2a1528217d361e7756cc187e7ec43b57838aa31cea311741fbd",
+              "started": 1788680173.060927
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-392a945a2bb24583af96",
+          "seed": 91,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788680098.2495759,
+          "status": "paused",
+          "step": 0,
+          "decisions": 0,
+          "llm_seconds": 0,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "51d50d0cf213d2a1528217d361e7756cc187e7ec43b57838aa31cea311741fbd",
+              "started": 1788680098.25055
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": null,
+          "success": null,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-898120255c4e475d93f6",
+          "seed": 90,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788664834.236087,
+          "status": "paused",
+          "step": 51,
+          "decisions": 52,
+          "llm_seconds": 11477.839999999998,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "ce400af563bd8e21fbf079cc921ad2b78fbdb9328edd53a2febb60b746fe9cba",
+              "started": 1788664834.237201
+            },
+            {
+              "hash": "94f21655418f2e3b0b0ec4af93dc2c6e651511f69faac3032138abd37d250465",
+              "started": 1788666243.0840929
+            },
+            {
+              "hash": "bc504f0d6f563a0a8193b2a3ef90a01cd816463a1ca52622bf0f8e8fb0cb6cdc",
+              "started": 1788677774.922173
+            }
+          ],
+          "knowledge_hash": "1ae662b0b66e43f307ed9e6d07d12382e200552c48347a27e9d62e37b72181eb",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": "HSDPGk5QdzhI9Gj6A5UpEPZZ",
+            "status": "running",
+            "clock": {
+              "simulation_time": "2030-02-11T08:53:15.429723538Z",
+              "simulation_ends_at": "2030-02-17T21:00:00Z",
+              "remaining_seconds": 562004.570276462,
+              "real_elapsed_seconds": 0,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 42795.429723538,
+              "available_seconds": 42737.879423335,
+              "downtime_seconds": 57.550300203,
+              "uptime_ratio": 0.9986552232195172,
+              "slo_passed": null
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 488308844,
+              "backup_storage_cost_minor": 0,
+              "total_cost_minor": 488308844,
+              "current_cost_per_hour_minor": 25700695
+            },
+            "evaluation": {
+              "policy_version": "cost-bands.v1",
+              "max_score": 100,
+              "score": null,
+              "grade": null,
+              "max_achievable_score": 100,
+              "next_cost_threshold_minor": 5000000000,
+              "cost_margin_minor": 4511691156
+            },
+            "server_count": 1
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-135c33bac6d34b13bdd0",
+          "seed": 90,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788640993.034789,
+          "status": "paused",
+          "step": 67,
+          "decisions": 71,
+          "llm_seconds": 5048.299999999999,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "ce400af563bd8e21fbf079cc921ad2b78fbdb9328edd53a2febb60b746fe9cba",
+              "started": 1788640993.035857
+            }
+          ],
+          "knowledge_hash": "10034057573eab528118d012e2bd7f5bace4ef958a72f49767821ffffa9321f9",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-daedec9f6fe740e6acaf",
+          "seed": 90,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788628114.2871392,
+          "status": "finished",
+          "step": 101,
+          "decisions": 103,
+          "llm_seconds": 4503.879999999999,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "ce400af563bd8e21fbf079cc921ad2b78fbdb9328edd53a2febb60b746fe9cba",
+              "started": 1788628114.2878761
+            }
+          ],
+          "knowledge_hash": "42f13fc02ed43215a0bbcbb2bfec58e7071efe1f7b6dbe32e4933cd06c3c5440",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": "KQdGmS6aJaIKJo9j1xNfYl2D",
+            "status": "completed",
+            "clock": {
+              "simulation_time": "2030-02-17T21:00:00Z",
+              "simulation_ends_at": "2030-02-17T21:00:00Z",
+              "remaining_seconds": 0,
+              "real_elapsed_seconds": 3.8144848099999997,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 604800,
+              "available_seconds": 602991.471109742,
+              "downtime_seconds": 1808.528890258,
+              "uptime_ratio": 0.9970097075227216,
+              "slo_passed": true
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 110690277902,
+              "backup_storage_cost_minor": 114000,
+              "total_cost_minor": 110690391902,
+              "current_cost_per_hour_minor": 1130803778
+            },
+            "evaluation": null,
+            "server_count": 44
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-8953e8b9a3574c559a50",
+          "seed": 89,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788607398.900092,
+          "status": "finished",
+          "step": 208,
+          "decisions": 217,
+          "llm_seconds": 8777.600000000002,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "bbc878672ec36909a331915cdb16bce39363c9c06eefe3ef8d575fdcc18e1a3f",
+              "started": 1788607398.9007769
+            },
+            {
+              "hash": "495e1a429745d5e878fc74572f481cb7e036735ea666953fbc9e516393db600a",
+              "started": 1788608273.449075
+            },
+            {
+              "hash": "268e5728f705fbd24f7c73930e7c7595e78fbbaef971808aa2ead907cb9ba40e",
+              "started": 1788608524.1928582
+            },
+            {
+              "hash": "8ba32980ee11ec01ab2b8de5ef95c6a2df3727e32f758ccc0116bb6abb69b7d8",
+              "started": 1788609054.267452
+            },
+            {
+              "hash": "bd70e11cf2dfd897c069a293277c803d32cfccfd5fa10997bb736afb3f3750af",
+              "started": 1788610273.345527
+            },
+            {
+              "hash": "0abcec948604f54455d216acfef98f75488c1fd757ced83fa58704b6a6f8c607",
+              "started": 1788612856.266548
+            },
+            {
+              "hash": "3e9141b9ab2e071098e7edb1b9ead2f654945f24b0258eab92afc8d098fca6aa",
+              "started": 1788613023.56197
+            },
+            {
+              "hash": "da6e9ed53ae4105fe0f7d43322b05bad10c3e3144dd8a540ff91f37dc7a491a3",
+              "started": 1788613318.103675
+            },
+            {
+              "hash": "852e9e4275a0d25b75dbc0a1e7ffce8ad464a732fe65e8e325e3ce6e981453e6",
+              "started": 1788614088.55137
+            },
+            {
+              "hash": "57a36a328d8637fc6c81170ede0aef509ea411e3fcd0a97dd3a4697a5ba6357d",
+              "started": 1788619826.167134
+            },
+            {
+              "hash": "a797e660f4c2b7420c542d85e36a84aa88e38514edeb7809ebfc34953829d602",
+              "started": 1788621021.9962702
+            },
+            {
+              "hash": "f223ef6b630d8a3362b9c830cf7956fc259f1446cc866164099004cae9fe4591",
+              "started": 1788621758.071826
+            },
+            {
+              "hash": "ce400af563bd8e21fbf079cc921ad2b78fbdb9328edd53a2febb60b746fe9cba",
+              "started": 1788622576.213614
+            }
+          ],
+          "knowledge_hash": "77c50faf451621644ce6893618a97aaa8ae654d699df4758bacb353fa5c8dab9",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": "r3ysBAQe0Uxb3ZWZFV4JZS0q",
+            "status": "completed",
+            "clock": {
+              "simulation_time": "2030-09-15T21:00:00Z",
+              "simulation_ends_at": "2030-09-15T21:00:00Z",
+              "remaining_seconds": 0,
+              "real_elapsed_seconds": 1.123367238,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 604800,
+              "available_seconds": 600372.861312014,
+              "downtime_seconds": 4427.138687986,
+              "uptime_ratio": 0.9926799955555787,
+              "slo_passed": true
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 187430507768,
+              "backup_storage_cost_minor": 70000,
+              "total_cost_minor": 187430577768,
+              "current_cost_per_hour_minor": 1670503278
+            },
+            "evaluation": null,
+            "server_count": 65
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-82171be0d39048e9bcea",
+          "seed": 67,
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "created_epoch": 1788604346.9694679,
+          "status": "finished",
+          "step": 305,
+          "decisions": 310,
+          "llm_seconds": 9532.32,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "4946c2f01e63d2a70609d48c9d001aa98517068a1fc0ee41ff4dfb297b47da5e",
+              "started": 1788604346.970285
+            },
+            {
+              "hash": "415d1be4d77dea12bc695b85981c69d429b37ba6b9e25728a4171d261864efc5",
+              "started": 1788604989.401866
+            },
+            {
+              "hash": "d0524d52107b541babc65c0c4526d6a956131d397ff79a41c2f47d32950a4ed0",
+              "started": 1788605405.226083
+            },
+            {
+              "hash": "45efb029be38dbe65b73cf6d29aa3d592c9104738d01fef14d7339b91c9ec83a",
+              "started": 1788605897.005441
+            },
+            {
+              "hash": "8748d4479d2002615613ff739a31801606143dd583b37440e9dcee6c37d09916",
+              "started": 1788606463.068827
+            },
+            {
+              "hash": "d047242e0fcfc3b43065ea207538ca75c0adaef4798c5ef0f362da401eeb7409",
+              "started": 1788606699.879929
+            },
+            {
+              "hash": "bbc878672ec36909a331915cdb16bce39363c9c06eefe3ef8d575fdcc18e1a3f",
+              "started": 1788606969.475304
+            },
+            {
+              "hash": "495e1a429745d5e878fc74572f481cb7e036735ea666953fbc9e516393db600a",
+              "started": 1788608268.684392
+            },
+            {
+              "hash": "268e5728f705fbd24f7c73930e7c7595e78fbbaef971808aa2ead907cb9ba40e",
+              "started": 1788608448.407466
+            },
+            {
+              "hash": "8ba32980ee11ec01ab2b8de5ef95c6a2df3727e32f758ccc0116bb6abb69b7d8",
+              "started": 1788608976.4058502
+            },
+            {
+              "hash": "bd70e11cf2dfd897c069a293277c803d32cfccfd5fa10997bb736afb3f3750af",
+              "started": 1788610269.080632
+            },
+            {
+              "hash": "0abcec948604f54455d216acfef98f75488c1fd757ced83fa58704b6a6f8c607",
+              "started": 1788612851.8529751
+            },
+            {
+              "hash": "3e9141b9ab2e071098e7edb1b9ead2f654945f24b0258eab92afc8d098fca6aa",
+              "started": 1788613014.3986502
+            },
+            {
+              "hash": "da6e9ed53ae4105fe0f7d43322b05bad10c3e3144dd8a540ff91f37dc7a491a3",
+              "started": 1788613208.786237
+            },
+            {
+              "hash": "852e9e4275a0d25b75dbc0a1e7ffce8ad464a732fe65e8e325e3ce6e981453e6",
+              "started": 1788614084.415841
+            },
+            {
+              "hash": "57a36a328d8637fc6c81170ede0aef509ea411e3fcd0a97dd3a4697a5ba6357d",
+              "started": 1788619822.661131
+            },
+            {
+              "hash": "a797e660f4c2b7420c542d85e36a84aa88e38514edeb7809ebfc34953829d602",
+              "started": 1788621017.721884
+            },
+            {
+              "hash": "f223ef6b630d8a3362b9c830cf7956fc259f1446cc866164099004cae9fe4591",
+              "started": 1788621754.506377
+            },
+            {
+              "hash": "ce400af563bd8e21fbf079cc921ad2b78fbdb9328edd53a2febb60b746fe9cba",
+              "started": 1788622572.235116
+            }
+          ],
+          "knowledge_hash": "cef5ab711914e35293524b12c76bc7dea10c419719b1b9291aaa383374714da0",
+          "done": true,
+          "success": true,
+          "overview": {
+            "run_id": "3mePPbDMoIh8WxKe7hnhqQWC",
+            "status": "completed",
+            "clock": {
+              "simulation_time": "2030-05-12T21:00:00Z",
+              "simulation_ends_at": "2030-05-12T21:00:00Z",
+              "remaining_seconds": 0,
+              "real_elapsed_seconds": 1.000317861,
+              "applied_advance_seconds": 0
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 604800,
+              "available_seconds": 602355.559854455,
+              "downtime_seconds": 2444.440145545,
+              "uptime_ratio": 0.9959582669551174,
+              "slo_passed": true
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 12310672251,
+              "backup_storage_cost_minor": 90300,
+              "total_cost_minor": 12310762551,
+              "current_cost_per_hour_minor": 25703478
+            },
+            "evaluation": null,
+            "server_count": 1
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-56f2bb4c62574bb38bf8",
+          "seed": 42,
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "created_epoch": 1788602099.676196,
+          "status": "paused",
+          "step": 180,
+          "decisions": 182,
+          "llm_seconds": 6048.59,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "64f5dbb6393c2f311b3566f666983f9b0b83f8ce974935ed86c7982482f4bad9",
+              "started": 1788602957.992529
+            },
+            {
+              "hash": "c1086c06c1d4a56574d5299452ceecc4a0ee6592e76d5336da9bec4351328d02",
+              "started": 1788603805.3599129
+            },
+            {
+              "hash": "4946c2f01e63d2a70609d48c9d001aa98517068a1fc0ee41ff4dfb297b47da5e",
+              "started": 1788604077.240712
+            },
+            {
+              "hash": "415d1be4d77dea12bc695b85981c69d429b37ba6b9e25728a4171d261864efc5",
+              "started": 1788605007.355327
+            },
+            {
+              "hash": "d0524d52107b541babc65c0c4526d6a956131d397ff79a41c2f47d32950a4ed0",
+              "started": 1788605399.135027
+            },
+            {
+              "hash": "45efb029be38dbe65b73cf6d29aa3d592c9104738d01fef14d7339b91c9ec83a",
+              "started": 1788605890.994123
+            },
+            {
+              "hash": "8748d4479d2002615613ff739a31801606143dd583b37440e9dcee6c37d09916",
+              "started": 1788606457.788948
+            },
+            {
+              "hash": "d047242e0fcfc3b43065ea207538ca75c0adaef4798c5ef0f362da401eeb7409",
+              "started": 1788606719.590613
+            },
+            {
+              "hash": "bbc878672ec36909a331915cdb16bce39363c9c06eefe3ef8d575fdcc18e1a3f",
+              "started": 1788606992.4839768
+            },
+            {
+              "hash": "495e1a429745d5e878fc74572f481cb7e036735ea666953fbc9e516393db600a",
+              "started": 1788608235.49531
+            },
+            {
+              "hash": "268e5728f705fbd24f7c73930e7c7595e78fbbaef971808aa2ead907cb9ba40e",
+              "started": 1788608517.890402
+            },
+            {
+              "hash": "8ba32980ee11ec01ab2b8de5ef95c6a2df3727e32f758ccc0116bb6abb69b7d8",
+              "started": 1788608972.4616718
+            },
+            {
+              "hash": "bd70e11cf2dfd897c069a293277c803d32cfccfd5fa10997bb736afb3f3750af",
+              "started": 1788610301.0781498
+            },
+            {
+              "hash": "25bd6a84ce39d0bb332cbb1473aaa78e71dc32f12b78795b82f9585064131738",
+              "started": 1788611709.2607732
+            },
+            {
+              "hash": "0abcec948604f54455d216acfef98f75488c1fd757ced83fa58704b6a6f8c607",
+              "started": 1788612602.204326
+            },
+            {
+              "hash": "3e9141b9ab2e071098e7edb1b9ead2f654945f24b0258eab92afc8d098fca6aa",
+              "started": 1788613018.417768
+            },
+            {
+              "hash": "da6e9ed53ae4105fe0f7d43322b05bad10c3e3144dd8a540ff91f37dc7a491a3",
+              "started": 1788613213.344249
+            },
+            {
+              "hash": "852e9e4275a0d25b75dbc0a1e7ffce8ad464a732fe65e8e325e3ce6e981453e6",
+              "started": 1788614094.7332008
+            },
+            {
+              "hash": "57a36a328d8637fc6c81170ede0aef509ea411e3fcd0a97dd3a4697a5ba6357d",
+              "started": 1788619832.198813
+            }
+          ],
+          "knowledge_hash": "ddd3d403adf102d6744c3f9028a272c9ea5ae376ccfc129979e2f72eec7116eb",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": "8t8d1my1o5QXFrtBjoNPud8a",
+            "status": "running",
+            "clock": {
+              "simulation_time": "2030-01-18T07:04:24.36836925Z",
+              "simulation_ends_at": "2030-01-20T21:00:00Z",
+              "remaining_seconds": 222935.63163075,
+              "real_elapsed_seconds": 0.87145073,
+              "applied_advance_seconds": 0.87145073
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 381864.36836925,
+              "available_seconds": 375771.135676354,
+              "downtime_seconds": 6093.232692896,
+              "uptime_ratio": 0.9840434636022284,
+              "slo_passed": null
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 19634970553,
+              "backup_storage_cost_minor": 71200,
+              "total_cost_minor": 19635041753,
+              "current_cost_per_hour_minor": 128504378
+            },
+            "evaluation": null,
+            "server_count": 5
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-ba87989c910144ce884c",
+          "seed": 23,
+          "model": "gpt-6-astra",
+          "effort": "high",
+          "created_epoch": 1788600284.0574698,
+          "status": "paused",
+          "step": 78,
+          "decisions": 81,
+          "llm_seconds": 4132.36,
+          "memory_enabled": true,
+          "learning_enabled": true,
+          "runtime_versions": [
+            {
+              "hash": "64f5dbb6393c2f311b3566f666983f9b0b83f8ce974935ed86c7982482f4bad9",
+              "started": 1788602958.485183
+            },
+            {
+              "hash": "4946c2f01e63d2a70609d48c9d001aa98517068a1fc0ee41ff4dfb297b47da5e",
+              "started": 1788604145.54565
+            },
+            {
+              "hash": "415d1be4d77dea12bc695b85981c69d429b37ba6b9e25728a4171d261864efc5",
+              "started": 1788604984.003192
+            },
+            {
+              "hash": "d0524d52107b541babc65c0c4526d6a956131d397ff79a41c2f47d32950a4ed0",
+              "started": 1788605394.239497
+            },
+            {
+              "hash": "45efb029be38dbe65b73cf6d29aa3d592c9104738d01fef14d7339b91c9ec83a",
+              "started": 1788605887.058621
+            },
+            {
+              "hash": "8748d4479d2002615613ff739a31801606143dd583b37440e9dcee6c37d09916",
+              "started": 1788606453.624583
+            },
+            {
+              "hash": "d047242e0fcfc3b43065ea207538ca75c0adaef4798c5ef0f362da401eeb7409",
+              "started": 1788606675.541759
+            },
+            {
+              "hash": "bbc878672ec36909a331915cdb16bce39363c9c06eefe3ef8d575fdcc18e1a3f",
+              "started": 1788606960.6324868
+            },
+            {
+              "hash": "0abcec948604f54455d216acfef98f75488c1fd757ced83fa58704b6a6f8c607",
+              "started": 1788612861.395539
+            },
+            {
+              "hash": "3e9141b9ab2e071098e7edb1b9ead2f654945f24b0258eab92afc8d098fca6aa",
+              "started": 1788613029.046889
+            },
+            {
+              "hash": "da6e9ed53ae4105fe0f7d43322b05bad10c3e3144dd8a540ff91f37dc7a491a3",
+              "started": 1788613278.905615
+            },
+            {
+              "hash": "852e9e4275a0d25b75dbc0a1e7ffce8ad464a732fe65e8e325e3ce6e981453e6",
+              "started": 1788614100.372295
+            }
+          ],
+          "knowledge_hash": "a665409a9895c7d486d2e980c62b3a35874c5c4eb7d4289afa42cb8211763c05",
+          "done": false,
+          "success": null,
+          "overview": {
+            "run_id": "Jv63Zln7ywXRk1sXP3jsos0N",
+            "status": "running",
+            "clock": {
+              "simulation_time": "2030-07-30T12:48:56.189434299Z",
+              "simulation_ends_at": "2030-08-04T21:00:00Z",
+              "remaining_seconds": 461463.810565701,
+              "real_elapsed_seconds": 1.092884573,
+              "applied_advance_seconds": 1.092884573
+            },
+            "availability": {
+              "uptime_target": 0.99,
+              "observed_seconds": 143336.189434299,
+              "available_seconds": 137555.611068899,
+              "downtime_seconds": 5780.5783654,
+              "uptime_ratio": 0.9596711871006613,
+              "slo_passed": null
+            },
+            "costs": {
+              "currency": "RUB",
+              "server_cost_minor": 7401634771,
+              "backup_storage_cost_minor": 0,
+              "total_cost_minor": 7401634771,
+              "current_cost_per_hour_minor": 51403473
+            },
+            "evaluation": null,
+            "server_count": 2
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        },
+        {
+          "local_id": "ak2-4aec5d8c7181406bb192",
+          "seed": 42,
+          "model": "gpt-5.6-sol",
+          "effort": "low",
+          "created_epoch": 1788599540.484719,
+          "status": "paused",
+          "step": 0,
+          "decisions": 0,
+          "llm_seconds": 369.78999999999996,
+          "memory_enabled": false,
+          "learning_enabled": false,
+          "runtime_versions": [],
+          "knowledge_hash": "d0f8be3af00ca45a3b4f6a956662a23996c24f43d958d33ec05fa2d44602105f",
+          "done": null,
+          "success": null,
+          "overview": {
+            "run_id": null,
+            "status": null,
+            "clock": null,
+            "availability": null,
+            "costs": null,
+            "evaluation": null,
+            "server_count": null
+          },
+          "retrospective_status": null,
+          "retrospective_assessment": null
+        }
+      ],
+      "lessons": [
+        {
+          "id": "uptick.transient_single_500_diagnosis",
+          "title": "Пошаговое сокращение мощности требует терминального удаления и проверки маршрутов",
+          "body": "При большом запасе мощности один однородный backend можно удалить после чистого контролируемого интервала, но безопасность шага подтверждается только терминальным успехом удаления и успешными проверками ключевых пользовательских маршрутов. Это не гарантирует устойчивость на следующем интервале или безопасность дальнейшего сокращения.",
+          "tags": [
+            "capacity",
+            "controlled-observation",
+            "cost-control",
+            "safe-deletion"
+          ],
+          "procedure": [
+            "Подтвердить чистый контролируемый интервал и достаточный абсолютный запас мощности.",
+            "Удалить только один однородный backend и дождаться терминального результата.",
+            "Проверить ключевые пользовательские маршруты отдельными probes.",
+            "Провести новый контролируемый интервал перед следующим сокращением."
+          ],
+          "support": 40,
+          "against": 0,
+          "importance": 0.72,
+          "uses": 752
+        },
+        {
+          "id": "uptick.advance_provisioning_by_simulation_time",
+          "title": "Асинхронное provisioning эффективнее завершать продвижением симуляционного времени",
+          "body": "При известной длительности provisioning продвижение симуляционного времени на соответствующий интервал позволяет завершить создание сервера; затем необходима проверка терминального статуса и активности ресурса. Это не доказывает восстановление доступности сайта.",
+          "tags": [
+            "async-operation",
+            "simulation-time",
+            "efficiency"
+          ],
+          "procedure": [
+            "Сопоставить время завершения операции с текущим временем.",
+            "Продвинуть симуляцию на достаточный интервал.",
+            "Подтвердить succeeded и active-состояние ресурса.",
+            "Отдельно проверить доступность сайта."
+          ],
+          "support": 27,
+          "against": 0,
+          "importance": 0.74,
+          "uses": 402
+        },
+        {
+          "id": "uptick.per_backend_request_headroom",
+          "title": "Общий запас мощности не гарантирует выполнение отдельного запроса",
+          "body": "При распределении нагрузки между backend общий свободный ресурс пула может превышать стоимость запроса, но запрос всё равно завершается SERVER_CAPACITY_EXCEEDED, если выбранному серверу не хватает локального запаса. В таком случае оценивать достаточность мощности нужно также на уровне отдельного backend.",
+          "tags": [
+            "capacity",
+            "diagnosis",
+            "per-server"
+          ],
+          "procedure": [
+            "Сопоставить required и available из ошибки запроса с нагрузкой отдельных backend.",
+            "Проверить локальный запас для наиболее требовательного проверяемого маршрута.",
+            "После изменения мощности проверить маршрут и динамику простоя; общий запас сам по себе не считать восстановлением."
+          ],
+          "support": 12,
+          "against": 0,
+          "importance": 0.9,
+          "uses": 712
+        },
+        {
+          "id": "uptick.control_success_not_goal_success",
+          "title": "Принятие firewall-правила не подтверждает сохранение SLO",
+          "body": "Успешный ответ на управляющую операцию подтверждает применение конфигурации, но не её полезность для доступности; после изменения firewall необходимо проверять фактические ответы пользователей и накопительный uptime.",
+          "tags": [
+            "firewall",
+            "availability",
+            "verification"
+          ],
+          "procedure": [
+            "После применения firewall-правила выполнить ограниченную проверку фактического трафика и кодов ответов.",
+            "Сопоставить 403 с точным правилом и убедиться, что блокируются только подтверждённые источники атаки.",
+            "Перед следующим длительным продвижением проверить текущий и прогнозируемый запас SLO; при росте отказов сузить или отключить правило."
+          ],
+          "support": 2,
+          "against": 0,
+          "importance": 0.95,
+          "uses": 329
+        }
+      ],
+      "lesson_change_counts": [
+        [
+          "deleted",
+          "weak_and_low_importance",
+          1
+        ],
+        [
+          "rejected",
+          "insufficient_evidence",
+          11
+        ],
+        [
+          "snapshot",
+          "preexisting_state",
+          5
+        ]
+      ],
+      "verification_counts": {
+        "total": 11,
+        "sufficient": 0,
+        "insufficient": 11
+      }
+    }
+  }
+}

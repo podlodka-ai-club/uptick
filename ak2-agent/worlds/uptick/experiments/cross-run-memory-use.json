@@ -1,0 +1,223 @@
+{
+  "lesson": {
+    "id": "uptick.per_backend_request_headroom",
+    "title": "Общий запас мощности не гарантирует выполнение отдельного запроса",
+    "body": "При распределении нагрузки между backend общий свободный ресурс пула может превышать стоимость запроса, но запрос всё равно завершается SERVER_CAPACITY_EXCEEDED, если выбранному серверу не хватает локального запаса. В таком случае оценивать достаточность мощности нужно также на уровне отдельного backend.",
+    "tags": [
+      "capacity",
+      "diagnosis",
+      "per-server"
+    ],
+    "procedure": [
+      "Сопоставить required и available из ошибки запроса с нагрузкой отдельных backend.",
+      "Проверить локальный запас для наиболее требовательного проверяемого маршрута.",
+      "После изменения мощности проверить маршрут и динамику простоя; общий запас сам по себе не считать восстановлением."
+    ],
+    "support": 1,
+    "against": 0,
+    "importance": 0.9,
+    "touched": 668,
+    "uses": 50,
+    "legacy_support": 0,
+    "legacy_against": 0
+  },
+  "application": {
+    "local_run": "ak2-82171be0d39048e9bcea",
+    "seed": 67,
+    "event_id": 4739,
+    "created": 1788625438.866466,
+    "decision": {
+      "mission": "Завершить Uptick run с uptime ≥99% при минимальной общей стоимости инфраструктуры до 2030-05-12T21:00:00Z.",
+      "assessment": "Перегрузка сохраняется: свежие ресурсы показывают 1696 единиц нагрузки при мощности 200. Probe product_list вернул 500; простой вырос на 42.932 с до 2086.725 с. Окно логов прочитано полностью, но принадлежность запросов к атаке не установлена. Применяю operate: расширяю пул до 21 backend — расчёт ceil(1696/84) с запасом 16 единиц на сервер. Распределение нагрузки и восстановление необходимо проверить после provisioning. Текущие источники полны и свежи; операции из кэша исторические.",
+      "plan": "Создать 19 backend.standard дополнительно к server-0zttZ9WTvZIhHc2NUrgQCR0j и server-WiXMC2JVRpsHzD0ZvMOA6aRI; затем продвинуть 300 с для provisioning. На следующем наблюдении проверить succeeded всех новых операций и active-состояние серверов, фактическую нагрузку каждого, оба маршрута product_list и product_page/product-001. База 15:52:53: downtime=2086.724958353, responses_500=379, responses_503=38, responses_403=0. Итоговый лимит простоя 6048 с, запас около 3961 с. Ожидаемая ставка 21 backend плюс БД и бэкап — 539703478 коп./ч; после завершения всплеска своевременно сокращать мощности с проверками. БД server-378T3uUGwznnUvN6yyoXjIqz менять не требуется. До конца около 18425 с; продолжать до терминального overview.",
+      "tags": [
+        "uptick",
+        "capacity",
+        "incident-recovery",
+        "uptime"
+      ],
+      "used_memory_ids": [
+        "uptick.per_backend_request_headroom",
+        "uptick.advance_provisioning_by_simulation_time"
+      ],
+      "lessons": [],
+      "actions": [
+        {
+          "payload_json": "{\"kind\":\"command\",\"command\":\"server.create\",\"params\":{\"name\":\"backend-final-spike-recovery\",\"role\":\"backend\",\"instance_type\":\"backend.standard\"}}",
+          "replay_safe": true,
+          "wait_for_completion": false,
+          "repeat_count": 19
+        },
+        {
+          "payload_json": "{\"kind\":\"advance_time\",\"duration_seconds\":300}",
+          "replay_safe": true,
+          "wait_for_completion": true,
+          "repeat_count": 1
+        }
+      ],
+      "adaptation_request": null,
+      "pause_reason": null,
+      "accepted_lessons": [],
+      "learning_feedback": []
+    }
+  },
+  "outcome_verified": true,
+  "note": "Actual decision in seed67 cites the seed89 lesson and uses its own request cost16. Two later successful probes and a clean control interval document recovery; this is observational evidence, not a controlled memory ablation.",
+  "post_expansion_probes": [
+    {
+      "event_id": 4785,
+      "request_id": "ak2-82171be0d39048e9bcea-674a123f9dc34b17bd920fee81a0a045",
+      "action": {
+        "kind": "probe",
+        "params": {
+          "page": "product_list"
+        }
+      },
+      "response": {
+        "data": {
+          "clock": {
+            "simulation_time": "2030-05-12T15:59:30.916627274Z",
+            "simulation_ends_at": "2030-05-12T21:00:00Z",
+            "remaining_seconds": 18029.083372726,
+            "real_elapsed_seconds": 43.227075909,
+            "applied_advance_seconds": 43.227075909
+          },
+          "request_id": "ak2-82171be0d39048e9bcea-674a123f9dc34b17bd920fee81a0a045",
+          "page": "product_list",
+          "source_ip": "198.18.179.72",
+          "user_agent": "HealthProbe/1.0",
+          "region_code": "ZZ",
+          "firewall_rule_id": null,
+          "status": 200,
+          "latency_ms": 111,
+          "load_units": 9,
+          "evidence_page": {
+            "limit": 64,
+            "total_available": 1,
+            "returned_count": 1,
+            "cursor": "",
+            "next_cursor": null,
+            "has_more": false,
+            "automatic": false,
+            "cycle_restarted": false
+          }
+        },
+        "evidence": [
+          {
+            "identity": "probe:ak2-82171be0d39048e9bcea-674a123f9dc34b17bd920fee81a0a045",
+            "outcome": "success",
+            "kind": "effect",
+            "detail": {
+              "clock": {
+                "simulation_time": "2030-05-12T15:59:30.916627274Z",
+                "simulation_ends_at": "2030-05-12T21:00:00Z",
+                "remaining_seconds": 18029.083372726,
+                "real_elapsed_seconds": 43.227075909,
+                "applied_advance_seconds": 43.227075909
+              },
+              "request_id": "ak2-82171be0d39048e9bcea-674a123f9dc34b17bd920fee81a0a045",
+              "page": "product_list",
+              "source_ip": "198.18.179.72",
+              "user_agent": "HealthProbe/1.0",
+              "region_code": "ZZ",
+              "firewall_rule_id": null,
+              "status": 200,
+              "latency_ms": 111,
+              "load_units": 9
+            }
+          }
+        ],
+        "done": false,
+        "success": null,
+        "metrics": {},
+        "external_id": null,
+        "pending": false,
+        "error": null,
+        "delivery": "known"
+      }
+    },
+    {
+      "event_id": 4787,
+      "request_id": "ak2-82171be0d39048e9bcea-c5d1abe329b441298354b7bd313e1cb2",
+      "action": {
+        "kind": "probe",
+        "params": {
+          "page": "product_page",
+          "product_id": "product-001"
+        }
+      },
+      "response": {
+        "data": {
+          "clock": {
+            "simulation_time": "2030-05-12T15:59:31.750904191Z",
+            "simulation_ends_at": "2030-05-12T21:00:00Z",
+            "remaining_seconds": 18028.249095809,
+            "real_elapsed_seconds": 0.834276917,
+            "applied_advance_seconds": 0.834276917
+          },
+          "request_id": "ak2-82171be0d39048e9bcea-c5d1abe329b441298354b7bd313e1cb2",
+          "page": "product_page",
+          "product_id": "product-001",
+          "source_ip": "198.18.179.72",
+          "user_agent": "HealthProbe/1.0",
+          "region_code": "ZZ",
+          "firewall_rule_id": null,
+          "status": 200,
+          "latency_ms": 151,
+          "load_units": 16,
+          "evidence_page": {
+            "limit": 64,
+            "total_available": 1,
+            "returned_count": 1,
+            "cursor": "",
+            "next_cursor": null,
+            "has_more": false,
+            "automatic": false,
+            "cycle_restarted": false
+          }
+        },
+        "evidence": [
+          {
+            "identity": "probe:ak2-82171be0d39048e9bcea-c5d1abe329b441298354b7bd313e1cb2",
+            "outcome": "success",
+            "kind": "effect",
+            "detail": {
+              "clock": {
+                "simulation_time": "2030-05-12T15:59:31.750904191Z",
+                "simulation_ends_at": "2030-05-12T21:00:00Z",
+                "remaining_seconds": 18028.249095809,
+                "real_elapsed_seconds": 0.834276917,
+                "applied_advance_seconds": 0.834276917
+              },
+              "request_id": "ak2-82171be0d39048e9bcea-c5d1abe329b441298354b7bd313e1cb2",
+              "page": "product_page",
+              "product_id": "product-001",
+              "source_ip": "198.18.179.72",
+              "user_agent": "HealthProbe/1.0",
+              "region_code": "ZZ",
+              "firewall_rule_id": null,
+              "status": 200,
+              "latency_ms": 151,
+              "load_units": 16
+            }
+          }
+        ],
+        "done": false,
+        "success": null,
+        "metrics": {},
+        "external_id": null,
+        "pending": false,
+        "error": null,
+        "delivery": "known"
+      }
+    }
+  ],
+  "post_expansion_metrics": {
+    "server_count": 21,
+    "capacity_units": 2100,
+    "used_load_units": 25,
+    "downtime_seconds": 2432.250052201,
+    "uptime_ratio": 0.9958871135697875,
+    "responses_500": 477
+  }
+}

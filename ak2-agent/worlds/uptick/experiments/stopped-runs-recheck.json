@@ -1,0 +1,26 @@
+{
+  "checked_at_unix": 1788612812.726542,
+  "results": [
+    {
+      "seed": 23,
+      "run": "Jv63Zln7ywXRk1sXP3jsos0N",
+      "http_status": 200,
+      "body": "{\"costs\":{\"currency\":\"RUB\",\"server_cost_minor\":7350230717,\"backup_storage_cost_minor\":0,\"total_cost_minor\":7350230717,\"current_cost_per_hour_minor\":102803473},\"availability\":{\"uptime_target\":0.99,\"observed_seconds\":138992.871941962,\"available_seconds\":133264.600979898,\"downtime_seconds\":5728.270962064,\"uptime_ratio\":0.9587873041111352,\"slo_passed\":null},\"clock\":{\"simulation_time\":\"2030-07-30T11:36:32.871941962Z\",\"simulation_ends_at\":\"2030-08-04T21:00:00Z\",\"remaining_seconds\":465807.128058038,\"real_elapsed_seconds\":842.292884367,\"applied_advance_seconds\":842.292884367},\"run_id\":\"Jv63Zln7ywXRk1sXP3jsos0N\",\"status\":\"running\",\"site_status\":\"healthy\",\"server_count\":4,\"capacity_utilization\":0.145,\"error_rate\":0.015030031324539471}\n",
+      "seconds": 0.714
+    },
+    {
+      "seed": 67,
+      "run": "3mePPbDMoIh8WxKe7hnhqQWC",
+      "http_status": 200,
+      "body": "{\"costs\":{\"currency\":\"RUB\",\"server_cost_minor\":1850429977,\"backup_storage_cost_minor\":1400,\"total_cost_minor\":1850431377,\"current_cost_per_hour_minor\":51403478},\"availability\":{\"uptime_target\":0.99,\"observed_seconds\":146426.735571968,\"available_seconds\":146138.922648302,\"downtime_seconds\":287.812923666,\"uptime_ratio\":0.9980344236826577,\"slo_passed\":null},\"clock\":{\"simulation_time\":\"2030-05-07T13:40:26.735571968Z\",\"simulation_ends_at\":\"2030-05-12T21:00:00Z\",\"remaining_seconds\":458373.264428032,\"real_elapsed_seconds\":790.203473637,\"applied_advance_seconds\":790.203473637},\"run_id\":\"3mePPbDMoIh8WxKe7hnhqQWC\",\"status\":\"running\",\"site_status\":\"healthy\",\"server_count\":2,\"capacity_utilization\":0.205,\"error_rate\":0.004591029023746702}\n",
+      "seconds": 0.756
+    },
+    {
+      "seed": 89,
+      "run": "r3ysBAQe0Uxb3ZWZFV4JZS0q",
+      "http_status": 200,
+      "body": "{\"costs\":{\"currency\":\"RUB\",\"server_cost_minor\":462608834,\"backup_storage_cost_minor\":0,\"total_cost_minor\":462608834,\"current_cost_per_hour_minor\":51400695},\"availability\":{\"uptime_target\":0.99,\"observed_seconds\":45798.713200407,\"available_seconds\":45673.044908602,\"downtime_seconds\":125.668291805,\"uptime_ratio\":0.9972560737404325,\"slo_passed\":null},\"clock\":{\"simulation_time\":\"2030-09-09T09:43:18.713200407Z\",\"simulation_ends_at\":\"2030-09-15T21:00:00Z\",\"remaining_seconds\":559001.286799593,\"real_elapsed_seconds\":838.875891185,\"applied_advance_seconds\":838.875891185},\"run_id\":\"r3ysBAQe0Uxb3ZWZFV4JZS0q\",\"status\":\"running\",\"site_status\":\"healthy\",\"server_count\":2,\"capacity_utilization\":0.22,\"error_rate\":0.015771731278593788}\n",
+      "seconds": 0.601
+    }
+  ]
+}

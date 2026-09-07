@@ -1,0 +1,78 @@
+{
+  "recorded_at": "2026-09-05T16:47:31.180777+00:00",
+  "status": "supervised_full_week_verified",
+  "run_id": "ak2-82171be0d39048e9bcea",
+  "simulator_run_id": "3mePPbDMoIh8WxKe7hnhqQWC",
+  "process_exit_code": 0,
+  "agent_status": "finished",
+  "reflected": true,
+  "steps": 305,
+  "decisions": 310,
+  "runtime_versions": 19,
+  "overview": {
+    "costs": {
+      "currency": "RUB",
+      "server_cost_minor": 12310672251,
+      "backup_storage_cost_minor": 90300,
+      "total_cost_minor": 12310762551,
+      "current_cost_per_hour_minor": 25703478
+    },
+    "availability": {
+      "uptime_target": 0.99,
+      "observed_seconds": 604800,
+      "available_seconds": 602355.559854455,
+      "downtime_seconds": 2444.440145545,
+      "uptime_ratio": 0.9959582669551174,
+      "slo_passed": true
+    },
+    "clock": {
+      "simulation_time": "2030-05-12T21:00:00Z",
+      "simulation_ends_at": "2030-05-12T21:00:00Z",
+      "remaining_seconds": 0,
+      "real_elapsed_seconds": 286.349020776,
+      "applied_advance_seconds": 0
+    },
+    "run_id": "3mePPbDMoIh8WxKe7hnhqQWC",
+    "status": "completed",
+    "site_status": "unavailable",
+    "server_count": 1,
+    "capacity_utilization": 0.25,
+    "error_rate": 0.00279855795775639
+  },
+  "agent_reflection": {
+    "mission": "Завершить Uptick run с uptime ≥99% при минимальной общей стоимости инфраструктуры до 2030-05-12T21:00:00Z.",
+    "assessment": "Запуск завершён: status=completed, slo_passed=true. Итоговый uptime — 99.59583%, простой — 2444.44 с (40 мин 44 с) за 7 суток. Общая стоимость — 123 107 625,51 RUB; оптимальность расходов не доказана. Последнее удаление завершилось успешно, оба маршрута вернули 200, продвижение достигло конца запуска. Простой и счётчики ошибок относительно предыдущего решения не выросли. Свежие overview, metrics и resources относятся к конечному времени; overview при этом сообщает site_status=unavailable, поэтому текущую доступность не называю здоровой. Inbox исчерпан; история probes и операций частично выдана из кеша, логи не запрашивались. Эти ограничения не мешают подтвердить явный итог SLO.",
+    "plan": "Run 3mePPbDMoIh8WxKe7hnhqQWC завершён; дальнейшие действия не требуются. Зафиксировать uptime_ratio=0.9959582669551174, downtime_seconds=2444.440145545, total_cost_minor=12310762551 RUB. Последнее сокращение сохранило накопленную доступность до конца, но не доказывает безопасность аналогичного сокращения при другой нагрузке или минимальность общей стоимости.",
+    "tags": [
+      "uptick",
+      "completed",
+      "slo-passed",
+      "final-reflection",
+      "cost-control"
+    ],
+    "used_memory_ids": [
+      "uptick.transient_single_500_diagnosis"
+    ],
+    "lessons": [],
+    "actions": [],
+    "adaptation_request": null,
+    "pause_reason": null,
+    "accepted_lessons": [],
+    "learning_feedback": []
+  },
+  "verification": {
+    "independent_get_overview": true,
+    "full_7_days": true,
+    "slo_passed": true,
+    "cross_run_memory_application": true,
+    "core_tests_passed": 64,
+    "world_tests_passed": 29
+  },
+  "limits": [
+    "Supervised development run with core updates, model changes and manual resumes; not an unattended run of one frozen build.",
+    "Cost reductions were observed; minimum achievable total cost is not established.",
+    "One completed successful week does not estimate reliability across seeds.",
+    "The terminal overview reports site_status=unavailable while status=completed and slo_passed=true; success refers to the full-window SLO.",
+    "Other experiments are locally paused; the external simulator may still advance real time."
+  ]
+}
