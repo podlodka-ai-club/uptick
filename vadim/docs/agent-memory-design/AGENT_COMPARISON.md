@@ -30,7 +30,7 @@ This comparison covers the two agent trees as they exist in the shared repositor
 
 | Tree | Location | Revision used | Identity / notes |
 |---|---|---|---|
-| `vadim` | `/Users/mingazhev/Repos/podlodka/uptick/vadim` | `b3596cebb136bb2872c805dac527ca3f2407852b` | This agent’s tree; instructions in [`vadim/AGENTS.md`](</Users/mingazhev/Repos/podlodka/uptick/vadim/AGENTS.md>) |
+| `vadim` | `/Users/mingazhev/Repos/podlodka/uptick/vadim` | `b3596cebb136bb2872c805dac527ca3f2407852b` | This agent’s tree; instructions in [`vadim/AGENTS.md`](../../AGENTS.md) |
 | `simple_agent` | `/Users/mingazhev/Repos/podlodka/uptick/simple_agent` | `dc7ac3e20022fb7cebb17e42ac4f00c49e9f5806` | Sibling baseline tree; Alex identity withdrawn; no sibling `AGENTS.md` was found |
 
 The sibling revision is the latest commit touching that tree (`fix(cli): allow benchmark trace naming`). Its recent history also includes the extensible SGR baseline and the separation of working context from durable memory. The `vadim` revision includes the completed v2/memory integration work and the Codex cancellation boundary fix recorded by the parent task.
@@ -78,7 +78,7 @@ No external API or model run was performed for this comparison. The starting `va
 
 ## Existing artifacts and what they show
 
-The sibling’s [`memory-study` report](</Users/mingazhev/Repos/podlodka/uptick/simple_agent/artifacts/memory-study-20260827-01/report.md>) is a two-seed, one-repeat pilot using a local Codex subscription session, `max_steps=60`, and three conditions. It reports these historical v1 balances:
+The sibling’s `memory-study` report (локальный файл: `simple_agent/artifacts/memory-study-20260827-01/report.md`) is a two-seed, one-repeat pilot using a local Codex subscription session, `max_steps=60`, and three conditions. It reports these historical v1 balances:
 
 | Condition | Seeds | Mean balance, billion minor | Mean steps | Mean time, seconds |
 |---|---:|---:|---:|---:|
@@ -90,7 +90,7 @@ The report itself correctly labels the result as a pilot. It notes Codex nondete
 
 The sibling’s simulator integration test was not run against a live endpoint, and neither the test nor the artifacts contain an uptime/SLO outcome. Its traces contain v1 actions such as `advance_time`, `apply_fix`, `get_logs`, `get_overview`, and `probe_page`; they contain no v2 `get_inbox`, `get_control_commands`, `control_command`, or `advance_time_v2` actions.
 
-The current `vadim` v2 artifact is [`matrix/report.json`](</Users/mingazhev/Repos/podlodka/uptick/vadim/artifacts/v2-memory-integration-2026-09-05/matrix/report.json>). Its recorded summary is 42 attempts, 41 completed and 1 interrupted, with complete declared coverage and an exploratory report. Every condition has zero SLO-passing first attempts. The report explicitly records `world_context_identity_unverified`, so it is evidence about the v2 harness and run outcomes, not a successful SLO comparison or a cross-agent score.
+The current `vadim` v2 artifact is `matrix/report.json` (локальный файл: `artifacts/v2-memory-integration-2026-09-05/matrix/report.json`). Its recorded summary is 42 attempts, 41 completed and 1 interrupted, with complete declared coverage and an exploratory report. Every condition has zero SLO-passing first attempts. The report explicitly records `world_context_identity_unverified`, so it is evidence about the v2 harness and run outcomes, not a successful SLO comparison or a cross-agent score.
 
 ## Apples-to-apples decision
 

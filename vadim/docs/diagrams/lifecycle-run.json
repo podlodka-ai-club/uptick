@@ -1,0 +1,309 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Жизненный цикл прогона и знания",
+    "output": "docs/diagrams/lifecycle-run.html",
+    "viewBox": [
+      1000,
+      640
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Фазы прогона"
+    },
+    {
+      "id": "waits",
+      "label": "Ожидания"
+    },
+    {
+      "id": "errors",
+      "label": "Восстановление"
+    },
+    {
+      "id": "terminal",
+      "label": "Завершения"
+    }
+  ],
+  "states": [
+    {
+      "id": "created",
+      "type": "start",
+      "label": "Создан",
+      "sublabel": "seed · launch receipt",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "вход"
+    },
+    {
+      "id": "running",
+      "type": "active",
+      "label": "Идёт",
+      "sublabel": "до 480 решений",
+      "lane": "main",
+      "col": 2,
+      "step": "02",
+      "tag": "цикл"
+    },
+    {
+      "id": "finalize",
+      "type": "decision",
+      "label": "Финализация",
+      "sublabel": "RunOutcome записан",
+      "lane": "main",
+      "col": 3,
+      "step": "03",
+      "tag": "итог"
+    },
+    {
+      "id": "learning",
+      "type": "active",
+      "label": "Обучение",
+      "sublabel": "явный шаг launcher",
+      "lane": "main",
+      "col": 4,
+      "step": "04",
+      "tag": "opt-in"
+    },
+    {
+      "id": "completed",
+      "type": "success",
+      "label": "Завершён",
+      "sublabel": "SLO ≥ 99%",
+      "lane": "terminal",
+      "col": 2,
+      "tag": "успех"
+    },
+    {
+      "id": "provider_queue",
+      "type": "waiting",
+      "label": "Очередь",
+      "sublabel": "RUN_BUSY",
+      "lane": "waits",
+      "col": 0,
+      "tag": "пауза"
+    },
+    {
+      "id": "provider_error",
+      "type": "failure",
+      "label": "Ошибка провайдера",
+      "sublabel": "таймаут · 5xx",
+      "lane": "errors",
+      "col": 0,
+      "yOffset": 78,
+      "tag": "повторяемо"
+    },
+    {
+      "id": "decision_timeout",
+      "type": "failure",
+      "label": "Дедлайн решения",
+      "sublabel": "> 120 c на шаг",
+      "lane": "errors",
+      "col": 1,
+      "tag": "прерывание"
+    },
+    {
+      "id": "failed",
+      "type": "failure",
+      "label": "Провален",
+      "sublabel": "повторы исчерпаны",
+      "lane": "terminal",
+      "col": 0,
+      "tag": "терминал"
+    },
+    {
+      "id": "interrupted",
+      "type": "failure",
+      "label": "Прерван",
+      "sublabel": "watchdog · kill",
+      "lane": "terminal",
+      "col": 1,
+      "tag": "терминал"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "queue-wait",
+      "from": "running",
+      "to": "provider_queue",
+      "label": "занято",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight",
+      "labelAt": [
+        373,
+        233
+      ]
+    },
+    {
+      "id": "queue-retry",
+      "from": "provider_queue",
+      "to": "running",
+      "label": "повтор",
+      "variant": "default",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "route": "straight",
+      "labelAt": [
+        440,
+        262
+      ]
+    },
+    {
+      "id": "deadline",
+      "from": "running",
+      "to": "decision_timeout",
+      "label": "дедлайн 120 c",
+      "variant": "security",
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [
+        [
+          480,
+          157
+        ],
+        [
+          480,
+          240
+        ],
+        [
+          556,
+          240
+        ]
+      ],
+      "labelAt": [
+        480,
+        202
+      ]
+    },
+    {
+      "id": "provider-fail",
+      "from": "running",
+      "to": "provider_error",
+      "label": "ошибка провайдера",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "left",
+      "via": [
+        [
+          320,
+          157
+        ],
+        [
+          320,
+          385
+        ]
+      ]
+    },
+    {
+      "id": "provider-retry",
+      "from": "provider_error",
+      "to": "running",
+      "label": "retry",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "top",
+      "via": [
+        [
+          18,
+          385
+        ],
+        [
+          18,
+          80
+        ],
+        [
+          402,
+          80
+        ]
+      ]
+    },
+    {
+      "id": "timeout-interrupt",
+      "from": "decision_timeout",
+      "to": "interrupted",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight"
+    },
+    {
+      "id": "retries-exhausted",
+      "from": "provider_error",
+      "to": "failed",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight"
+    },
+    {
+      "id": "learn-done",
+      "from": "learning",
+      "to": "completed",
+      "label": "принятые знания",
+      "variant": "default",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight",
+      "labelAt": [
+        710,
+        202
+      ]
+    },
+    {
+      "id": "eval-skip",
+      "from": "finalize",
+      "to": "completed",
+      "label": "обучение отключено",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [
+        [
+          556,
+          215
+        ],
+        [
+          660,
+          215
+        ],
+        [
+          660,
+          479
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Основной путь",
+      "items": [
+        "Прогон проходит фазы: создание, работа, финализация, обучение, завершение",
+        "Финализация записывает RunOutcome до всякого обучения"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Возвраты в работу",
+      "items": [
+        "RUN_BUSY — очередь симулятора, а не ошибка агента",
+        "Ошибки провайдера повторяются, пока жив бюджет"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Терминальные выходы",
+      "items": [
+        "Исчерпанные повторы ошибок провайдера переводят прогон в «Провален»",
+        "Дедлайн 120 секунд на решение прерывает серию с памятью"
+      ]
+    }
+  ]
+}

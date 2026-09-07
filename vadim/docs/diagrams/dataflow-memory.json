@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Память: от сырого опыта к контексту решения",
+    "output": "docs/diagrams/dataflow-memory.html",
+    "viewBox": [
+      1000,
+      620
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "Захват и очистка"
+    },
+    {
+      "label": "Валидация"
+    },
+    {
+      "label": "Хранение"
+    },
+    {
+      "label": "Извлечение"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "transitions",
+      "type": "backend",
+      "label": "ExperienceTransition",
+      "sublabel": "шаг: действие → результат",
+      "stage": 0,
+      "row": 0,
+      "tag": "каждый шаг",
+      "width": 142
+    },
+    {
+      "id": "outcomes",
+      "type": "backend",
+      "label": "RunOutcome",
+      "sublabel": "итог прогона · SLO",
+      "stage": 0,
+      "row": 2,
+      "tag": "финал",
+      "width": 140
+    },
+    {
+      "id": "redaction",
+      "type": "security",
+      "label": "Redaction",
+      "sublabel": "секреты удалены",
+      "stage": 0,
+      "row": 1,
+      "tag": "до hash",
+      "width": 130
+    },
+    {
+      "id": "evidence",
+      "type": "security",
+      "label": "validate_evidence",
+      "sublabel": "integrity + provenance",
+      "stage": 1,
+      "row": 1,
+      "tag": "строго",
+      "width": 150
+    },
+    {
+      "id": "candidates",
+      "type": "backend",
+      "label": "Кандидаты знаний",
+      "sublabel": "proposal ≠ promotion",
+      "stage": 1,
+      "row": 3,
+      "tag": "не решение",
+      "width": 150
+    },
+    {
+      "id": "episodic",
+      "type": "database",
+      "label": "Episodic Store",
+      "sublabel": "SQLite · namespace",
+      "stage": 2,
+      "row": 0,
+      "tag": "v1.2",
+      "width": 140
+    },
+    {
+      "id": "lessons",
+      "type": "database",
+      "label": "Уроки · ассоциации",
+      "sublabel": "принятые знания",
+      "stage": 2,
+      "row": 2,
+      "tag": "промоция",
+      "width": 150
+    },
+    {
+      "id": "frozen",
+      "type": "database",
+      "label": "Замороженный корпус",
+      "sublabel": "immutable snapshot",
+      "stage": 2,
+      "row": 3,
+      "tag": "read-only",
+      "width": 160
+    },
+    {
+      "id": "retrieval",
+      "type": "backend",
+      "label": "Retrieval + ranking",
+      "sublabel": "лексика · свежесть",
+      "stage": 3,
+      "row": 1,
+      "tag": "recall",
+      "width": 160
+    },
+    {
+      "id": "context",
+      "type": "backend",
+      "label": "DecisionMemoryContext",
+      "sublabel": "untrusted · ≤8000 токенов",
+      "stage": 3,
+      "row": 3,
+      "tag": "к модели",
+      "width": 180
+    }
+  ],
+  "flows": [
+    {
+      "id": "raw-transitions",
+      "from": "transitions",
+      "to": "redaction",
+      "label": "сырые события",
+      "classification": "поток шагов",
+      "variant": "emphasis",
+      "labelAt": [
+        100,
+        200
+      ]
+    },
+    {
+      "id": "raw-outcomes",
+      "from": "outcomes",
+      "to": "redaction",
+      "label": "итоги прогона",
+      "classification": "финальные записи",
+      "variant": "default",
+      "labelAt": [
+        100,
+        428
+      ]
+    },
+    {
+      "id": "clean-records",
+      "from": "redaction",
+      "to": "evidence",
+      "label": "очищенные записи",
+      "classification": "без секретов",
+      "variant": "security",
+      "labelAt": [
+        203,
+        314
+      ]
+    },
+    {
+      "id": "accepted-episodes",
+      "from": "evidence",
+      "to": "episodic",
+      "label": "валидные эпизоды",
+      "classification": "с provenance hash",
+      "variant": "emphasis"
+    },
+    {
+      "id": "proposals",
+      "from": "evidence",
+      "to": "candidates",
+      "label": "кандидаты",
+      "classification": "требуют деклараций",
+      "variant": "dashed",
+      "labelAt": [
+        315,
+        314
+      ]
+    },
+    {
+      "id": "promoted",
+      "from": "candidates",
+      "to": "lessons",
+      "label": "промоция",
+      "classification": "по правилам",
+      "variant": "dashed"
+    },
+    {
+      "id": "recall-episodes",
+      "from": "episodic",
+      "to": "retrieval",
+      "label": "эпизоды",
+      "classification": "read",
+      "variant": "emphasis"
+    },
+    {
+      "id": "recall-lessons",
+      "from": "lessons",
+      "to": "retrieval",
+      "label": "знания",
+      "classification": "read",
+      "variant": "default"
+    },
+    {
+      "id": "offline-corpus",
+      "from": "frozen",
+      "to": "retrieval",
+      "label": "офлайн",
+      "classification": "не изменяется",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [
+        [
+          530,
+          570
+        ],
+        [
+          930,
+          570
+        ],
+        [
+          930,
+          271
+        ]
+      ],
+      "labelAt": [
+        930,
+        430
+      ]
+    },
+    {
+      "id": "to-model",
+      "from": "retrieval",
+      "to": "context",
+      "label": "топ-N записей",
+      "classification": "лимит контекста",
+      "variant": "emphasis",
+      "labelAt": [
+        745,
+        314
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Основной путь данных",
+      "items": [
+        "Слева направо: захват → очистка → валидация → хранение → извлечение",
+        "Каждая запись сохраняет происхождение и связь с доказательствами"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Границы доверия",
+      "items": [
+        "Секреты удаляются до вычисления provenance hash и записи",
+        "Кандидат знаний — не принятое знание: промоция требует строгих правил"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Правило заморозки",
+      "items": [
+        "Замороженная оценка никогда не должна молча становиться обучением",
+        "После нового прогона обучение — явный шаг запускающего, а не флаг чтения"
+      ]
+    }
+  ]
+}

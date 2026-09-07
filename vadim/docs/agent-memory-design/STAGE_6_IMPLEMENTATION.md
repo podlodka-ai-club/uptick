@@ -68,6 +68,70 @@ declare a run eligible.
 
 Contracts are in `memory/lesson_contracts.py`; the separate pure functions
 `extract_candidates` and `validate_candidate` are in `memory/candidate_validation.py`.
+
+Candidate proposal and activation are separate gates. As of the memory-tower
+work on 2026-09-07, any integrity-checked, declared learning transition with a
+nonzero configured metric delta can propose an exact-match candidate, including
+failed, interrupted and ineligible attempts. Such attempts still cannot supply
+eligible support: the independent activation policy is unchanged. Frozen
+evaluation cannot propose candidates. This change does not solve missing context
+declarations and does not turn an observed association into causal evidence.
+New lesson batches use schema 1.1 to identify the expanded proposal policy;
+schema 1.0 batches retain their original proposal policy during replay.
+
+### Partial observed evidence and temporal proposals
+
+`validate_observed_evidence` verifies snapshot membership, record hashes, typed
+payloads and assembler provenance without claiming complete run declarations.
+The stricter `validate_evidence` still additionally requires complete matching
+declarations; all existing activation consumers use that stricter boundary.
+
+`extract_temporal_associations` is an offline proposal path for an explicitly
+selected learning run and observation cutoff. It pairs successive observations
+of the same metric and unit within the same run and observed context, with a
+bounded iteration gap, and retains every observed transition in the interval.
+Absent selection excludes a run; a frozen-evaluation declaration forbids its
+inclusion. Unknown world identity is preserved explicitly. These records have
+candidate status, no causal credit, and no decision-context retrieval path.
+They neither replace transition deltas nor certify a lesson. The byte snapshot
+can be complete while knowledge of the environment remains incomplete.
+
+This establishes real-data proposals only. Generalisation, independent knowledge
+validation and decision use remain separate required integration stages.
+
+### Verified descriptive summaries (explicitly separate policy)
+
+`memory/observed_patterns.py` reuses `PatternCandidate`, query settings and
+projection semantics under `observed-pattern-summary-v1@1.0`. Its validator
+independently scans selected learning observations and verifies exact support,
+counter and missing-result counts. A `verified_summary` means only that those
+counts describe the selected immutable records; it is not an `active` pattern
+manifest. Opaque run labels are provenance, not proof of independent worlds.
+Completion, causal credit, future utility and cross-environment validity are
+not inferred. Persisted summaries must be reverified against source evidence.
+
+This permits descriptive evidence from an interrupted run with unknown context
+identity without manufacturing a declaration. Strict pattern/world promotion is
+unchanged. The existing `WorldModelMemory` persists and retrieves these summaries
+under the explicit experimental `observed_world_policy` (configuration schema1.5),
+disabled by default. A real-corpus SQLite restart probe and capture at the
+structured-decision client boundary demonstrate opt-in inclusion, default
+exclusion and current-source-run exclusion. These checks establish transport,
+not model utility; cold retrieval cost and an episodic same-run warning remain
+open (Stage03 artifact report). These summaries are not eligible support records for
+strict learning; fresh strict validation must always search the raw evidence.
+
+Observed ingestion is now also exposed as an explicit runtime operation:
+compose with `allow_observed_learning=True`, then call
+`record_observed_learning` with learning cutoffs and an idempotency key. Default
+composition rejects this operation. The same registered world module handles
+writing and retrieval. Composition-owned declarations are copied and merged;
+known frozen selections, conflicts and duplicate declarations are rejected.
+The capability is reported separately from the unchanged configuration
+fingerprint and is never enabled implicitly by finalization. Stage04 records
+real-corpus ingestion and separate-process read evidence; model utility remains
+unproven.
+
 `StoredEpisodicLessonSource` freezes the input and `LessonsMemory` persists and
 retrieves it. The composition root alone imports concrete modules. All persistence
 uses `StructuredMemoryStore`; no new dependency or provider was introduced.

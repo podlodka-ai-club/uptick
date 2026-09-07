@@ -1,5 +1,52 @@
 # Public simulator tool coverage
 
+## Deployment refresh — 2026-09-06
+
+Public API 0.7.1 retained as `artifacts/simulator-refresh-2026-09-06/openapi.yaml`,
+SHA-256 `297574eddcb3f227cd8f3155ed4204b8f9a713af7e37f4fef6e34b2815f580d4`.
+The release adds `GET /v2/runs/{run_id}/logs/summary` and public
+`overview.evaluation` with policy `cost-bands.v1`. Summary groups observed
+traffic by public attributes and reports exact request counts and unique IPs;
+all matching statuses and probes are included. Totals cover the complete
+filtered interval even when groups are paginated. No attack labels are exposed.
+New v13 logs contain normal and attacking traffic; old logs are not backfilled.
+
+The target is a complete run with uptime >= .99 and total cost strictly below
+50 million RUB for 100 points. Costs in the API are minor units (kopecks):
+5 billion, 15 billion and 50 billion are the score boundaries 100/75/50/0.
+Incomplete runs or uptime below .99 receive 0. The running score is null and
+max_achievable_score excludes future cost and failures. Higher uptime adds no
+points; lower cost breaks ties. Public score data are legitimate observations,
+not private evaluator answers.
+
+`query_logs_summary` is now a typed canonical v2 action with all public filters,
+required from/to/group_by, offset pagination and optional CIDR prefix lengths.
+It preserves the full sanitized response and keeps incremental log cursors and
+seen IDs unchanged. Legacy historical decision schemas remain unchanged.
+Focused adapter/schema tests: 49 passed. Full suite: **710 passed, 2 skipped**.
+Scoped Ruff lint/format and local review passed. A real read-only request through
+Environment.execute and the HTTP client returned 9 logs in 2 user-agent groups
+for a five-minute interval of the existing dev06 run. This verifies live wire
+compatibility, not v13 attack recognition or memory utility. Evidence is retained
+in `artifacts/simulator-refresh-2026-09-06/summary-live-smoke.json`.
+
+The refreshed sanitized startup document was fetched through an idempotent
+repeat of an evidenced old start tuple; the same run ID was verified. No new run
+or model call was made. Its SHA-256 is
+`9aaec4adb7b36cbaf8bb29d8ca24ad1ee4ea064003599ac81b3d622450773c2e`
+(36,895 UTF-8 bytes), retained at
+`artifacts/simulator-refresh-2026-09-06/expected-startup.md` with tuple/source
+provenance. The next attempt must match this actual server-supplied text before
+its first decision; it must not substitute the old frozen startup document.
+
+Historical raw episodes remain evidence of the earlier runs only. They cannot
+establish current prices, resource IDs, scenario timing or current causal rules.
+The neutral prompt now asks the model to check recalled experience against the
+current environment contract and observations. No old corpus rows are rewritten
+or selected by answer content. Cross-version development runs are not a matched
+memory comparison. The sections below retain earlier validation evidence.
+
+
 Audit date: 2026-09-05. Only the authorized public API contract was inspected.
 The retained `openapi.yaml` has SHA-256
 `452b622ebf8e1734cfd630ff2dfe4cb1c25350f0e9b67d5ff5cf3e64e9cd1dc0`.

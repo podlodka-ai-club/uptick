@@ -1,294 +1,154 @@
-# Agent Memory implementation handoff
+# Handoff — active memory-tower Goal
 
-Updated: 2026-09-05 (Asia/Yekaterinburg).
+Current as of 2026-09-07: user approved and activated the Goal in
+`docs/agent-memory-design/MEMORY_TOWER_GOAL_DRAFT.md`. No token budget specified;
+existing live-attempt limits remain. Previous Goal completion below is historical.
 
-## Resume point
+Latest Stage04: artifacts/memory-tower-preparation/STAGE04.md. Public runtime
+ingestion now uses explicit allow_observed_learning=True and record_observed_learning;
+default composition rejects observed learning. Writer and reader share one world
+module. Known frozen declarations survive omission, duplicates and caller mutation.
+31 focused tests and local review pass. Fresh real corpus preparation through
+this API and separate-process read pass off0/on1/same0, all readers learning=false,
+no warnings,5834/8000 on-context tokens. Artifacts: world-learning-runtime-01 and
+world-learning-runtime-read-01. No simulator/model calls; all processes terminal.
+Next: durable handoff, explicit launcher integration, remaining mechanisms,
+actual model utility and independent transfer. Full Goal remains active.
 
-- This continuation is implemented and verified. Environment/tool boundary:
-  `62bce25`; filtered logs and metric history: `373f6ee`; provider-compatible
-  CIDR schema: `2fc633b`; lossless public timestamps: `c92e094`. Branch remains
-  `codex/vadim-agent-memory`; resolve the latest documentation/remote SHA in Git.
-- Canonical model construction follows physical startup. The environment
-  supplies a frozen decision schema and the actual sanitized server
-  `commands_markdown`, without a local startup fallback. The generic runner
-  preserves environment actions through context, traces and SQLite. Startup
-  artifacts are bound to sealed evaluation traces; missing/mismatched input
-  fails before the provider while retaining the physical ID.
-- `simulator/decisions.py` publishes `SimulatorV2Decision`; simulator actions
-  and dispatch remain adapter-owned. Historical `V2NextStep` is a compatibility
-  schema. `query_logs` exposes public filters/cursors and preserves incremental
-  reader state; `query_metrics` exposes historical windows and selected series.
-  Both preserve RFC3339 fractions exactly through decision validation and HTTP.
-  All 18 public control commands remain covered. See `PUBLIC_TOOL_COVERAGE.md`.
-- Final verification: **583 passed, 2 opt-in live skips**, Ruff and changed-file
-  formatting clean. All **56 historical schemas/identities** remain identical.
-  Root's focused implementation reviews are clean. Real tests additionally
-  verified nonempty repeat/cursor reads, the exact boundary error and metric
-  window, plus final model schema acceptance. No background model run remains.
-- Three separately retained controlled learning-cycle experiments passed
-  independent request/provenance/outcome verification. Each trained 8/8,
-  retained 24 attempts and 28 logical decisions, reopened SQLite and read
-  44 frozen members with six selected hypothesis IDs. `sol-low-01`: none 4/8,
-  hypotheses 6/8 (4 wins, 2 losses, 2 ties). `sol-low-02`: 4/8 versus 8/8.
-  `sol-low-03`, on frozen `62bce25` after the architecture refactor: 4/8 versus
-  8/8. The latter two each have 4 wins, 0 losses and 4 ties. No retained runtime
-  failures, timeouts or cleanup errors. Keep all three results separate.
-- These are variants of one designed causal family, not a held-out SRE or
-  xMemory utility result. Evaluator answers stay outside model requests;
-  observed training transitions supply evidence. Frozen evaluation writes
-  stay isolated. No activation threshold was weakened. Exact pins and limits:
-  `LEARNING_CYCLE_RESULTS.md`.
-- Live observability work retained two 60-decision/600-second diagnostics.
-  First, `bk9rZlWjelDngsa97veov1Po`, failed before a decision because the provider
-  rejected `ipv4network`. Second, `K1Ov1amam35yi4XjfXD4Uw1Q`, accepted the CIDR
-  correction, executed 42 decisions and timed out. It selected query_logs 3
-  times and query_metrics twice, reaching 14.4836% of the horizon. Last metric
-  at step 40: uptime 0.9993373478400721, downtime 58.016577125 seconds. These
-  are intermediate measurements; **0/2 demonstrated SLO successes**.
-- The live empty-window investigation found nanosecond truncation: a to-bound
-  ending .524467 returned zero errors; original .524467913Z returned the exact
-  stopping error. The c92e094 canonical decision/HTTP path now returns that row,
-  repeats it and preserves the metric window. A separate 2-decision schema
-  check, `T3t3dlx2KGrNrlqhWv1qNJLC`, exited 0 on c92e094, still nonterminal.
-  Direct smokes and the failed pre-HTTP verification helper remain recorded.
-  See `OBSERVABILITY_RESULTS.md`; do not turn these checks into SLO claims.
-- Next effectiveness priority: use precise public error windows to diagnose and
-  test sufficient corrective capacity through a full SRE horizon. Declare a
-  new development experiment before running; preserve the failed diagnostics.
-  A successful no-memory SRE policy is still unproven. Live memory activation
-  and held-out benefit also require authoritative immutable world/family
-  identities, absent from the public API. Seed 42 remains development data.
-- Stages 1–5 are complete. Stage 6 and A0–A9 compositions are implemented
-  experimentally; their integration matrix is complete. Held-out utility and
-  default-promotion gates remain open. xMemory is optional, with no full
-  upstream generation/embedding effectiveness run or immutable snapshot export.
-  No fair comparison with Alex's actual agent has been executed.
-- Work only below `vadim/`. The modified root `README.md` and untracked root
-  `docs/` belong to the user; do not edit or stage them. Scoped commits/pushes
-  on this branch remain authorized. Runtime artifacts are ignored and must
-  never be committed. Root owns planning, architecture, review and verification;
-  delegate bounded implementation. Ponytail remains active.
+First offline stage: `artifacts/memory-tower-preparation/STAGE01.md`.
+Real corpus08: all620 raw records passed integrity/provenance; a new honest
+observed-byte snapshot was created. Strict lesson evidence rejects missing run
+declarations; all619 transition contexts are null. 27 transitions have delta
+arrays, but all216 delta values are zero. Successive observed metrics do change,
+with 3–16 intervening decision iterations; see `corpus08-metric-signal.json`.
+Do not equate those associations with single-action causal credit.
 
-## Read next
+Implemented: candidate proposal now permits failed/interrupted/ineligible
+**declared learning** observations; promotion rules remain strict. Lesson batch
+schema1.1 stores new semantics, schema1.0 replays old extraction semantics.
+48 focused lesson/evidence/runner tests +5 consolidation tests passed; Ruff and
+local review passed, including a legacy replay compatibility fix. New offline
+tool: `scripts/probe_memory_evidence.py`. No new live/model calls this stage.
 
-1. `docs/agent-memory-design/EXPERIMENTAL_MEMORY_GUIDE.md`: current modules,
-   configuration, evaluation/maintenance commands and operational limits.
-2. `docs/agent-memory-design/REMAINING_EXECUTION.md`: implementation scope,
-   accepted integration decisions and outstanding research work.
-3. `docs/agent-memory-design/SIMULATOR_V2_EVALUATION_PROFILE.md`: separately
-   versioned uptime/cost protocol; the historical Stage 0 balance profile remains
-   unchanged.
-4. `docs/agent-memory-design/STAGE6_V2_DIAGNOSIS.md`: why current live evidence
-   does not activate lessons or demonstrate learning utility.
-5. `docs/SIMULATOR_V2_ADAPTER.md`: API details and historical development pilots.
-6. `docs/agent-memory-design/V2_LIVE_INTEGRATION_RESULTS.md`: sealed smoke and
-   A0–A9 integration identities, outcomes and verification.
-7. `docs/agent-memory-design/ARCHITECTURE_AUDIT.md`: current completeness,
-   import-boundary correction and remaining evidence/implementation gaps.
-8. `docs/agent-memory-design/AGENT_COMPARISON.md`: comparison with inspected
-   `simple_agent`; its provisional identification as Alex's agent is withdrawn.
-9. `docs/XMEMORY_INTEGRATION.md`: optional research xMemory integration and its
-   upstream verification limits.
-10. `docs/agent-memory-design/V2_POLICY_GUARD_RESULTS.md`: observed blind-wait
-    failure, policy 1.1 correction and operation-polling diagnostics.
-11. `docs/agent-memory-design/LEARNING_CYCLE_PLAN.md`: controlled durable learning
-    experiment, paired decisions, evaluator separation and limits.
-12. `docs/agent-memory-design/LEARNING_CYCLE_RESULTS.md`: all three controlled real-model results,
-    independent request/provenance verification and exact source/manifest seals.
+Stage02 completed as an intermediate implementation:
+`artifacts/memory-tower-preparation/STAGE02.md`. New `memory/associations.py`
+uses `validate_observed_evidence` (integrity/provenance only); strict
+`validate_evidence` still requires run declarations for existing promotion paths.
+Same real corpus08 gives538 unaccepted temporal metric associations,167 with a
+13:00UTC cutoff,0 with no explicit learning selection. Prefix output exactly
+matches the cutoff subset of full output. Input hash unchanged. Complete
+interval refs retained; no single-action causal credit, no world identity claim,
+no decision retrieval.53 existing tests and8 new delegated tests passed; Ruff
+and local quick review passed. No new simulator/model calls.
+Feature inventory is in `artifacts/memory-tower-preparation/feature-inventory.md`;
+root corrected the initial conflation of class defaults with actual C/D config.
+Actual C/D episodic1.2/raw recall and advanced lexical retrieval are on, legacy
+is off; higher derived modules remain off. Do not repeat corpus construction as
+if real raw episodes had never been used in decisions.
 
-13. `docs/agent-memory-design/OBSERVABILITY_RESULTS.md`: real tool/model attempts,
-    discovered CIDR/timestamp defects, fixes and remaining SRE limitations.
+Stage03: `artifacts/memory-tower-preparation/STAGE03.md` records five verified
+descriptive immediate-response patterns from real corpus08. Existing
+WorldModelMemory now has explicit schema1.5 experimental opt-in persistence and
+retrieval. SQLite new-process probes world-context-01 and02 pass world off/on/
+current-source-run exclusion. First on arm: one fact,5834 estimated context tokens
+inside8000,19.89s cold retrieval. Same-run arm has an episodic materialization
+warning, retained verbatim; do not call that arm entirely clean.
+`decision-boundary-01/` captures actual StructuredDecisionModel.decide client
+requests with off0/on1/same0 facts, without a provider call or fake decision.
+This is a mechanical fixture, not utility or full runner integration. Source
+run is interrupted; `running` means immediate response, not completion.
+Follow-up world-context-04 supplies the missing same-run query iteration480:
+world off0/on1/same0, all warnings empty. The original warning was correct rejection
+of an incomplete query fixture; production freshness checks are unchanged.
+Source DB had an unknown sqlite3 reader lock; root used a consistent SQLite backup
+world-context-source-02 instead of killing it. Capture decision-boundary-02 passes.
+Historical schema compatibility test reverified passing; old raw fingerprint
+unchanged. Bounded production closeout review is now complete (details below).
 
-## Shared Granola notes
+Batch provenance references now resolve to actual SQLite records (root verified
+world-context-05/provenance-check.json). Per-member gets replaced by one canonical
+namespace list,17 focused tests pass. Latest world-context-05 on18.89s/same19.12s
+does not demonstrate a clear speedup; repeated whole-corpus validation remains.
+decision-boundary-03 passes with corrected provenance and no provider calls.
 
-The supplied share token resolves to Hacker Sprint #2, containing four Team
-Uptick notes. Public summaries were saved under ignored
-`artifacts/granola-hacker-sprint-2026-09-05/`. These are not verbatim transcripts:
-the connected transcript tool returned not found for all four meeting IDs, and
-the shared pages expose notes/summary popovers. Never describe the extraction as
-full transcripts. Sync 3/4 distinguish a simple/oracle baseline from Alex's
-multi-step agent, but do not prove this repository's `simple_agent` is an oracle.
+Shared batch verifier implemented: evidence/selection once per equal settings/
+cutoffs group; each summary independently recomputes its counts.20 focused tests
+pass. world-context-06 on11.16s/same11.28s, off0/on1/same0 facts, no warnings.
+runner-boundary-01 now verifies the actual AgentRunner->composed memory->decision
+client path on a recorded public response, off0/on1. Capture-only: no model output
+or environment action; intentionally failed local fixture outcome is labelled.
+Production quick review scope is frozen in stage03-review-scope.json.
+Review found and fixed P2 AR-OBS-1: membership inferred from summaries became
+empty for unprojectable selected records, and raw snapshot size outranked selected
+coverage. Membership now derives once from validated records/cutoffs and ranking
+prioritizes selected coverage. Two regressions added;41 focused tests pass.
+Post-fix scope: stage03-review-scope-pass2.json. Root targeted review is clean;
+fresh three-batch real-corpus read preserves the complete final context exactly.
+Evidence: stage03-review-result.json and revision-01/post-review-retrieval.json.
 
-## Architecture audit and optional xMemory
+revision-01 completed: real probe_page counts1/0 ->1/1 ->4/1; superseded summaries
+excluded. Independent raw JSONL check covers all9/10/13 visible summaries and
+cutoff-safe refs; early terminal outcomes hidden, source SHA unchanged. Broad
+projection groups different pages, so no causal/reliability inference. No model
+or simulator calls. All root probe handles are terminal.
 
-- A focused contract import previously loaded concrete memory modules through
-  eager package exports and settings imports. Lazy public exports and neutral
-  settings now isolate contracts; recursive architecture checks enforce memory
-  independence from simulator, provider and xmemory implementations.
-- Existing public imports and all four historical sealed experiment hashes are
-  compatible. The optional `xmemory` field is absent from old serialization;
-  enabling it requires configuration schema 1.3.
-- The assumed target is HU-xiaobai/xMemory, upstream revision
-  `375ae1495095aa14a39eb169f83737f4779391c6`. This is distinct from hosted
-  xmemory.ai; the user has not yet answered the disambiguation question.
-  The adapter is outside the memory core, injected through a small protocol,
-  and composes through the native orchestrator and runner-facing port.
-- xMemory does not support immutable snapshot export through its public facade.
-  Enabled xmemory configurations are rejected by `evaluate-v2` before artifact
-  or client creation. It is not a new A0–A9 effectiveness result.
-- Upstream facade forwarding was exercised with an injected fake memory system
-  and stubbed heavy imports. A full upstream embedding/LLM pipeline was not
-  installed or run; do not describe that smoke as end-to-end xMemory validation.
-- Sibling `simple_agent` locked tests passed 40/40 with one live test skipped.
-  Our richer architecture does not establish better incident handling. No fair
-  shared-protocol agent comparison has been executed.
+Next: actual provider use and all remaining
+mechanisms/independent comparisons. Do not mistake correct descriptive counts
+and capture-only transport for useful model decisions.
+Stage03 lacked an observed-learning facade; Stage04 resolves that API gap.
+Normal finalize still follows the original strict source. A retrieval flag alone
+does not automatically learn after a new run; launchers must invoke the explicit
+learning step. Frozen evaluation must never silently become training.
+Do not invent hidden-world hashes or mistake candidate persistence for the
+Goal's required accepted knowledge and decision-use chain. Continue all
+mechanisms, progressive profiles, actual utility and transfer checks.
+Agent audit `candidate-gates.md` distinguishes raw capture, proposals and promotion;
+its diagnostic-only suggestion is an intermediate step, not the Goal finish line.
 
-## Delivered runtime
+## Historical experiment handoff (status below must be reverified)
 
-- v2 remains the CLI default; explicit v1 compatibility is preserved. A
-  versioned decision policy budgets error-stopping waits against the remaining
-  horizon. Policy 1.1 restores first-error stopping unless current public metrics
-  prove the full-horizon SLO unrecoverable. Pending operations preserve their
-  requested duration. The v2 policy exposes public horizon/pending-operation
-  hints; canonical startup instructions come from the environment. Resource
-  summaries distinguish backend/database counts. Portable reasoning effort,
-  filtered historical observability and provider telemetry are supported.
-- A0–A9 are real compositions: no memory, legacy, episodes, lessons, world
-  hypotheses, explicit consolidation, advanced retrieval, playbooks, tool
-  knowledge and operational episode decay. Four targeted ablations are
-  supported. Disabling mandatory contradiction validation is unsupported.
-- Candidate generation is separate from activation validation. Activation needs
-  two completed eligible first learning runs across two immutable contexts,
-  complete assembler provenance and counter search, and no unresolved
-  contradictions. Evaluation contributes neither support nor counters.
-- Lesson manifests use schema 1.1 with required acceptance and retention
-  metadata. Legacy batches missing those fields fail closed; revalidate retained
-  evidence explicitly rather than synthesizing acceptance.
-- Consolidation runs only through an explicit out-of-band operation. Immutable
-  dry-run plans are revalidated before idempotent apply. New applied snapshots
-  cannot discard previously admitted evidence. The latest complete plan governs
-  decision visibility; old receipts cannot resurrect disputed candidates.
-- Retrieval is replaceable and budgeted before ranking. Presets allocate 4000
-  UTF-8-byte upper-bound units per module and 16000 globally. The old 1000 cap
-  admitted none of 26 measured real episode views. Semantic embeddings, graph
-  expansion and learned queries are unimplemented research alternatives.
-- Maintenance plans retain sources, summaries/links and supersession evidence,
-  enforce holds and retention floors, and support operational episode age decay.
-  Physical deletion is unimplemented; stored history can continue growing.
+Work only `vadim/`; preserve dirty worktree/siblings; no commit/push. The prior Goal remains COMPLETE. User subsequently explicitly authorized four new parallel memory experiments; these are attempts13–16, A LIVE; B/C/D CLOSED, no automatic replacements or new Goal inferred.
 
-## Telemetry instrumentation and live checks
+## Current task
 
-The historical matrix identified by source `2e0b411` is the old null-counter
-baseline: its attempt telemetry does not provide stored-artifact totals or
-aggregate module-lifecycle counters. The telemetry instrumentation patch is
-applied in commit `fdd7865`. It adds typed per-module telemetry for construction,
-reads, validated nonempty contributions entering the global merge, writes,
-finalization and consolidation; forwards those rows through the runtime and
-evaluation facade; and reports stored-record counts. Training counts are
-cumulative across a condition's training namespaces, while evaluation counts
-cover only the current attempt's isolated output namespaces. Frozen input is
-reported separately as `snapshot_members`. The legacy `remember()` compatibility
-path bypasses the structured orchestrator and is therefore outside these module
-counters. `finalization_events` exists on per-module runtime telemetry; the
-retained attempt `MemoryTelemetry` schema has no aggregate finalization field.
-`module_contribution_events` counts validated nonempty contributions entering the
-global merge, not selected unique-item counts. Missing or partial values remain
-unavailable (`null`).
+All four independent seed45 runs started around 2026-09-06 19:05:39–42 UTC (September7 00:05 Asia/Yekaterinburg). Terra medium, same frozen auth source, policy1.6, max480 decisions/1920 actions, combined120s fresh-read+provider deadline,7200s original wall per run. Expected public horizon172800s; SLO>=.99 plus positive native score and full completion. Parallel run creation is allowed; server queues one advance perparticipant/globaltwo. Do not bypass queue or reset deadlines.
 
-The SDK shutdown fix is applied in commit `e35fd58`: production-owned turns use
-shielding, public client close, draining the turn task, and cancellation
-propagation in that order; borrowed-turn behavior is unchanged. The historical
-matrix process was terminated with SIGTERM (exit 143) after printing and
-independently verifying its report. The shutdown regression was red with the old
-five-second timeout and green through the real router. These checks do not
-rewrite the historical matrix or close an evidence gate.
+A: fresh public overview + immediate action feedback; no previous plan/recent/history/episodic memory.
+B: same + bounded ordinary previous decision/recent/action-result history; no episodic memory.
+C: B + fresh same-run episodic1.2 memory.
+D: C + immutable training08 corpus620records.
 
-Live verification is complete against source
-`e35fd581b57318ff062fc01ea1d62c1e92268978`. The four-cell telemetry smoke
-completed 4/4 cells with 0/4 passing SLO and CLI exit 0; verification covered
-12 lifecycle events, 11 durable artifacts and 2 bindings. Training A0 measured
-zero module events with `stored_artifacts=5`; training A3 measured construction
-`2`, reads `2`, writes `1` and `stored_artifacts=8`, with the remaining A3
-reported aggregate counters at zero. The four-cell short-wall cancellation probe used
-A0/A3, training/evaluation seeds 43/44, eight decisions and a 12-second wall
-budget; all 4/4 cells were interrupted and each retained
-`provider_telemetry.request_count=1`. After all four cells, the CLI exited with
-code 0 and the evidence passed verification. Probe details are recorded in
-`docs/agent-memory-design/V2_LIVE_INTEGRATION_RESULTS.md`. These checks do not
-close an evidence gate.
+ALL arms replace environment cached model-visible run_state with fresh public overview (or public busy error). Extra reads and combined elapsed time are recorded. Transport/session safety remains intact. Exact startup SHA f7c4977d8ff862dff4ccdb1469c3f2051bc1444ef7a4819f785d404cd8ff2337 verified before model calls in all four. Fresh OpenAPI unchanged. One seed perarm is exploratory; do not pool with prior11/12 because current perception changed.
 
-## Evaluation integrity
+## Process handles — verify before doing anything
 
-- Manifest precedes all external calls; each cell retains requested/running/
-  terminal lifecycle, including startup failures and incomplete horizons.
-- Source, dependency, prompt, generation settings, policy, estimator and endpoint
-  pins must match actual execution. Namespaces bind to the sealed manifest hash.
-- Training provenance is validated before immutable snapshot binding. Evaluation
-  reads only the bound records, including verified nested historical snapshots;
-  writes/finalization/audit use isolated output namespaces.
-- Real v2 sessions receive experiment-owned environment/scenario attribution.
-  Unknown immutable world identity creates no eligible learning declaration.
-- First attempts remain primary. Failed/incomplete cells stay in denominators;
-  paired costs require both completed runs to pass SLO. Unknown/partial usage
-  and monetary costs remain unavailable, and mixed currencies are not averaged.
-- Existing lifecycle/training namespaces cannot be resumed. Each diagnostic
-  rerun needs a new sealed manifest/output directory and keeps previous evidence.
+| Arm | Main exec | Watchdog exec | Run ID |
+|---|---:|---:|---|
+| A |67273|79457|DoN8G1nzG3fKpmaPxsVvMvGD|
+| B |58153|45564|78gBmERHeoLfCFREpcAwU8TK|
+| C |61314|67170|YzT8u5uLAtxfiILK7qFB2uPo|
+| D |30804|71283|itpZoup6hyvJLca7w6sPrfge|
 
-## Live evidence and outstanding gates
+Exact original deadlines/plan hashes/start receipts in `artifacts/four-arm-memory-20260906/launch-receipt.json`. All watchdogs confirmed guard_started. Never start duplicates based on an observation timeout. Actual main exit must be checked separately even if watchdog reports terminal; preserve cleanup errors and use only inherited exact-identity signal procedure if genuinely needed.
 
-The owner authorized simulator runs at `http://81.176.229.58:8080`.
-Raw sanitized artifacts remain ignored under `artifacts/`.
+## Evidence and next action
 
-- v2 client smoke passed 14 checks; the live adapter integration test passed
-  again during this continuation.
-- The completed A0–A9 and targeted integration matrix is recorded in
-  `docs/agent-memory-design/V2_LIVE_INTEGRATION_RESULTS.md`: 42/42 cells have
-  terminal records, with 41 completed and 1 interrupted; 0/42 passed SLO.
-  Training completed 27/28 attempts and evaluation completed 14/14. All 14
-  bindings were valid, and independent verification passed for 126 lifecycle
-  events and 98 durable artifacts. This verifies bounded execution and
-  reporting only; it does not close the held-out utility or promotion gates.
-- Development pilots 6 and 8 exhausted 40 decisions without completing the
-  horizon. Pilots 7 and 9 completed seven days but failed SLO: uptime about
-  0.266. Pilot 9 used catalog-verified `gpt-5.6-sol`, low effort, 27 decisions,
-  268.86 wall seconds, run `XQqybzunrxvpO8ul2VvQYZ7w`.
-- Policy-1.1 diagnostic `TaQUWekTn2Vq3YM3ch0MUTc8` stopped at 80 decisions,
-  14.54% of the horizon, current uptime 0.9954124323 and SLO null. The prompt-only
-  follow-up `baRQeQU3gPUvlcfkkh7XzOT0` timed out after 900 seconds/78 steps,
-  covering 14.55%; its last measured uptime was 0.9957498183 at step 74, not
-  a terminal result. Frozen source pins and exact metrics are in
-  `docs/agent-memory-design/V2_POLICY_GUARD_RESULTS.md`.
-- Seed 42 is a development seed, never an unseen holdout. Model/budget diagnostic
-  retries are not a controlled memory ablation.
-- Public API world-content hashes and causal-family identity are unavailable.
-  Do not replace them with seed labels or API-schema hashes. This prevents
-  qualifying new live derived knowledge and closing causal-family holdout gates.
-- The bounded A0–A9 integration matrix is complete as recorded in
-  `docs/agent-memory-design/V2_LIVE_INTEGRATION_RESULTS.md`; it checks execution and reporting. A final
-  learning-utility experiment still needs authoritative world identities, a
-  locked causal-family split, sufficient complete runs and the specified
-  promotion/rollback/approval evidence. No successful SRE policy is claimed.
+Directory `artifacts/four-arm-memory-20260906/` holds frozen PROTOCOL.md, plansA–D, contracts, freeze.json, preflights, root-review.json, reviewed copied runner, ablation.py, launch helper, tests, public spec, launch logs and watchdog logs. Independent subagents four_arm_isolation and four_arm_harness_review finished. Root verified their actual fixtures and ran9 tests plus1 combined-deadline negative test; Ruff clean. Source scope hash a53fb4db749e2fc24413386862ff72c5928461c5c39f147fc274f7451dced75e. No production/source-capsule mutation.
 
-## Verification
+Initial provider-boundary check saw3 successful answers in EACH arm, no provider errors. A requests havezero memory/history/previousplan; Bzero episodic memory buthistory; Ccurrent-run memory only; Dhistorical+current memory. This proves treatment application in the checked live prefix, not utility or full success. Exact metadata in initial-provider-boundary-check.json. Do not mutate live code/plans/corpus based on answers.
 
-Current source checkpoint `c92e094`: **583 passed, 2 skipped** in 19.81 seconds.
-The skipped checks are opt-in live tests; separate real API/model verification
-is recorded in `OBSERVABILITY_RESULTS.md`. All three controlled learning-cycle
-experiments passed independent manifest, snapshot, evidence ancestry, request
-and outcome verification. The original learning-cycle checkpoint had 552 passing
-tests and two skips.
+Next: monitor existing processes, then after ACTUAL exit capture immutable final artifacts/accounting for seed45. A/B/C use no-historical flag; D allows exact training run bdnX2wsmrAtl2ykhHdEovjvS. Report all failures, truncated horizons, extra overview reads/time, tokens/calls/retries/unknown usage, SLO/score/envcost, repeat diagnostics and bounded stale-evidence findings. Model monetary cost unavailable unless observed. No extra model/API calls during cleanup. Do not copy/read live SQLite. Exact provider requests are authoritative; prompt_trace is deliberately a pre-read placeholder.
 
-Historical policy-guard checkpoint: **536 passed, 2 skipped in 6.68s**.
-The subsequent prompt-only operation-polling correction passed 53 applicable
-policy, provider-boundary and CLI tests. Earlier architecture/xmemory checkpoint:
-524 passed, 2 skipped in 6.37s.
-The subsequent focused xmemory/architecture/CLI verification passed 31/31,
-including 256-character journal keys and reopened-SQLite finalization replay.
-Ruff, changed-file formatting and `git diff --check` passed. The separate live
-v2 adapter integration check passed **1/1 in 3.14s**. The real pinned xMemory
-facade plus our adapter and SQLite also passed a smoke with an injected fake
-memory system; full upstream generation/embedding remains untested.
+Previous12 closed attempts and completed Goal comparison remain intact at artifacts/paired-memory-preparation/paired-sre-results/; prior handoff archived at docs/agent-memory-design/HANDOFF_BEFORE_FOUR_ARM_LIVE_20260907.md. Secret `.simulator-participant-token` stays ignored0600: never inspect/print/hash/copy; only private authorized launch load. New four-arm series does not reopen or relabel old results.
 
-Run from `vadim/`:
+## Status check 2026-09-06 20:20:40 UTC
 
-```bash
-env -u OPENAI_API_KEY -u CODEX_API_KEY \
-  UV_CACHE_DIR=/private/tmp/uptick-uv-cache \
-  uv run --extra codex --locked pytest -q -ra --tb=short
-UV_CACHE_DIR=/private/tmp/uptick-uv-cache uv run --extra codex --locked ruff check .
-git diff --check -- .
-```
+D completed full48h with score100, uptime99.8970209%, RUB21,845,623.93,267decisions in60.56min. Main30804 and watchdog71283 exit0 verified; guard terminal/not_signaled. Corpus unchanged. Receipt four-arm-memory-20260906/terminal-process-D.json; final snapshot/accounting still pending. A/B/C and their guards verified live. Latest public progress A42125s (24.38%), B129425.352s (74.90%), C152325s (88.15%). A made little simulated progress since previous check despite many answers; do not change a live arm or reset its budget. Original deadlines remain21:05:39–42 UTC.
 
-The two integration tests require explicit simulator URL variables. Their
-normal offline skips are not live failures. Format only changed Python files;
-17 unchanged files had formatting deviations at the preceding checkpoint.
+## Status check 2026-09-06 20:49:47 UTC
+
+C completed48h,100points,uptime99.9132246%,RUB22,873,623.44,405decisions,88.14min; main61314/watchdog67170 exit0 verified. B consumed480decisions, ended failed with HTTP409 RUN_BUSY; final public observed135334.184779453s=78.32%,uptime99.790656%,native score/SLO null. Main58153 exit1/watchdog45564 exit0 terminal/not_signaled verified. No provider errors in either; corpora unchanged. Terminal receipts saved; full accounting/causal diagnosis pending. A main67273/watchdog79457 still live,459answers,126132s=72.99%,original deadline21:05:39Z; no restart/intervention. D remains previously closed success.
+
+## B diagnosis and corrected C/D comparison
+
+User corrected expense comparison from B/C to C/D. Read-only reports in artifacts/four-arm-memory-20260906/b-analysis/{failure.md,failure.json,C-D-comparison.md,C-D-cost-details.json,accounting-C.json,accounting-D.json,source-index.json}. Fresh public OpenAPI identical; active V2 objective full SLO+cost bands, no revenues/profit. OldV1 maximized final balance. B480dec/515actions;72of141completedadvances error-stopped, applying36,899 of185,919requestedseconds. Last480 accepted pendingadvance then finish() GET overview hit409; explicit budget-exhaustion result masked. Final server state after pendingop unknown; no extra API continuation. DB remained unavailable and migration only began460. No code changes or new runs. C/D bothfull100; env22,873,623.44 vs21,845,623.93 (D4.494%less); tokens12,680,462 vs8,645,459 (D31.821%less), complete incl2providerretrieseach, zero accounting violations. One development pair does not establish causal memory effect.
