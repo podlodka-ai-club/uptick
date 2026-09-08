@@ -1,0 +1,6 @@
+{
+  "run_id": "unsafe-run",
+  "started_at": "2026-08-29T00:00:00Z",
+  "reasoner": {"provider": "fixture", "model": "fixture", "thread_mode": "stateless"},
+  "total_cost_minor": 9007199254740993
+}

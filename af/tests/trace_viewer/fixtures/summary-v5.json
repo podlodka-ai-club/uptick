@@ -1,0 +1,96 @@
+{
+  "schema_version": 5,
+  "spec": {
+    "schema_version": 3,
+    "experiment_id": "fixture-experiment",
+    "environment": "uptickv2",
+    "environment_profile_hash": "profile-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "reasoner": {
+      "provider": "scripted",
+      "model": "fixture",
+      "thread_mode": "stateless"
+    },
+    "memory": {
+      "mode": "learning",
+      "database_id": "memory-fixture",
+      "expected_start_revision": 1,
+      "learner": {
+        "provider": "scripted",
+        "model": "learner-fixture",
+        "thread_mode": "stateless"
+      },
+      "trigger": "after_run",
+      "min_evidence_groups": 1
+    },
+    "seeds": [
+      7
+    ],
+    "repeats": 1,
+    "max_iterations": null
+  },
+  "resolved_spec_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "attempts": [
+    {
+      "seed": 7,
+      "repeat_index": 0,
+      "run_id": "run-a",
+      "result": {
+        "run_id": "run-a",
+        "status": "completed",
+        "steps": 2,
+        "stop_reason": "world completed",
+        "metrics": {},
+        "final_state": {
+          "evaluation": {
+            "score": 100
+          },
+          "costs": {
+            "total_cost_minor": 2081738912
+          },
+          "availability": {
+            "uptime_ratio": 0.993889,
+            "slo_passed": true
+          }
+        }
+      },
+      "failure": null
+    }
+  ],
+  "seed_aggregates": [
+    {
+      "seed": 7,
+      "planned_attempts": 1,
+      "attempts_with_result": 1,
+      "completed_attempts": 1,
+      "data_complete": true,
+      "scored_attempts": 1,
+      "slo_passed_attempts": 1,
+      "available_scores": [
+        100
+      ],
+      "available_total_costs_minor": [
+        2081738912
+      ],
+      "available_uptime_ratios": [
+        0.993889
+      ],
+      "median_score": 100,
+      "median_total_cost_minor": 2081738912,
+      "min_uptime_ratio": 0.993889
+    }
+  ],
+  "planned_attempts": 1,
+  "attempts_with_result": 1,
+  "failed_attempts": 0,
+  "completed_attempts": 1,
+  "completion_rate": 1.0,
+  "complete_seeds": 1,
+  "partial_seeds": 0,
+  "insufficient_data": false,
+  "scored_attempts": 1,
+  "slo_passed_attempts": 1,
+  "median_score": 100,
+  "p10_score": 100,
+  "median_total_cost_minor": 2081738912,
+  "min_uptime_ratio": 0.993889
+}

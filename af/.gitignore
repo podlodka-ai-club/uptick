@@ -1,0 +1,63 @@
+# Python and uv
+.venv/
+.uv-cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Tool output
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Runtime and evaluation output
+.agent/
+.artifacts/
+artifacts/
+traces/
+manifests/
+trace.jsonl
+*.trace.jsonl
+summary.json
+comparison.json
+spec.source.json
+spec.resolved.json
+decision-corpus.json
+replay.json
+*.corpus.json
+*.replay.json
+memory.jsonl
+memory-*.jsonl
+*.memory.jsonl
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# Local configuration, credentials, and secrets
+agent.yaml
+.env
+.env.*
+auth.json
+*.key
+*.pem
+.secrets/
+secrets/
+
+# Editor and operating-system files
+.DS_Store
+*.swp
+*~

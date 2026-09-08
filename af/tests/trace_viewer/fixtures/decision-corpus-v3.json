@@ -1,0 +1,209 @@
+{
+  "schema_version": 3,
+  "spec": {
+    "schema_version": 3,
+    "experiment_id": "fixture-experiment",
+    "environment": "uptickv2",
+    "environment_profile_hash": "profile-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "reasoner": {
+      "provider": "scripted",
+      "model": "fixture",
+      "thread_mode": "stateless"
+    },
+    "memory": {
+      "mode": "learning",
+      "database_id": "memory-fixture",
+      "expected_start_revision": 1,
+      "learner": {
+        "provider": "scripted",
+        "model": "learner-fixture",
+        "thread_mode": "stateless"
+      },
+      "trigger": "after_run",
+      "min_evidence_groups": 1
+    },
+    "seeds": [
+      7
+    ],
+    "repeats": 1,
+    "max_iterations": null
+  },
+  "resolved_spec_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "runs": [
+    {
+      "seed": 7,
+      "repeat_index": 0,
+      "run_id": "run-a",
+      "manifest": {
+        "run_id": "run-a",
+        "seed": 7,
+        "agent_id": "af-sgr",
+        "agent_version": "af-baseline-0.1",
+        "reasoner": {
+          "provider": "scripted",
+          "model": "fixture",
+          "thread_mode": "stateless"
+        },
+        "memory_mode": "none",
+        "started_at": "2026-08-29T00:00:00Z",
+        "status": "running"
+      },
+      "final_outcome": {
+        "run_id": "run-a",
+        "status": "running",
+        "steps": 2
+      },
+      "final_failure": null,
+      "decisions": [
+        {
+          "decision_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "seed": 7,
+          "repeat_index": 0,
+          "iteration": 1,
+          "context": {
+            "objective": "keep healthy",
+            "environment_profile": {
+              "environment_id": "uptick",
+              "profile_version": "profile-v1",
+              "guidance": [
+                "Keep the site healthy."
+              ]
+            },
+            "environment_state": {
+              "profile": {
+                "environment_id": "uptick",
+                "version": "profile-v1"
+              },
+              "status": "active",
+              "decision_view": {
+                "desired_backend_instances": 1,
+                "pending_operations": [
+                  {
+                    "operation_id": "op-1",
+                    "kind": "scale_backend",
+                    "status": "running",
+                    "metadata": {}
+                  }
+                ]
+              },
+              "latest_observation": {
+                "action_kind": "start",
+                "ok": true,
+                "summary": "started",
+                "data": {
+                  "simulation_time": "2030-03-01T00:00:00Z",
+                  "simulation_ends_at": "2030-04-01T00:00:00Z"
+                },
+                "terminal": false
+              }
+            },
+            "agent_working_state": {
+              "active_strategy": null,
+              "strategy_started_step": null,
+              "open_decision": null,
+              "last_closed_episode": null
+            },
+            "memory_brief": {
+              "lessons": [],
+              "similar_episodes": [
+                "Scaling once prevented overload."
+              ],
+              "contradictions": [
+                "One earlier scale-out lost money."
+              ]
+            },
+            "capabilities": {
+              "items": []
+            },
+            "constraints": {
+              "forbidden_capabilities": []
+            },
+            "progress": {
+              "step": 1,
+              "step_limit": null
+            }
+          },
+          "context_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "system_prompt_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "schema_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "decision": {
+            "envelope": {
+              "phase": "optimize",
+              "facts": [
+                "<img src=x onerror=alert(1)>",
+                "one instance is active"
+              ],
+              "competing_hypotheses": [
+                "advance to observe",
+                "wait without advancing"
+              ],
+              "contradicting_evidence": [
+                "an operation is active"
+              ],
+              "previous_verification": {
+                "status": "not_applicable",
+                "evidence": []
+              },
+              "strategy": "observe one bounded interval",
+              "selected_action": {
+                "name": "advanceTime",
+                "arguments": {
+                  "duration_seconds": 300
+                }
+              },
+              "expected_result": [
+                "receive a complete interval"
+              ],
+              "verification": [
+                "confirm the interval clock advanced by 300 seconds"
+              ],
+              "task_completed": false
+            },
+            "telemetry": {
+              "provider": "scripted",
+              "requested_model": "fixture",
+              "reported_model": null,
+              "requested_effort": "high",
+              "reported_effort": null,
+              "thread_mode": "stateless",
+              "attempts": 1,
+              "duration_seconds": 1.25,
+              "sdk_name": "fixture",
+              "sdk_version": "1",
+              "provider_runtime": {},
+              "provider_instructions_sha256": null,
+              "token_usage": {
+                "input_tokens": 10,
+                "output_tokens": 4,
+                "total_tokens": 14,
+                "cached_input_tokens": null,
+                "reasoning_output_tokens": 2,
+                "cache_write_input_tokens": null
+              },
+              "raw_usage": {}
+            }
+          },
+          "policy_result": {
+            "accepted": true,
+            "violations": []
+          },
+          "following_observation": {
+            "action_kind": "advanceTime",
+            "ok": true,
+            "summary": "Advanced <b>300s</b>",
+            "data": {
+              "clock": {
+                "simulation_time": "2030-03-01T00:05:00Z",
+                "simulation_ends_at": "2030-04-01T00:00:00Z",
+                "remaining_seconds": 2678100,
+                "applied_advance_seconds": 300
+              }
+            },
+            "terminal": false
+          },
+          "failure": null
+        }
+      ]
+    }
+  ]
+}
