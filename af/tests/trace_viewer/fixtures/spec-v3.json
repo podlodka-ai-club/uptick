@@ -1,0 +1,28 @@
+{
+  "schema_version": 3,
+  "experiment_id": "fixture-experiment",
+  "environment": "uptickv2",
+  "environment_profile_hash": "profile-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "reasoner": {
+    "provider": "scripted",
+    "model": "fixture",
+    "thread_mode": "stateless"
+  },
+  "memory": {
+    "mode": "learning",
+    "database_id": "memory-fixture",
+    "expected_start_revision": 1,
+    "learner": {
+      "provider": "scripted",
+      "model": "learner-fixture",
+      "thread_mode": "stateless"
+    },
+    "trigger": "after_run",
+    "min_evidence_groups": 1
+  },
+  "seeds": [
+    7
+  ],
+  "repeats": 1,
+  "max_iterations": null
+}

@@ -1,0 +1,11 @@
+{
+  "run_id": "run-a",
+  "seed": 7,
+  "agent_id": "af-sgr",
+  "agent_version": "af-baseline-0.1",
+  "reasoner": {"provider": "scripted", "model": "fixture", "effort": null, "thread_mode": "stateless"},
+  "memory_mode": "none",
+  "started_at": "2026-08-29T00:00:00Z",
+  "finished_at": null,
+  "status": "running"
+}

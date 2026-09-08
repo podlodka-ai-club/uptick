@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    >
+    <meta name="color-scheme" content="light dark">
+    <title>Uptick Trace Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="core.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">UT</span>
+        <div class="brand-copy">
+          <h1>Uptick Trace Viewer</h1>
+          <p>Read-only view of saved AgentCore runs</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <label class="button button-primary" for="artifact-picker">Open artifacts</label>
+        <input
+          id="artifact-picker"
+          class="visually-hidden"
+          type="file"
+          accept=".json,.jsonl,application/json,application/x-ndjson"
+          multiple
+        >
+        <button id="reset-button" class="button button-quiet" type="button" hidden>Reset</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="drop-zone" class="drop-zone" aria-labelledby="drop-title">
+        <div class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="28" height="28" focusable="false">
+            <path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 id="drop-title">Drop a trace to start</h2>
+        <p class="drop-lead">
+          A trace schema v5 or v6 <code>trace.jsonl</code> is the only required file.
+          Companions can come in the same selection or later.
+        </p>
+        <dl class="drop-companions">
+          <div><dt>Optional</dt><dd>run manifests, bootstrap artifact, experiment summary v5, comparison v4, resolved spec v3, decision corpus v3</dd></div>
+          <div><dt>Privacy</dt><dd>files stay in this tab, nothing is uploaded or stored</dd></div>
+        </dl>
+      </section>
+
+      <section id="messages" class="messages" aria-live="polite" hidden></section>
+
+      <section id="workspace" class="workspace" hidden>
+        <div class="workspace-bar">
+          <label class="field run-field">
+            <span>Run</span>
+            <select id="run-select"></select>
+          </label>
+          <div id="file-summary" class="file-summary"></div>
+          <div class="tabs" role="tablist" aria-label="Viewer sections">
+            <button class="tab" type="button" role="tab" id="tab-run" data-tab="run" aria-controls="run-panel" aria-selected="true">Decisions</button>
+            <button class="tab" type="button" role="tab" id="tab-map" data-tab="map" aria-controls="map-panel" aria-selected="false" tabindex="-1">Map</button>
+            <button class="tab" type="button" role="tab" id="tab-charts" data-tab="charts" aria-controls="charts-panel" aria-selected="false" tabindex="-1">Diagnostics</button>
+            <button class="tab" type="button" role="tab" id="tab-experiment" data-tab="experiment" aria-controls="experiment-panel" aria-selected="false" tabindex="-1">Memory &amp; experiment</button>
+          </div>
+        </div>
+
+        <section id="overview" class="overview" aria-label="Run overview"></section>
+
+        <section id="run-panel" class="tab-panel decisions-layout" role="tabpanel" aria-labelledby="tab-run">
+          <aside class="decision-list" aria-label="Decisions">
+            <div id="filters" class="list-filters">
+              <label class="field search-field">
+                <span class="visually-hidden">Search decisions</span>
+                <input id="search-input" type="search" placeholder="Search reasoning, action, result…" autocomplete="off">
+              </label>
+              <div class="filter-row">
+                <label class="field action-field">
+                  <span class="visually-hidden">Action</span>
+                  <select id="action-filter"><option value="">All actions</option></select>
+                </label>
+                <button id="filter-toggle" class="button button-quiet button-small" type="button" aria-expanded="false" aria-controls="filter-drawer">Filters</button>
+              </div>
+              <div id="filter-drawer" class="filter-drawer" hidden>
+                <div class="range-field">
+                  <span class="field-label">Iterations</span>
+                  <div class="range-inputs">
+                    <input id="iteration-min" type="number" min="1" placeholder="from" aria-label="Minimum iteration">
+                    <span aria-hidden="true">–</span>
+                    <input id="iteration-max" type="number" min="1" placeholder="to" aria-label="Maximum iteration">
+                  </div>
+                </div>
+                <div id="filter-toggles" class="filter-toggles"></div>
+              </div>
+              <div class="list-status">
+                <span id="result-count" class="result-count"></span>
+                <button id="clear-filters" class="link-button" type="button" hidden>Clear filters</button>
+              </div>
+            </div>
+            <div class="timeline-scroll" tabindex="0" aria-label="Filterable decision list">
+              <div id="timeline-rows" class="timeline-rows" role="list"></div>
+            </div>
+          </aside>
+
+          <div class="decision-column">
+            <section id="decision-detail" class="decision-detail" aria-label="Selected decision"></section>
+            <section id="state-detail" class="state-detail" aria-label="State, telemetry and raw data"></section>
+          </div>
+        </section>
+
+        <section id="map-panel" class="tab-panel" role="tabpanel" aria-labelledby="tab-map" hidden>
+          <section class="strategy-browser" aria-labelledby="strategy-browser-title">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Recorded SGR v2 reasoning</p>
+                <h2 id="strategy-browser-title">Strategies in this run</h2>
+              </div>
+              <p>Each card is one exact strategy. Hypotheses were considered, not selected branches.</p>
+            </div>
+            <div id="strategy-episodes" class="strategy-episodes" aria-label="Strategy episodes"></div>
+          </section>
+
+          <div class="section-heading map-heading">
+            <div>
+              <p id="map-episode-label" class="eyebrow">Selected strategy</p>
+              <h2 id="map-episode-title">Decision graph</h2>
+            </div>
+            <p id="map-episode-summary">Select a strategy above.</p>
+          </div>
+          <div class="map-toolbar" aria-label="Decision map controls">
+            <button id="map-zoom-out" class="button button-quiet button-small" type="button" aria-label="Zoom out">−</button>
+            <span id="map-zoom-label" class="map-zoom-label" aria-live="polite">100%</span>
+            <button id="map-zoom-in" class="button button-quiet button-small" type="button" aria-label="Zoom in">+</button>
+            <button id="map-fit" class="button button-quiet button-small" type="button">Fit all</button>
+            <button id="map-center" class="button button-quiet button-small" type="button">Center selected</button>
+            <button id="map-expand-cadence" class="button button-quiet button-small" type="button">Expand cadence</button>
+            <span id="map-match-label" class="map-match-label"></span>
+            <span class="map-help">Wheel to zoom · drag to pan · click a decision</span>
+          </div>
+          <div class="decision-map-layout">
+            <div id="decision-map-canvas" class="decision-map-canvas">
+              <svg
+                id="decision-map-svg"
+                role="group"
+                aria-label="Interactive map of saved decisions"
+                tabindex="0"
+              ></svg>
+              <div class="map-minimap-wrap" aria-hidden="true">
+                <svg id="decision-map-minimap"></svg>
+              </div>
+            </div>
+            <aside id="decision-map-detail" class="decision-map-detail" aria-live="polite"></aside>
+          </div>
+        </section>
+
+        <section id="charts-panel" class="tab-panel" role="tabpanel" aria-labelledby="tab-charts" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Diagnostic views</p>
+              <h2>Signals in saved data</h2>
+            </div>
+            <p>No imputation or carry-forward. Sparse simulator measurements remain points.</p>
+          </div>
+          <div id="charts-grid" class="charts-grid"></div>
+          <section id="timing-summary" class="timing-summary" aria-labelledby="timing-summary-title"></section>
+        </section>
+
+        <section id="experiment-panel" class="tab-panel" role="tabpanel" aria-labelledby="tab-experiment" hidden>
+          <div id="experiment-content" class="experiment-grid"></div>
+        </section>
+      </section>
+    </main>
+
+    <footer>
+      <span>Read-only · no network · no persistence</span>
+      <span id="keyboard-help">Keys: ↑/↓ or j/k · Home/End · / search</span>
+    </footer>
+  </body>
+</html>

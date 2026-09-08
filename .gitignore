@@ -4,6 +4,8 @@
 **/*.py[cod]
 **/.pytest_cache/
 **/.ruff_cache/
+**/.mypy_cache/
+**/.python-version
 .DS_Store
 **/.local/
 **/.idea/
