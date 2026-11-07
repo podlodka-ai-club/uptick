@@ -1,0 +1,6 @@
+interface:
+  display_name: "Подлодка"
+  short_description: "Поиск по обсуждениям и докладам клуба Podlodka"
+  default_prompt: "Используй $podlodka: найди, что обсуждали в подлодке по моей теме, проверь исходные сообщения и дай выводы со ссылками."
+policy:
+  allow_implicit_invocation: true
